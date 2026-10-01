@@ -68,15 +68,18 @@ export interface BodyEntry {
   bia?: BiaData;
 }
 
-/** Marche sur tapis : pas de la journée (ou d'une session) et inclinaison. */
+/**
+ * Marche sur tapis : vitesse + durée + inclinaison (saisie principale),
+ * ou nombre de pas pour ceux qui l'ont.
+ */
 export interface CardioEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  steps: number;
   /** Inclinaison du tapis en %. */
   inclinePct: number;
-  durationMin?: number;
   speedKmh?: number;
+  durationMin?: number;
+  steps?: number;
 }
 
 export interface Exercise {

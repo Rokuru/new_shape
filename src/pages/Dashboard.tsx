@@ -22,6 +22,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
+  const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
   const nextDay = program?.days[nextDayIndex % program.days.length];
 
   return (
@@ -93,8 +94,8 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         {cardio.length > 0 && (
           <Tile
             label="Tapis aujourd’hui"
-            value={`${fmtNum(dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0].steps, 0)} pas`}
-            sub={`moy. 7 j : ${fmtNum(dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 7).reduce((s, d) => s + d.steps, 0) / 7, 0)} pas/j`}
+            value={`${cardioToday.kcal} kcal`}
+            sub={cardioToday.minutes ? `${cardioToday.minutes} min · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
           />
         )}
         <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
