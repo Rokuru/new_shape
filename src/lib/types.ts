@@ -68,6 +68,17 @@ export interface BodyEntry {
   bia?: BiaData;
 }
 
+/** Marche sur tapis : pas de la journée (ou d'une session) et inclinaison. */
+export interface CardioEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  steps: number;
+  /** Inclinaison du tapis en %. */
+  inclinePct: number;
+  durationMin?: number;
+  speedKmh?: number;
+}
+
 export interface Exercise {
   id: string;
   name: string;

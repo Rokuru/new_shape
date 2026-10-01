@@ -62,6 +62,7 @@ export function mergeData(local: SyncedData, remote: SyncedData, localIsNewer: b
     deleted: [...deleted],
     body: [...bodyByDate.values()].sort((a, b) => a.date.localeCompare(b.date)),
     workouts: unionById(newer.workouts, older.workouts, deleted).sort((a, b) => a.date.localeCompare(b.date)),
+    cardio: unionById(newer.cardio ?? [], older.cardio ?? [], deleted).sort((a, b) => a.date.localeCompare(b.date)),
     customPrograms: unionById(newer.customPrograms, older.customPrograms, deleted),
   };
 }

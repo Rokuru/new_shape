@@ -18,6 +18,7 @@ const base: SyncedData = {
   deleted: [],
   friends: [],
   share: { enabled: false, body: false },
+  cardio: [],
 };
 
 describe('fusion de deux appareils', () => {
