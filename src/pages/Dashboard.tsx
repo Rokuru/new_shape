@@ -5,6 +5,7 @@ import { bodyweightAt, currentComposition, initialComposition, setE1rm, nutritio
 import { allPrograms, useStore } from '../lib/store';
 import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
+import { activityAverage } from '../lib/energy';
 import { ChartTooltip, Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -18,7 +19,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const trend = weightTrend(body).slice(-60);
   const weekStart = startOfWeek(new Date()).getTime();
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
-  const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust) : undefined;
+  const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay) : undefined;
 
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];

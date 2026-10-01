@@ -178,8 +178,8 @@ export default function CardioCard() {
         <p className="small secondary">
           Au tapis : distance = vitesse × durée. Avec ta montre : distance = pas × longueur de pas estimée d’après ta taille. Calories nettes (au-delà du repos) avec l’équation de marche de l’ACSM, qui tient compte de l’inclinaison : marcher à 10 %
           multiplie la dépense par près de 3 par rapport au plat. Au tapis, les pas sont estimés ; avec les pas seuls, l’app suppose une cadence de 110 pas/min
-          si tu ne donnes pas la durée. Ces calories font partie de ton activité quotidienne : si tu marches beaucoup chaque jour,
-          choisis un niveau d’activité plus élevé dans ton profil plutôt que de les « manger » en plus.
+          si tu ne donnes pas la durée. Ces calories sont ajoutées automatiquement à ta cible de l’onglet Nutrition, en moyenne
+          sur 14 jours : pas besoin de les « manger » en plus.
         </p>
       </details>
     </div>

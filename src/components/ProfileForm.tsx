@@ -62,7 +62,7 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
           </select>
         </label>
         <label className="field">
-          Activité hors salle
+          Activité quotidienne (hors sport)
           <select value={profile.activity} onChange={(e) => onChange({ activity: e.target.value as ActivityLevel })}>
             {Object.entries(ACTIVITY_LABELS).map(([k, v]) => (
               <option key={k} value={k}>
