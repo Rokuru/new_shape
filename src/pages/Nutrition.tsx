@@ -1,6 +1,7 @@
 import type { Tab } from '../App';
 import { adaptiveAdjustment, ACTIVITY_LABELS, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
+import { activityAverage } from '../lib/energy';
 import { Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 const ADVICE: Record<string, string[]> = {
@@ -27,12 +28,13 @@ const ADVICE: Record<string, string[]> = {
 };
 
 export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
-  const { profile, body, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
+  const { profile, body, workouts, cardio, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
   const latest = body.at(-1);
   if (!latest) return <Empty>Ajoute une pesée dans l’onglet Corps pour calculer tes besoins.</Empty>;
 
   const comp = currentComposition(body, profile)!;
-  const t = nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust);
+  const act = activityAverage({ workouts, cardio, profile }, comp.weightKg);
+  const t = nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, act.perDay);
   const rate = weeklyRate(body);
   // Après un changement, on attend 14 jours et on n'évalue que les pesées postérieures,
   // sinon l'ancienne tendance est comptée deux fois et les suggestions oscillent.
@@ -111,7 +113,22 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
                 <td className="num">{fmtNum(t.bmr, 0)} kcal</td>
               </tr>
               <tr>
-                <td>× activité ({ACTIVITY_LABELS[profile.activity].split(' (')[0].toLowerCase()})</td>
+                <td>× quotidien ({ACTIVITY_LABELS[profile.activity].split(' (')[0].toLowerCase()})</td>
+                <td className="num">{fmtNum(t.tdee - act.perDay, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td>
+                  + sport, moyenne / jour
+                  <div className="small muted">
+                    {act.source === 'plan'
+                      ? `d’après ton plan (${profile.daysPerWeek} × ${profile.sessionMinutes} min / sem.)`
+                      : `musculation ${act.training} + marche ${act.walking} kcal, ${act.days} derniers jours`}
+                  </div>
+                </td>
+                <td className="num">+{fmtNum(act.perDay, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td>= Maintenance</td>
                 <td className="num">{fmtNum(t.tdee, 0)} kcal</td>
               </tr>
               <tr>

@@ -126,11 +126,11 @@ export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
 };
 
 export const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  sedentary: 'Sédentaire (bureau, < 5 000 pas)',
-  light: 'Légèrement actif (5–8 000 pas)',
-  moderate: 'Actif (8–12 000 pas)',
-  active: 'Très actif (> 12 000 pas ou travail physique)',
-  very_active: 'Extrêmement actif (athlète, travail très physique)',
+  sedentary: 'Sédentaire (bureau, peu de déplacements)',
+  light: 'Légèrement actif (bureau + déplacements à pied)',
+  moderate: 'Actif (debout une bonne partie de la journée)',
+  active: 'Très actif (travail physique)',
+  very_active: 'Extrêmement actif (travail très physique, port de charges)',
 };
 
 /** Rythme de variation visé en % du poids de corps par semaine. */
@@ -159,7 +159,11 @@ export interface NutritionTargets {
   targetRateKg: number;
 }
 
-export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct?: number, kcalAdjust = 0): NutritionTargets {
+/**
+ * @param activityKcal dépense quotidienne moyenne due au sport (séances + marche enregistrée),
+ *   ajoutée à la dépense de base : le niveau d'activité du profil ne décrit que le quotidien hors sport.
+ */
+export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct?: number, kcalAdjust = 0, activityKcal = 0): NutritionTargets {
   const w = latest.weightKg;
   const age = ageFrom(profile.birthYear);
   let bmr: number;
@@ -171,7 +175,7 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
     bmr = 10 * w + 6.25 * profile.heightCm - 5 * age + (profile.sex === 'male' ? 5 : -161);
     method = 'Mifflin-St Jeor';
   }
-  const tdee = bmr * ACTIVITY_FACTORS[profile.activity];
+  const tdee = bmr * ACTIVITY_FACTORS[profile.activity] + activityKcal;
   const targetRateKg = (GOAL_RATE[profile.goal] / 100) * w;
   // ~7 700 kcal par kg de tissu ; on plafonne le déficit à 25 % du TDEE.
   const delta = Math.max((targetRateKg * 7700) / 7, -0.25 * tdee);
