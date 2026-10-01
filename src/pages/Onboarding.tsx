@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AccountCard from '../components/AccountCard';
 import ProfileForm from '../components/ProfileForm';
 import { generateProgram } from '../lib/generator';
 import { today, uid, useStore } from '../lib/store';
@@ -40,8 +41,14 @@ export default function Onboarding() {
       <h1>Construisons ton plan</h1>
       <p className="secondary">
         Quelques infos pour générer un programme adapté (split, volume, exercices), calculer tes besoins nutritionnels et suivre ta composition
-        corporelle. Tout reste stocké sur ton appareil.
+        corporelle. Tes données restent sur ton appareil, ou dans ton compte GitHub si tu te connectes.
       </p>
+      <details className="card">
+        <summary>Déjà utilisateur ? Retrouve tes données avec GitHub</summary>
+        <div style={{ marginTop: 12 }}>
+          <AccountCard compact />
+        </div>
+      </details>
       <div className="card">
         <h2>Profil</h2>
         <ProfileForm profile={profile} onChange={setProfile} />

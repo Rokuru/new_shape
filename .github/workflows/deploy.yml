@@ -24,6 +24,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # Variables du dépôt (Settings → Secrets and variables → Actions → Variables) ; facultatives.
+          VITE_GITHUB_CLIENT_ID: ${{ vars.OAUTH_CLIENT_ID }}
+          VITE_AUTH_PROXY_URL: ${{ vars.AUTH_PROXY_URL }}
       - name: Publier dist/ sur la branche gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:

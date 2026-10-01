@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './components/ui';
 import { useStore } from './lib/store';
+import { useAuth } from './lib/sync';
 import Dashboard from './pages/Dashboard';
 import WorkoutPage from './pages/Workout';
 import ProgramsPage from './pages/Programs';
@@ -29,6 +30,8 @@ const readTab = (): Tab => {
 export default function App() {
   const onboarded = useStore((s) => s.onboarded);
   const hasActive = useStore((s) => !!s.activeWorkout);
+  const user = useAuth((s) => (s.token ? s.user : undefined));
+  const syncError = useAuth((s) => s.status === 'error');
   const [tab, setTab] = useState<Tab>(readTab);
 
   useEffect(() => {
@@ -53,7 +56,12 @@ export default function App() {
             New<span>Shape</span>
           </div>
           <button className="btn ghost sm" onClick={() => go('profile')} aria-label="Profil et réglages">
-            <Icon name="user" size={18} /> Profil
+            {user ? (
+              <img src={user.avatarUrl} alt="" width={20} height={20} style={{ borderRadius: '50%', outline: syncError ? '2px solid var(--critical)' : undefined }} />
+            ) : (
+              <Icon name="user" size={18} />
+            )}{' '}
+            Profil
           </button>
         </header>
         <main>

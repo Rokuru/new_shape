@@ -34,6 +34,8 @@ interface State {
   kcalAdjust: number;
   /** Date du dernier changement d'ajustement (YYYY-MM-DD). */
   kcalAdjustedAt?: string;
+  /** Identifiants supprimés (mesures, séances, programmes), pour que la synchro ne les ressuscite pas. */
+  deleted: string[];
 
   setProfile: (p: Partial<Profile>) => void;
   completeOnboarding: () => void;
@@ -49,6 +51,7 @@ interface State {
   deleteWorkout: (id: string) => void;
   setKcalAdjust: (n: number) => void;
   importData: (data: unknown) => void;
+  applySynced: (data: SyncedData) => void;
   reset: () => void;
 }
 
@@ -76,6 +79,7 @@ const initial = {
   activeWorkout: undefined as Workout | undefined,
   kcalAdjust: 0,
   kcalAdjustedAt: undefined as string | undefined,
+  deleted: [] as string[],
 };
 
 export const useStore = create<State>()(
@@ -84,11 +88,22 @@ export const useStore = create<State>()(
       ...initial,
       setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
       completeOnboarding: () => set({ onboarded: true }),
-      upsertBody: (e) => set((s) => ({ body: [...s.body.filter((b) => b.id !== e.id && b.date !== e.date), e].sort((a, b) => a.date.localeCompare(b.date)) })),
-      deleteBody: (id) => set((s) => ({ body: s.body.filter((b) => b.id !== id) })),
+      upsertBody: (e) =>
+        set((s) => {
+          const replaced = s.body.filter((b) => b.id !== e.id && b.date === e.date).map((b) => b.id);
+          return {
+            body: [...s.body.filter((b) => b.id !== e.id && b.date !== e.date), e].sort((a, b) => a.date.localeCompare(b.date)),
+            deleted: replaced.length ? [...s.deleted, ...replaced] : s.deleted,
+          };
+        }),
+      deleteBody: (id) => set((s) => ({ body: s.body.filter((b) => b.id !== id), deleted: [...s.deleted, id] })),
       saveCustomProgram: (p) => set((s) => ({ customPrograms: [p, ...s.customPrograms.filter((c) => c.id !== p.id)] })),
       deleteCustomProgram: (id) =>
-        set((s) => ({ customPrograms: s.customPrograms.filter((c) => c.id !== id), activeProgramId: s.activeProgramId === id ? undefined : s.activeProgramId })),
+        set((s) => ({
+          customPrograms: s.customPrograms.filter((c) => c.id !== id),
+          activeProgramId: s.activeProgramId === id ? undefined : s.activeProgramId,
+          deleted: [...s.deleted, id],
+        })),
       activateProgram: (id) => set({ activeProgramId: id, nextDayIndex: 0 }),
       startWorkout: (program, dayIndex) => {
         const { workouts } = get();
@@ -124,7 +139,7 @@ export const useStore = create<State>()(
         });
       },
       cancelWorkout: () => set({ activeWorkout: undefined }),
-      deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id) })),
+      deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id), deleted: [...s.deleted, id] })),
       setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),
       importData: (data) => {
         if (!data || typeof data !== 'object') throw new Error('Fichier invalide');
@@ -141,15 +156,24 @@ export const useStore = create<State>()(
           nextDayIndex: d.nextDayIndex ?? 0,
           kcalAdjust: d.kcalAdjust ?? 0,
           kcalAdjustedAt: d.kcalAdjustedAt,
+          deleted: Array.isArray(d.deleted) ? d.deleted : [],
         });
       },
+      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile } }),
       reset: () => set({ ...initial }),
     }),
     { name: 'new-shape-v1', version: 1 },
   ),
 );
 
+/** Données synchronisées entre appareils (tout sauf la séance en cours). */
+export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted'] as const;
+export type SyncedData = Pick<State, (typeof SYNCED_KEYS)[number]>;
+
+export function pickSynced(s: SyncedData): SyncedData {
+  return Object.fromEntries(SYNCED_KEYS.map((k) => [k, s[k]])) as SyncedData;
+}
+
 export function exportData(): string {
-  const { onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust, kcalAdjustedAt } = useStore.getState();
-  return JSON.stringify({ app: 'new-shape', exportedAt: new Date().toISOString(), onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust, kcalAdjustedAt }, null, 2);
+  return JSON.stringify({ app: 'new-shape', exportedAt: new Date().toISOString(), ...pickSynced(useStore.getState()) }, null, 2);
 }

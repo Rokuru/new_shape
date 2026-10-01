@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Tab } from '../App';
+import AccountCard from '../components/AccountCard';
 import ProfileForm from '../components/ProfileForm';
+import { logout, useAuth } from '../lib/sync';
 import { exportData, useStore } from '../lib/store';
 import { Segmented } from '../components/ui';
 
@@ -21,6 +23,7 @@ export function applyTheme(t: Theme) {
 
 export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
   const { profile, setProfile, importData, reset } = useStore();
+  const connected = useAuth((s) => Boolean(s.token));
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [msg, setMsg] = useState('');
 
@@ -55,6 +58,7 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
   return (
     <div>
       <h1>Profil</h1>
+      <AccountCard />
       <div className="card">
         <ProfileForm profile={profile} onChange={setProfile} />
         <p className="small muted" style={{ marginTop: 12 }}>
@@ -81,7 +85,7 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
 
       <div className="card">
         <h2>Données</h2>
-        <p className="small secondary">Tes données sont stockées uniquement dans ce navigateur. Exporte-les régulièrement pour les sauvegarder ou les transférer sur un autre appareil.</p>
+        <p className="small secondary">{connected ? 'Tes données sont synchronisées avec GitHub. Tu peux aussi les exporter en fichier.' : 'Sans compte GitHub, tes données restent uniquement dans ce navigateur : exporte-les régulièrement ou connecte-toi ci-dessus.'}</p>
         <div className="row">
           <button className="btn" onClick={download}>
             Exporter (.json)
@@ -93,7 +97,10 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
           <button
             className="btn danger ghost"
             onClick={() => {
-              if (confirm('Effacer toutes les données ? Cette action est irréversible.')) reset();
+              if (connected) {
+                // Effacer en étant connecté viderait aussi le gist : on se déconnecte d'abord.
+                if (confirm('Effacer les données de cet appareil et se déconnecter ? Elles restent sauvegardées sur GitHub.')) logout(true);
+              } else if (confirm('Effacer toutes les données ? Cette action est irréversible.')) reset();
             }}
           >
             Tout effacer

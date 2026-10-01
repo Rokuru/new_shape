@@ -13,7 +13,8 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
 - **Composition corporelle** : poids lissé (moyenne mobile exponentielle), % de gras (saisi ou estimé par la méthode US Navy), masses grasse/maigre, FFMI, mensurations, graphiques.
 - **Nutrition** : métabolisme (Mifflin-St Jeor ou Katch-McArdle), dépense totale, calories et macros selon l’objectif, **ajustement adaptatif** à partir de la tendance réelle du poids.
 - **Progrès** : 1RM estimé par exercice, records, volume hebdomadaire par muscle, tonnage.
-- Données stockées localement (navigateur), export / import JSON, thème clair / sombre.
+- **Connexion GitHub** : les données sont sauvegardées dans un gist secret du compte de l’utilisateur et synchronisées entre ses appareils (fusion automatique si deux appareils ont été modifiés en parallèle, hors-ligne compris).
+- Sans connexion : données dans le navigateur, export / import JSON. Thème clair / sombre.
 
 ## Démarrer
 
@@ -32,14 +33,41 @@ Le workflow `.github/workflows/deploy.yml` teste, construit et publie `dist/` su
 Une seule fois : **Settings → Pages → Source : Deploy from a branch → `gh-pages` / `(root)`**.
 L’app est alors servie sur `https://rokuru.github.io/new_shape/`.
 
+## Connexion GitHub
+
+Les données de chaque utilisateur sont stockées dans **un gist secret de son propre compte** (`new-shape-data.json`) : pas de base de données à héberger.
+
+Deux façons de se connecter :
+
+1. **Jeton d’accès** (fonctionne sans configuration) : l’utilisateur crée un jeton avec la seule permission `gist` et le colle dans Profil → Compte GitHub.
+2. **Bouton « Se connecter avec GitHub »** (OAuth) : à activer une fois, car l’échange du code OAuth exige un secret qui ne peut pas être dans une page statique.
+   1. Créer une OAuth App : GitHub → Settings → Developer settings → OAuth Apps → *New OAuth App*
+      - Homepage URL et **Authorization callback URL** : `https://rokuru.github.io/new_shape/`
+      - Noter le *Client ID* et générer un *Client secret*.
+   2. Déployer le proxy `auth-worker/` (Cloudflare Workers, offre gratuite) :
+      ```bash
+      cd auth-worker
+      # renseigner GITHUB_CLIENT_ID dans wrangler.toml
+      npx wrangler deploy
+      npx wrangler secret put GITHUB_CLIENT_SECRET
+      ```
+   3. Dans le dépôt : Settings → Secrets and variables → Actions → **Variables** :
+      - `OAUTH_CLIENT_ID` = le Client ID
+      - `AUTH_PROXY_URL` = l’URL du worker (ex. `https://new-shape-auth.<compte>.workers.dev`)
+   4. Relancer le workflow de déploiement : le bouton apparaît dans l’app.
+
+Le jeton reste dans le navigateur de l’utilisateur (localStorage) et ne sert qu’à lire / écrire son gist.
+
 ## Structure
 
 ```
 src/
   data/        exercices et programmes de référence
-  lib/         calculs (calc), progression, générateur, store (zustand + localStorage)
+  lib/         calculs (calc), progression, générateur, store (zustand + localStorage),
+               github (API, OAuth), sync (synchronisation et fusion)
   pages/       Accueil, Séance, Programmes, Corps, Nutrition, Progrès, Profil
   components/  UI partagée, formulaire de profil, barres de volume
+auth-worker/   proxy OAuth (Cloudflare Worker)
 ```
 
 Les valeurs calculées sont des estimations ; elles ne remplacent pas l’avis d’un professionnel de santé.
