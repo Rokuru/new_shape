@@ -31,7 +31,8 @@ Le dossier `dist/` est statique : il peut être hébergé sur GitHub Pages, Netl
 
 ## Déploiement GitHub Pages
 
-Le workflow `.github/workflows/deploy.yml` teste, construit et publie `dist/` sur la branche `gh-pages` à chaque push.
+- **`main` = production** : chaque push sur `main` (en pratique, chaque PR fusionnée) teste, construit et publie `dist/` sur la branche `gh-pages`.
+- **Évolutions par pull request** : travailler sur une branche, ouvrir une PR vers `main` ; le workflow `.github/workflows/deploy.yml` y lance les tests et le build, sans déployer.
 Une seule fois : **Settings → Pages → Source : Deploy from a branch → `gh-pages` / `(root)`**.
 L’app est alors servie sur `https://rokuru.github.io/new_shape/`.
 
