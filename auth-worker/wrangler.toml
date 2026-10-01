@@ -2,8 +2,5 @@ name = "new-shape-auth"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
-[vars]
-# Client ID de l'application OAuth GitHub (public)
-GITHUB_CLIENT_ID = "Ov23liyZi5eEiCRHEjXB"
-# Origine autorisée à appeler le proxy (sans chemin ni slash final)
-ALLOWED_ORIGIN = "https://rokuru.github.io"
+# Le Client ID et l'origine autorisée sont écrits dans worker.js (valeurs publiques).
+# Seul le secret est à définir : npx wrangler secret put GITHUB_CLIENT_SECRET

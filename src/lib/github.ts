@@ -105,6 +105,18 @@ export async function updateGist(token: string, id: string, content: string): Pr
 
 // ---------- OAuth ----------
 
+/** Messages compréhensibles pour les erreurs du proxy ou de GitHub (configuration du Worker). */
+export function explainOAuthError(code: string): string {
+  const c = code.toLowerCase();
+  if (c === 'not found') return 'GitHub ne reconnaît pas le Client ID utilisé par le Worker (Not Found).';
+  if (c.includes('incorrect_client_credentials') || c.includes('client_id and/or client_secret')) return 'secret OAuth incorrect dans le Worker (GITHUB_CLIENT_SECRET).';
+  if (c.includes('redirect_uri')) return 'l’adresse de retour de l’application OAuth GitHub ne correspond pas à celle de l’app.';
+  if (c.includes('bad_verification_code') || c.includes('incorrect or expired')) return 'code de connexion expiré, réessaie.';
+  if (c === 'missing_secret') return 'le secret GITHUB_CLIENT_SECRET n’est pas défini dans le Worker.';
+  if (c === 'origin_not_allowed') return 'le Worker refuse cette adresse (origine non autorisée).';
+  return code;
+}
+
 /** URL de retour : la page de l'app, sans hash ni paramètres. */
 export const redirectUri = () => window.location.origin + window.location.pathname;
 
@@ -155,6 +167,6 @@ export async function consumeOAuthCallback(): Promise<string | undefined> {
     body: JSON.stringify({ code, redirect_uri: redirectUri() }),
   });
   const data = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string };
-  if (!res.ok || !data.access_token) throw new Error(`Connexion GitHub impossible : ${data.error ?? res.status}`);
+  if (!res.ok || !data.access_token) throw new Error(`Connexion GitHub impossible : ${explainOAuthError(data.error ?? String(res.status))}`);
   return data.access_token;
 }

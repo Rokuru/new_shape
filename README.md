@@ -45,8 +45,8 @@ Deux façons de se connecter :
       - Homepage URL et **Authorization callback URL** : `https://rokuru.github.io/new_shape/`
       - Noter le *Client ID* et générer un *Client secret*.
    2. Créer le Worker Cloudflare (offre gratuite) : *Workers & Pages → Create → Hello World*, nom `new-shape-auth`,
-      coller le code de `auth-worker/worker.js`, puis dans *Settings → Variables and Secrets* :
-      `GITHUB_CLIENT_ID` (texte), `ALLOWED_ORIGIN` = `https://rokuru.github.io` (texte), `GITHUB_CLIENT_SECRET` (secret).
+      coller le code de `auth-worker/worker.js` (Client ID et origine y sont écrits), puis dans
+      *Settings → Variables and Secrets* (variables d’exécution, pas « Build ») : `GITHUB_CLIENT_SECRET` (type Secret).
       (Ou en ligne de commande : `cd auth-worker && npx wrangler deploy && npx wrangler secret put GITHUB_CLIENT_SECRET`.)
    3. Renseigner le Client ID et l’URL du Worker dans `.env.production` (valeurs publiques) et pousser.
 

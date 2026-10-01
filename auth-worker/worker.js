@@ -3,15 +3,18 @@
  * Son seul rôle : échanger le `code` renvoyé par GitHub contre un jeton d'accès,
  * car cet échange nécessite le secret de l'application OAuth, qui ne doit jamais être dans le navigateur.
  *
- * Variables : GITHUB_CLIENT_ID, ALLOWED_ORIGIN (ex. https://rokuru.github.io)
- * Secret    : GITHUB_CLIENT_SECRET (wrangler secret put GITHUB_CLIENT_SECRET)
+ * Secret obligatoire : GITHUB_CLIENT_SECRET (dans Settings → Variables and Secrets, type « Secret »).
+ * Le Client ID et l'origine sont publics : ils sont écrits ici, aucune autre variable n'est nécessaire.
  */
+const CLIENT_ID = 'Ov23liyZi5eEiCRHEjXB';
+const ALLOWED_ORIGIN = 'https://rokuru.github.io';
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const allowed = origin === env.ALLOWED_ORIGIN;
+    const allowed = origin === ALLOWED_ORIGIN;
     const cors = {
-      'Access-Control-Allow-Origin': allowed ? origin : env.ALLOWED_ORIGIN,
+      'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       Vary: 'Origin',
@@ -31,11 +34,12 @@ export default {
       return json({ error: 'invalid_json' }, 400);
     }
     if (typeof code !== 'string' || !/^[\w-]{4,100}$/.test(code)) return json({ error: 'invalid_code' }, 400);
+    if (!env.GITHUB_CLIENT_SECRET) return json({ error: 'missing_secret' }, 500);
 
     const res = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'new-shape-auth' },
-      body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: redirectUri }),
+      body: JSON.stringify({ client_id: CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: redirectUri }),
     });
     const data = await res.json().catch(() => ({}));
     if (!data.access_token) return json({ error: data.error_description || data.error || 'exchange_failed' }, 400);
