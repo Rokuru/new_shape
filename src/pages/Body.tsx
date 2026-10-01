@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
+import { biaTrend } from '../lib/bia';
+import BiaPanel, { BiaFields, readBia } from '../components/BiaPanel';
 import { today, uid, useStore } from '../lib/store';
 import type { BodyEntry } from '../lib/types';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented, signed, Tile } from '../components/ui';
 
-type Metric = 'weight' | 'bf' | 'lean' | 'fat' | 'waistCm' | 'armCm' | 'chestCm' | 'thighCm';
+type Metric = 'weight' | 'bf' | 'lean' | 'fat' | 'muscle' | 'water' | 'visceral' | 'waistCm' | 'armCm' | 'chestCm' | 'thighCm';
 
 const METRICS: { value: Metric; label: string; unit: string }[] = [
   { value: 'weight', label: 'Poids', unit: ' kg' },
   { value: 'bf', label: '% gras', unit: ' %' },
   { value: 'fat', label: 'Masse grasse', unit: ' kg' },
   { value: 'lean', label: 'Masse maigre', unit: ' kg' },
+  { value: 'muscle', label: 'Muscle (Tanita)', unit: ' kg' },
+  { value: 'water', label: 'Eau (Tanita)', unit: ' %' },
+  { value: 'visceral', label: 'Viscéral', unit: '' },
   { value: 'waistCm', label: 'Taille', unit: ' cm' },
   { value: 'armCm', label: 'Bras', unit: ' cm' },
   { value: 'chestCm', label: 'Poitrine', unit: ' cm' },
@@ -37,6 +42,21 @@ export default function BodyPage() {
   const [metric, setMetric] = useState<Metric>('weight');
   const [msg, setMsg] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [tanita, setTanitaState] = useState(() => {
+    try {
+      return localStorage.getItem('new-shape-tanita') === '1' || body.some((e) => e.bia);
+    } catch {
+      return body.some((e) => e.bia);
+    }
+  });
+  const setTanita = (v: boolean) => {
+    setTanitaState(v);
+    try {
+      localStorage.setItem('new-shape-tanita', v ? '1' : '0');
+    } catch {
+      /* stockage indisponible */
+    }
+  };
 
   const parsed = (k: string) => {
     const n = Number((form[k] ?? '').replace(',', '.'));
@@ -53,6 +73,11 @@ export default function BodyPage() {
     const entry: BodyEntry = { id: uid(), date, weightKg };
     for (const f of FIELDS) if (f.key !== 'weightKg' && parsed(f.key)) (entry as unknown as Record<string, number>)[f.key] = parsed(f.key)!;
     if (form.note) entry.note = form.note;
+    if (tanita) {
+      const bia = readBia(form);
+      // Le % de gras saisi en mode balance vient de la bio-impédance.
+      if (bia || entry.bodyFatPct !== undefined) entry.bia = bia ?? {};
+    }
     upsertBody(entry);
     setForm({});
     setMsg('Mesure enregistrée ✓');
@@ -60,13 +85,26 @@ export default function BodyPage() {
   };
 
   const trendByDate = new Map(weightTrend(body).map((t) => [t.date, t.trend]));
+  const muscleTrend = biaTrend(body, (e) => e.bia?.muscleKg);
+  const waterTrend = biaTrend(body, (e) => e.bia?.waterPct);
+  const bfBiaTrend = biaTrend(body, (e) => (e.bia ? e.bodyFatPct : undefined));
   const data = body.map((e) => {
     const c = composition(e, profile);
+    const tape = navyBodyFat(profile.sex, profile.heightCm, e.waistCm, e.neckCm, e.hipCm);
     return {
       date: e.date,
       weight: e.weightKg,
       trend: trendByDate.get(e.date),
       bf: c.bodyFatPct,
+      // Deux méthodes, deux courbes : bio-impédance (balance) et mètre ruban (US Navy) ou saisie manuelle.
+      bfBia: e.bia ? e.bodyFatPct : undefined,
+      bfBiaTrend: bfBiaTrend.get(e.date),
+      bfOther: e.bia ? tape : (e.bodyFatPct ?? tape),
+      muscle: e.bia?.muscleKg,
+      muscleTrend: muscleTrend.get(e.date),
+      water: e.bia?.waterPct,
+      waterTrend: waterTrend.get(e.date),
+      visceral: e.bia?.visceral,
       fat: c.fatKg,
       lean: c.leanKg,
       waistCm: e.waistCm,
@@ -76,7 +114,16 @@ export default function BodyPage() {
     };
   });
   const m = METRICS.find((x) => x.value === metric)!;
-  const series = data.filter((d) => d[metric] !== undefined);
+  const series = data.filter((d) => d[metric] !== undefined || (metric === 'bf' && (d.bfBia !== undefined || d.bfOther !== undefined)));
+  const hasBiaBf = data.some((d) => d.bfBia !== undefined);
+  const hasOtherBf = data.some((d) => d.bfOther !== undefined);
+  // Mesures bruitées : points bruts + tendance lissée.
+  const noisy: Partial<Record<Metric, { raw: string; trend: string; name: string }>> = {
+    weight: { raw: 'weight', trend: 'trend', name: 'Pesées' },
+    muscle: { raw: 'muscle', trend: 'muscleTrend', name: 'Mesures' },
+    water: { raw: 'water', trend: 'waterTrend', name: 'Mesures' },
+  };
+  const nz = noisy[metric];
   const comp = currentComposition(body, profile);
   const rate = weeklyRate(body);
   const hidden = new Set(profile.sex === 'male' ? ['hipCm'] : []);
@@ -94,7 +141,7 @@ export default function BodyPage() {
           <Tile
             label="Masse grasse"
             value={comp.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
-            sub={comp.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg · mesuré le ${fmtDate(comp.bfDate!)}` : 'Mesure taille + cou'}
+            sub={comp.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg · ${body.find((e) => e.date === comp.bfDate)?.bia ? 'balance' : 'mesuré'} le ${fmtDate(comp.bfDate!)}` : 'Mesure taille + cou'}
           />
           <Tile label="Masse maigre" value={comp.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'} sub="muscles, os, eau, organes" />
           <Tile label="FFMI" value={fmtNum(comp.ffmi)} sub={ffmiLabel(comp.ffmi, profile.sex)} />
@@ -110,7 +157,7 @@ export default function BodyPage() {
           </label>
           {FIELDS.filter((f) => !hidden.has(f.key)).map((f) => (
             <label className="field" key={f.key} title={f.hint}>
-              {f.label}
+              {f.key === 'bodyFatPct' && tanita ? '% masse grasse (balance)' : f.label}
               <input
                 inputMode="decimal"
                 value={form[f.key] ?? ''}
@@ -120,6 +167,11 @@ export default function BodyPage() {
             </label>
           ))}
         </div>
+        <label className="small" style={{ marginTop: 12, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <input type="checkbox" checked={tanita} onChange={(e) => setTanita(e.target.checked)} style={{ width: 20, height: 20, minHeight: 0, flexShrink: 0 }} />
+          <span>Mesure avec ma balance Tanita (BC-545N ou autre impédancemètre)</span>
+        </label>
+        {tanita && <BiaFields form={form} setForm={setForm} last={[...body].reverse().find((e) => e.bia)} />}
         {previewBf !== undefined && !parsed('bodyFatPct') && <p className="small secondary" style={{ marginTop: 8 }}>Estimation US Navy : <b>{fmtNum(previewBf)} %</b> de masse grasse.</p>}
         <div className="row" style={{ marginTop: 12 }}>
           <button className="btn primary" onClick={save}>
@@ -138,6 +190,8 @@ export default function BodyPage() {
         </details>
       </div>
 
+      <BiaPanel body={body} profile={profile} />
+
       <div className="card">
         <div className="card-header">
           <h2>Évolution</h2>
@@ -147,11 +201,19 @@ export default function BodyPage() {
         </div>
         {series.length >= 2 ? (
           <>
-            {metric === 'weight' && (
+            {nz && (
               <Legend
                 items={[
-                  { label: 'Pesées', color: 'var(--muted)' },
+                  { label: nz.name, color: 'var(--muted)' },
                   { label: 'Tendance lissée', color: 'var(--series-1)' },
+                ]}
+              />
+            )}
+            {metric === 'bf' && hasBiaBf && (
+              <Legend
+                items={[
+                  { label: 'Balance (tendance)', color: 'var(--series-1)' },
+                  ...(hasOtherBf ? [{ label: 'Mètre ruban / saisie', color: 'var(--series-2)' }] : []),
                 ]}
               />
             )}
@@ -162,10 +224,16 @@ export default function BodyPage() {
                   <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
                   <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 1)} />
                   <Tooltip content={<ChartTooltip unit={m.unit} />} />
-                  {metric === 'weight' ? (
+                  {nz ? (
                     <>
-                      <Scatter dataKey="weight" name="Pesée" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />
-                      <Line type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Scatter dataKey={nz.raw} name="Mesure" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />
+                      <Line type="monotone" dataKey={nz.trend} name="Tendance" stroke="var(--series-1)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+                    </>
+                  ) : metric === 'bf' && hasBiaBf ? (
+                    <>
+                      <Scatter dataKey="bfBia" name="Balance" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />
+                      <Line type="monotone" dataKey="bfBiaTrend" name="Balance (tendance)" stroke="var(--series-1)" strokeWidth={2} dot={false} connectNulls />
+                      {hasOtherBf && <Line type="monotone" dataKey="bfOther" name="Mètre ruban" stroke="var(--series-2)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-2)' }} connectNulls />}
                     </>
                   ) : (
                     <Line type="monotone" dataKey={metric} name={m.label} stroke="var(--series-1)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-1)' }} activeDot={{ r: 5 }} connectNulls />
@@ -191,7 +259,7 @@ export default function BodyPage() {
                   <th>Date</th>
                   <th className="num">Poids</th>
                   <th className="num">% MG</th>
-                  <th className="num">Maigre</th>
+                  <th className="num">{body.some((e) => e.bia?.muscleKg) ? 'Muscle' : 'Maigre'}</th>
                   <th className="num">Taille</th>
                   <th className="num">Bras</th>
                   <th />
@@ -203,7 +271,7 @@ export default function BodyPage() {
                     <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(d.date, { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
                     <td className="num">{fmtNum(d.weight)}</td>
                     <td className="num">{fmtNum(d.bf)}</td>
-                    <td className="num">{fmtNum(d.lean)}</td>
+                    <td className="num">{fmtNum(body.some((e) => e.bia?.muscleKg) ? d.muscle : d.lean)}</td>
                     <td className="num">{fmtNum(d.waistCm)}</td>
                     <td className="num">{fmtNum(d.armCm)}</td>
                     <td className="num">

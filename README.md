@@ -11,6 +11,7 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
 - **Bibliothèque de programmes** inspirés de méthodes connues : StrongLifts/Starting Strength 5×5, GZCLP, 5/3/1 BBB (Wendler), PHUL, PPL r/Fitness, Upper/Lower « science-based » (Nippard, Israetel, Schoenfeld), full body haltères.
 - **Carnet de séance** : charges et reps pré-remplies, suggestion de surcharge progressive (progression linéaire ou double progression, décharge après 3 échecs), RIR, minuteur de repos, exercices libres, notes.
 - **Composition corporelle** : poids lissé (moyenne mobile exponentielle), % de gras (saisi ou estimé par la méthode US Navy), masses grasse/maigre, FFMI, mensurations, graphiques.
+- **Balance à bio-impédance (Tanita BC-545N…)** : saisie des valeurs dans l’ordre d’affichage de la balance (% gras, eau, muscle, masse physique, os, calories, âge métabolique, graisse viscérale) et de l’analyse segmentaire (bras, jambes, tronc), avec tendances lissées, interprétation et détection d’asymétries.
 - **Nutrition** : métabolisme (Mifflin-St Jeor ou Katch-McArdle), dépense totale, calories et macros selon l’objectif, **ajustement adaptatif** à partir de la tendance réelle du poids.
 - **Progrès** : 1RM estimé par exercice, records, volume hebdomadaire par muscle, tonnage.
 - **Connexion GitHub** : les données sont sauvegardées dans un gist secret du compte de l’utilisateur et synchronisées entre ses appareils (fusion automatique si deux appareils ont été modifiés en parallèle, hors-ligne compris).

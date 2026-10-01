@@ -3,6 +3,7 @@ import type { Tab } from '../App';
 import { getExercise } from '../data/exercises';
 import { bodyweightAt, currentComposition, initialComposition, setE1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
 import { allPrograms, useStore } from '../lib/store';
+import { biaTrend } from '../lib/bia';
 import { ChartTooltip, Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -19,6 +20,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust) : undefined;
 
   const prs = recentPRs(workouts, body).slice(0, 4);
+  const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
   const nextDay = program?.days[nextDayIndex % program.days.length];
 
   return (
@@ -80,6 +82,13 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           value={comp?.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'}
           sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && sinceStart ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}` : undefined}
         />
+        {muscle.length > 0 && (
+          <Tile
+            label="Muscle (balance)"
+            value={`${fmtNum(muscle.at(-1))} kg`}
+            sub={muscle.length > 1 ? `tendance ${signed(muscle.at(-1)! - muscle[0])} kg depuis le début` : 'Tanita'}
+          />
+        )}
         <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
         {nut && <Tile label="Calories / jour" value={fmtNum(nut.calories, 0)} sub={`${nut.proteinG} g de protéines`} />}
       </div>

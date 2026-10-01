@@ -31,6 +31,26 @@ export interface Profile {
   priorities: Muscle[];
 }
 
+/** Segments mesurés par une balance impédancemètre segmentaire (Tanita BC-545N…). */
+export type Segment = 'armR' | 'armL' | 'legR' | 'legL' | 'trunk';
+
+/** Valeurs affichées par une balance à bio-impédance (BIA) type Tanita BC-545N. */
+export interface BiaData {
+  waterPct?: number;
+  /** Masse musculaire (kg) : inclut l'eau des muscles, différente de la masse maigre. */
+  muscleKg?: number;
+  /** Indice de masse physique Tanita, 1 à 9. */
+  physique?: number;
+  boneKg?: number;
+  /** Calories affichées par la balance (BMR ou apport conseillé selon le modèle). */
+  kcal?: number;
+  metabolicAge?: number;
+  /** Indice de graisse viscérale Tanita, 1 à 59. */
+  visceral?: number;
+  segFat?: Partial<Record<Segment, number>>;
+  segMuscle?: Partial<Record<Segment, number>>;
+}
+
 export interface BodyEntry {
   id: string;
   date: string; // YYYY-MM-DD
@@ -44,6 +64,8 @@ export interface BodyEntry {
   armCm?: number;
   thighCm?: number;
   note?: string;
+  /** Mesure par bio-impédance ; si présent, bodyFatPct vient de la balance. */
+  bia?: BiaData;
 }
 
 export interface Exercise {

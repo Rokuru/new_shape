@@ -599,3 +599,14 @@ details summary {
     padding: 24px 24px 100px;
   }
 }
+
+/* Saisie segmentaire Tanita */
+.seg-grid {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 1fr 1fr;
+  gap: 6px 8px;
+  align-items: center;
+}
+.seg-grid .field {
+  gap: 0;
+}
