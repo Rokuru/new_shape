@@ -25,6 +25,14 @@ describe('marche sur tapis', () => {
     expect(s.stepsEstimated).toBe(false);
   });
 
+  it('montre : pas + durée donnent la vitesse réelle', () => {
+    const s = cardioStats({ id: 'w', date: '2026-10-01', steps: 9000, durationMin: 80, inclinePct: 0 }, profile, 80);
+    expect(s.distanceKm).toBeCloseTo(6.72, 1);
+    expect(s.speedKmh).toBeCloseTo(5, 0);
+    expect(s.elevationM).toBe(0);
+    expect(s.kcal).toBeGreaterThan(200);
+  });
+
   it('exige vitesse + durée, ou des pas', () => {
     expect(isValidCardio({ speedKmh: 5 })).toBe(false);
     expect(isValidCardio({ speedKmh: 5, durationMin: 30 })).toBe(true);
