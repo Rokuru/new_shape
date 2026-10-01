@@ -93,9 +93,9 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         )}
         {cardio.length > 0 && (
           <Tile
-            label="Tapis aujourd’hui"
+            label="Marche aujourd’hui"
             value={`${cardioToday.kcal} kcal`}
-            sub={cardioToday.minutes ? `${cardioToday.minutes} min · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
+            sub={cardioToday.minutes ? `${fmtNum(cardioToday.steps, 0)} pas · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
           />
         )}
         <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
