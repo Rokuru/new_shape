@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { createGist, fetchUser, findGist, GitHubError, readGist, updateGist, type GitHubUser } from './github';
 import { pickSynced, SYNCED_KEYS, useStore, type SyncedData } from './store';
+import { publishShare, usePublish } from './share';
 
 /** Contenu du gist : les données + la date de la dernière modification. */
 export interface SyncPayload {
@@ -146,6 +147,16 @@ async function syncOnce() {
       lastSyncAt: new Date().toISOString(),
     });
     if (stillDirty) scheduleSync(1500);
+    // Partage public pour les amis : une erreur ici ne doit pas bloquer la sauvegarde.
+    const { user } = useAuth.getState();
+    if (user && (useStore.getState().share.enabled || usePublish.getState().gistId)) {
+      try {
+        await publishShare(token, useStore.getState(), user);
+        usePublish.setState({ error: undefined });
+      } catch (e) {
+        usePublish.setState({ error: (e as Error).message });
+      }
+    }
   } catch (e) {
     const status = e instanceof GitHubError ? e.status : 0;
     useAuth.setState({ status: 'error', error: status === 0 ? 'Hors connexion : synchronisation reportée.' : (e as Error).message });
@@ -186,6 +197,7 @@ export async function login(token: string) {
 export function logout(clearLocal: boolean) {
   clearTimeout(timer);
   useAuth.setState({ token: undefined, user: undefined, gistId: undefined, syncedAt: undefined, dirtyAt: undefined, status: 'idle', error: undefined, lastSyncAt: undefined });
+  usePublish.setState({ gistId: undefined, lastContent: undefined, error: undefined, publishedAt: undefined });
   if (clearLocal) useStore.getState().reset();
 }
 

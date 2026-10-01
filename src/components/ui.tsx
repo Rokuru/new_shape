@@ -8,6 +8,7 @@ const paths: Record<string, ReactNode> = {
   food: <path d="M7 2v8a2 2 0 0 0 2 2v10M11 2v8M7 6h4M17 2c-2 2-2 6 0 8v12" />,
   chart: <path d="M3 3v18h18M7 15l4-4 3 3 5-6" />,
   user: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" />,
+  users: <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM1 21a8 8 0 0 1 16 0M16 3.1a4 4 0 0 1 0 7.8M23 21a8 8 0 0 0-5-7.4" />,
   check: <path d="M5 12l5 5L20 7" />,
   plus: <path d="M12 5v14M5 12h14" />,
   trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,

@@ -10,8 +10,9 @@ import NutritionPage from './pages/Nutrition';
 import ProgressPage from './pages/Progress';
 import ProfilePage from './pages/Profile';
 import Onboarding from './pages/Onboarding';
+import FriendsPage from './pages/Friends';
 
-export type Tab = 'home' | 'workout' | 'programs' | 'body' | 'nutrition' | 'progress' | 'profile';
+export type Tab = 'home' | 'workout' | 'programs' | 'body' | 'nutrition' | 'progress' | 'profile' | 'friends';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'home', label: 'Accueil', icon: 'home' },
@@ -24,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 const readTab = (): Tab => {
   const h = window.location.hash.slice(1) as Tab;
-  return [...TABS.map((t) => t.id), 'profile'].includes(h) ? h : 'home';
+  return [...TABS.map((t) => t.id), 'profile', 'friends'].includes(h) ? h : 'home';
 };
 
 export default function App() {
@@ -55,6 +56,10 @@ export default function App() {
           <div className="brand">
             New<span>Shape</span>
           </div>
+          <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
+          <button className={`btn sm ${tab === 'friends' ? 'primary' : 'ghost'}`} onClick={() => go('friends')} aria-label="Amis">
+            <Icon name="users" size={18} /> Amis
+          </button>
           <button className="btn ghost sm" onClick={() => go('profile')} aria-label="Profil et réglages">
             {user ? (
               <img src={user.avatarUrl} alt="" width={20} height={20} style={{ borderRadius: '50%', outline: syncError ? '2px solid var(--critical)' : undefined }} />
@@ -63,6 +68,7 @@ export default function App() {
             )}{' '}
             Profil
           </button>
+          </div>
         </header>
         <main>
           {tab === 'home' && <Dashboard go={go} />}
@@ -72,6 +78,7 @@ export default function App() {
           {tab === 'nutrition' && <NutritionPage go={go} />}
           {tab === 'progress' && <ProgressPage />}
           {tab === 'profile' && <ProfilePage go={go} />}
+          {tab === 'friends' && <FriendsPage go={go} />}
         </main>
       </div>
       <nav className="nav" aria-label="Navigation principale">

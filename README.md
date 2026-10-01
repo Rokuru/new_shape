@@ -15,6 +15,7 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
 - **Nutrition** : métabolisme (Mifflin-St Jeor ou Katch-McArdle), dépense totale, calories et macros selon l’objectif, **ajustement adaptatif** à partir de la tendance réelle du poids.
 - **Progrès** : 1RM estimé par exercice, records, volume hebdomadaire par muscle, tonnage.
 - **Connexion GitHub** : les données sont sauvegardées dans un gist secret du compte de l’utilisateur et synchronisées entre ses appareils (fusion automatique si deux appareils ont été modifiés en parallèle, hors-ligne compris).
+- **Amis** : chacun peut activer le partage de ses progrès (gist **public** de son compte, résumé : 1RM estimés, régularité, dernières séances et, au choix, poids et composition). On ajoute un ami par son pseudo GitHub pour comparer les courbes (en kg ou en % de progression), la régularité et l’évolution du poids.
 - Sans connexion : données dans le navigateur, export / import JSON. Thème clair / sombre.
 
 ## Démarrer
@@ -55,14 +56,21 @@ Configuration actuelle : Client ID `Ov23liyZi5eEiCRHEjXB`, Worker `https://new-s
 
 Le jeton reste dans le navigateur de l’utilisateur (localStorage) et ne sert qu’à lire / écrire son gist.
 
+### Amis
+
+- Les données complètes restent dans le gist **secret** `new-shape-data.json`.
+- Le partage (désactivé par défaut) publie un résumé dans un gist **public** `new-shape-share.json` ; le désactiver supprime ce gist.
+- Trouver un ami = lire les gists publics de son compte (`/users/{pseudo}/gists`). La liste d’amis est synchronisée avec le reste des données ; « Ami mutuel » s’affiche quand l’ami vous suit aussi.
+
 ## Structure
 
 ```
 src/
   data/        exercices et programmes de référence
   lib/         calculs (calc), progression, générateur, store (zustand + localStorage),
-               github (API, OAuth), sync (synchronisation et fusion)
-  pages/       Accueil, Séance, Programmes, Corps, Nutrition, Progrès, Profil
+               github (API, OAuth), sync (synchronisation et fusion),
+               share (partage public et amis), bia (balance Tanita)
+  pages/       Accueil, Séance, Programmes, Corps, Nutrition, Progrès, Amis, Profil
   components/  UI partagée, formulaire de profil, barres de volume
 auth-worker/   proxy OAuth (Cloudflare Worker)
 ```

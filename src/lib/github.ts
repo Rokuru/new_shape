@@ -68,39 +68,77 @@ interface Gist {
 }
 
 /** Cherche le gist de l'app parmi les gists de l'utilisateur. */
-export async function findGist(token: string): Promise<string | undefined> {
+/** Cherche un gist de l'app (par nom de fichier) parmi les gists de l'utilisateur connecté. */
+export async function findGist(token: string, file = GIST_FILE): Promise<string | undefined> {
   for (let page = 1; page <= 10; page++) {
     const gists = await api<Gist[]>(token, `/gists?per_page=100&page=${page}`);
-    const found = gists.find((g) => g.files[GIST_FILE]);
+    const found = gists.find((g) => g.files[file]);
     if (found) return found.id;
     if (gists.length < 100) return undefined;
   }
   return undefined;
 }
 
-export async function readGist(token: string, id: string): Promise<string | undefined> {
+export async function readGist(token: string, id: string, file = GIST_FILE): Promise<string | undefined> {
   const gist = await api<Gist>(token, `/gists/${id}`);
-  const file = gist.files[GIST_FILE];
-  if (!file) return undefined;
+  const f = gist.files[file];
+  if (!f) return undefined;
   // Au-delà de 1 Mo, l'API tronque le contenu : on lit alors le fichier brut.
-  if (file.truncated && file.raw_url) {
-    const res = await fetch(file.raw_url);
+  if (f.truncated && f.raw_url) {
+    const res = await fetch(f.raw_url);
     if (!res.ok) throw new GitHubError(`Lecture du gist impossible (${res.status})`, res.status);
     return res.text();
   }
-  return file.content;
+  return f.content;
 }
 
-export async function createGist(token: string, content: string): Promise<string> {
+export async function createGist(token: string, content: string, opts: { file?: string; description?: string; isPublic?: boolean } = {}): Promise<string> {
+  const file = opts.file ?? GIST_FILE;
   const gist = await api<Gist>(token, '/gists', {
     method: 'POST',
-    body: JSON.stringify({ description: GIST_DESCRIPTION, public: false, files: { [GIST_FILE]: { content } } }),
+    body: JSON.stringify({ description: opts.description ?? GIST_DESCRIPTION, public: opts.isPublic ?? false, files: { [file]: { content } } }),
   });
   return gist.id;
 }
 
-export async function updateGist(token: string, id: string, content: string): Promise<void> {
-  await api<Gist>(token, `/gists/${id}`, { method: 'PATCH', body: JSON.stringify({ files: { [GIST_FILE]: { content } } }) });
+export async function updateGist(token: string, id: string, content: string, file = GIST_FILE): Promise<void> {
+  await api<Gist>(token, `/gists/${id}`, { method: 'PATCH', body: JSON.stringify({ files: { [file]: { content } } }) });
+}
+
+export async function deleteGist(token: string, id: string): Promise<void> {
+  const res = await fetch(`${API}/gists/${id}`, { method: 'DELETE', headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}` } });
+  if (!res.ok && res.status !== 404) throw new GitHubError(`Suppression du partage impossible (${res.status})`, res.status);
+}
+
+// ---------- Profils publics (amis) ----------
+
+export const SHARE_FILE = 'new-shape-share.json';
+const LOGIN_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+export const isValidLogin = (login: string) => LOGIN_RE.test(login);
+
+/** Avatar uniquement depuis le domaine GitHub (données d'un tiers). */
+const safeAvatar = (url: unknown) => (typeof url === 'string' && url.startsWith('https://avatars.githubusercontent.com/') ? url : '');
+
+export async function fetchPublicUser(token: string, login: string): Promise<GitHubUser | undefined> {
+  if (!isValidLogin(login)) return undefined;
+  try {
+    const u = await api<{ login: string; name: string | null; avatar_url: string }>(token, `/users/${encodeURIComponent(login)}`);
+    return { login: u.login, name: u.name, avatarUrl: safeAvatar(u.avatar_url) };
+  } catch (e) {
+    if (e instanceof GitHubError && e.status === 404) return undefined;
+    throw e;
+  }
+}
+
+/** Contenu du partage public New Shape d'un utilisateur, s'il l'a activé. */
+export async function fetchPublicShare(token: string, login: string): Promise<string | undefined> {
+  for (let page = 1; page <= 3; page++) {
+    const gists = await api<Gist[]>(token, `/users/${encodeURIComponent(login)}/gists?per_page=100&page=${page}`);
+    const found = gists.find((g) => g.files[SHARE_FILE]);
+    if (found) return readGist(token, found.id, SHARE_FILE);
+    if (gists.length < 100) return undefined;
+  }
+  return undefined;
 }
 
 // ---------- OAuth ----------

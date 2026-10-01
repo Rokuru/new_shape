@@ -16,6 +16,8 @@ const base: SyncedData = {
   kcalAdjust: 0,
   kcalAdjustedAt: undefined,
   deleted: [],
+  friends: [],
+  share: { enabled: false, body: false },
 };
 
 describe('fusion de deux appareils', () => {

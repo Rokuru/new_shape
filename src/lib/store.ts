@@ -21,6 +21,12 @@ export const DEFAULT_PROFILE: Profile = {
   priorities: [],
 };
 
+export interface ShareSettings {
+  enabled: boolean;
+  /** Inclure poids et composition corporelle. */
+  body: boolean;
+}
+
 interface State {
   onboarded: boolean;
   profile: Profile;
@@ -36,6 +42,10 @@ interface State {
   kcalAdjustedAt?: string;
   /** Identifiants supprimés (mesures, séances, programmes), pour que la synchro ne les ressuscite pas. */
   deleted: string[];
+  /** Pseudos GitHub suivis. */
+  friends: string[];
+  /** Partage public de mes progrès (gist public), pour que mes amis me trouvent. */
+  share: ShareSettings;
 
   setProfile: (p: Partial<Profile>) => void;
   completeOnboarding: () => void;
@@ -52,6 +62,9 @@ interface State {
   setKcalAdjust: (n: number) => void;
   importData: (data: unknown) => void;
   applySynced: (data: SyncedData) => void;
+  addFriend: (login: string) => void;
+  removeFriend: (login: string) => void;
+  setShare: (s: Partial<ShareSettings>) => void;
   reset: () => void;
 }
 
@@ -80,6 +93,8 @@ const initial = {
   kcalAdjust: 0,
   kcalAdjustedAt: undefined as string | undefined,
   deleted: [] as string[],
+  friends: [] as string[],
+  share: { enabled: false, body: false } as ShareSettings,
 };
 
 export const useStore = create<State>()(
@@ -157,9 +172,14 @@ export const useStore = create<State>()(
           kcalAdjust: d.kcalAdjust ?? 0,
           kcalAdjustedAt: d.kcalAdjustedAt,
           deleted: Array.isArray(d.deleted) ? d.deleted : [],
+          friends: Array.isArray(d.friends) ? d.friends : [],
+          share: d.share ?? initial.share,
         });
       },
-      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile } }),
+      addFriend: (login) => set((s) => (s.friends.some((f) => f.toLowerCase() === login.toLowerCase()) ? {} : { friends: [...s.friends, login] })),
+      removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
+      setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
+      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile }, friends: d.friends ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
       reset: () => set({ ...initial }),
     }),
     { name: 'new-shape-v1', version: 1 },
@@ -167,7 +187,7 @@ export const useStore = create<State>()(
 );
 
 /** Données synchronisées entre appareils (tout sauf la séance en cours). */
-export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted'] as const;
+export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share'] as const;
 export type SyncedData = Pick<State, (typeof SYNCED_KEYS)[number]>;
 
 export function pickSynced(s: SyncedData): SyncedData {
