@@ -44,17 +44,13 @@ Deux façons de se connecter :
    1. Créer une OAuth App : GitHub → Settings → Developer settings → OAuth Apps → *New OAuth App*
       - Homepage URL et **Authorization callback URL** : `https://rokuru.github.io/new_shape/`
       - Noter le *Client ID* et générer un *Client secret*.
-   2. Déployer le proxy `auth-worker/` (Cloudflare Workers, offre gratuite) :
-      ```bash
-      cd auth-worker
-      # renseigner GITHUB_CLIENT_ID dans wrangler.toml
-      npx wrangler deploy
-      npx wrangler secret put GITHUB_CLIENT_SECRET
-      ```
-   3. Dans le dépôt : Settings → Secrets and variables → Actions → **Variables** :
-      - `OAUTH_CLIENT_ID` = le Client ID
-      - `AUTH_PROXY_URL` = l’URL du worker (ex. `https://new-shape-auth.<compte>.workers.dev`)
-   4. Relancer le workflow de déploiement : le bouton apparaît dans l’app.
+   2. Créer le Worker Cloudflare (offre gratuite) : *Workers & Pages → Create → Hello World*, nom `new-shape-auth`,
+      coller le code de `auth-worker/worker.js`, puis dans *Settings → Variables and Secrets* :
+      `GITHUB_CLIENT_ID` (texte), `ALLOWED_ORIGIN` = `https://rokuru.github.io` (texte), `GITHUB_CLIENT_SECRET` (secret).
+      (Ou en ligne de commande : `cd auth-worker && npx wrangler deploy && npx wrangler secret put GITHUB_CLIENT_SECRET`.)
+   3. Renseigner le Client ID et l’URL du Worker dans `.env.production` (valeurs publiques) et pousser.
+
+Configuration actuelle : Client ID `Ov23liyZi5eEiCRHEjXB`, Worker `https://new-shape-auth.vincent-pedussel.workers.dev`.
 
 Le jeton reste dans le navigateur de l’utilisateur (localStorage) et ne sert qu’à lire / écrire son gist.
 

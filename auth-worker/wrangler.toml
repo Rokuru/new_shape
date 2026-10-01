@@ -4,6 +4,6 @@ compatibility_date = "2026-09-01"
 
 [vars]
 # Client ID de l'application OAuth GitHub (public)
-GITHUB_CLIENT_ID = "A_REMPLACER"
+GITHUB_CLIENT_ID = "Ov23liyZi5eEiCRHEjXB"
 # Origine autorisée à appeler le proxy (sans chemin ni slash final)
 ALLOWED_ORIGIN = "https://rokuru.github.io"
