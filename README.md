@@ -26,6 +26,12 @@ npm run build     # build de production dans dist/
 
 Le dossier `dist/` est statique : il peut être hébergé sur GitHub Pages, Netlify, Vercel… Sur mobile, « Ajouter à l’écran d’accueil » pour l’utiliser comme une app.
 
+## Déploiement GitHub Pages
+
+Le workflow `.github/workflows/deploy.yml` teste, construit et publie `dist/` sur la branche `gh-pages` à chaque push.
+Une seule fois : **Settings → Pages → Source : Deploy from a branch → `gh-pages` / `(root)`**.
+L’app est alors servie sur `https://rokuru.github.io/new_shape/`.
+
 ## Structure
 
 ```
