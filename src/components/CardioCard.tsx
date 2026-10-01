@@ -123,7 +123,7 @@ export default function CardioCard() {
         <summary className="small">Comment c’est calculé</summary>
         <p className="small secondary">
           Distance = pas × longueur de pas estimée d’après ta taille (ou vitesse × durée si tu les saisis). Calories nettes (au-delà du repos) avec l’équation de
-          marche de l’ACSM, qui tient compte de l’inclinaison : marcher à 10 % double presque la dépense par rapport au plat. Sans durée ni vitesse, l’app suppose une
+          marche de l’ACSM, qui tient compte de l’inclinaison : marcher à 10 % multiplie la dépense par près de 3 par rapport au plat. Sans durée ni vitesse, l’app suppose une
           cadence de 110 pas/min. Ces calories font partie de ton activité quotidienne : si tu marches beaucoup chaque jour, choisis un niveau d’activité plus élevé
           dans ton profil plutôt que de les « manger » en plus.
         </p>
