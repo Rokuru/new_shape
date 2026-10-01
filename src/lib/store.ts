@@ -32,6 +32,8 @@ interface State {
   activeWorkout?: Workout;
   /** Ajustement calorique manuel ou adaptatif (kcal/jour). */
   kcalAdjust: number;
+  /** Date du dernier changement d'ajustement (YYYY-MM-DD). */
+  kcalAdjustedAt?: string;
 
   setProfile: (p: Partial<Profile>) => void;
   completeOnboarding: () => void;
@@ -73,6 +75,7 @@ const initial = {
   nextDayIndex: 0,
   activeWorkout: undefined as Workout | undefined,
   kcalAdjust: 0,
+  kcalAdjustedAt: undefined as string | undefined,
 };
 
 export const useStore = create<State>()(
@@ -122,7 +125,7 @@ export const useStore = create<State>()(
       },
       cancelWorkout: () => set({ activeWorkout: undefined }),
       deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id) })),
-      setKcalAdjust: (n) => set({ kcalAdjust: n }),
+      setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),
       importData: (data) => {
         if (!data || typeof data !== 'object') throw new Error('Fichier invalide');
         const d = data as Partial<State>;
@@ -137,6 +140,7 @@ export const useStore = create<State>()(
           activeProgramId: d.activeProgramId,
           nextDayIndex: d.nextDayIndex ?? 0,
           kcalAdjust: d.kcalAdjust ?? 0,
+          kcalAdjustedAt: d.kcalAdjustedAt,
         });
       },
       reset: () => set({ ...initial }),
@@ -146,6 +150,6 @@ export const useStore = create<State>()(
 );
 
 export function exportData(): string {
-  const { onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust } = useStore.getState();
-  return JSON.stringify({ app: 'new-shape', exportedAt: new Date().toISOString(), onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust }, null, 2);
+  const { onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust, kcalAdjustedAt } = useStore.getState();
+  return JSON.stringify({ app: 'new-shape', exportedAt: new Date().toISOString(), onboarded, profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, kcalAdjust, kcalAdjustedAt }, null, 2);
 }

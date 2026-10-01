@@ -1,7 +1,7 @@
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Tab } from '../App';
 import { getExercise } from '../data/exercises';
-import { composition, e1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
+import { bodyweightAt, currentComposition, initialComposition, setE1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
 import { allPrograms, useStore } from '../lib/store';
 import { ChartTooltip, Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
@@ -9,16 +9,16 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const { profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
   const latest = body.at(-1);
-  const first = body[0];
-  const comp = latest ? composition(latest, profile) : undefined;
-  const firstComp = first ? composition(first, profile) : undefined;
+  const comp = currentComposition(body, profile);
+  const firstComp = initialComposition(body, profile);
+  const sinceStart = firstComp && comp && firstComp.bfDate !== comp.bfDate;
   const rate = weeklyRate(body);
   const trend = weightTrend(body).slice(-60);
   const weekStart = startOfWeek(new Date()).getTime();
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
-  const nut = latest ? nutritionTargets(profile, latest, comp?.bodyFatPct, kcalAdjust) : undefined;
+  const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust) : undefined;
 
-  const prs = recentPRs(workouts).slice(0, 4);
+  const prs = recentPRs(workouts, body).slice(0, 4);
   const nextDay = program?.days[nextDayIndex % program.days.length];
 
   return (
@@ -73,12 +73,12 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         <Tile
           label="Masse grasse"
           value={comp?.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
-          sub={comp?.fatKg !== undefined && firstComp?.fatKg !== undefined && first !== latest ? `${signed(comp.fatKg - firstComp.fatKg)} kg depuis le début` : comp?.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Ajoute tes mensurations'}
+          sub={comp?.fatKg !== undefined && firstComp?.fatKg !== undefined && sinceStart ? `${signed(comp.fatKg - firstComp.fatKg)} kg depuis le début` : comp?.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Ajoute tes mensurations'}
         />
         <Tile
           label="Masse maigre"
           value={comp?.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'}
-          sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && first !== latest ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}` : undefined}
+          sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && sinceStart ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}` : undefined}
         />
         <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
         {nut && <Tile label="Calories / jour" value={fmtNum(nut.calories, 0)} sub={`${nut.proteinG} g de protéines`} />}
@@ -121,7 +121,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
                 <div>
                   <div>{getExercise(p.exerciseId).name}</div>
                   <div className="small muted">
-                    {fmtDate(p.date)} · {fmtNum(p.weight)} kg × {p.reps}
+                    {fmtDate(p.date)} · {getExercise(p.exerciseId).bodyweight ? `PDC${p.weight ? ` + ${fmtNum(p.weight)} kg` : ''}` : `${fmtNum(p.weight)} kg`} × {p.reps}
                   </div>
                 </div>
                 <span className="status ok">1RM est. {fmtNum(p.e1rm)} kg</span>
@@ -137,14 +137,14 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 }
 
 /** Séances où un exercice a battu son meilleur 1RM estimé précédent. */
-function recentPRs(workouts: ReturnType<typeof useStore.getState>['workouts']) {
+function recentPRs(workouts: ReturnType<typeof useStore.getState>['workouts'], body: ReturnType<typeof useStore.getState>['body']) {
   const best = new Map<string, number>();
   const prs: { exerciseId: string; date: string; weight: number; reps: number; e1rm: number }[] = [];
   for (const w of [...workouts].sort((a, b) => a.date.localeCompare(b.date))) {
     for (const ex of w.exercises) {
       let top = { v: 0, weight: 0, reps: 0 };
       for (const s of ex.sets) {
-        const v = s.done ? e1rm(s.weight, s.reps) : 0;
+        const v = s.done ? setE1rm(ex.exerciseId, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
         if (v > top.v) top = { v, weight: s.weight, reps: s.reps };
       }
       const prev = best.get(ex.exerciseId);

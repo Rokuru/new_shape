@@ -61,6 +61,44 @@ export function weightTrend(entries: BodyEntry[], alpha = 0.25): { date: string;
 
 const DAY = 86_400_000;
 
+export interface CurrentComposition extends Composition {
+  weightKg: number;
+  /** Date de la mesure du % de gras utilisée. */
+  bfDate?: string;
+}
+
+/**
+ * Composition à une date : poids de tendance (lissé) + dernier % de gras connu,
+ * valable 60 jours (on ne mesure pas sa taille à chaque pesée).
+ */
+function compositionAt(sorted: BodyEntry[], index: number, profile: Profile): CurrentComposition {
+  const trend = weightTrend(sorted.slice(0, index + 1)).at(-1)!.trend;
+  const limit = new Date(sorted[index].date).getTime() - 60 * DAY;
+  let bf: number | undefined;
+  let bfDate: string | undefined;
+  for (let i = index; i >= 0 && new Date(sorted[i].date).getTime() >= limit; i--) {
+    bf = bodyFatOf(sorted[i], profile);
+    if (bf !== undefined) {
+      bfDate = sorted[i].date;
+      break;
+    }
+  }
+  const c = composition({ id: 'current', date: sorted[index].date, weightKg: trend, bodyFatPct: bf }, profile);
+  return { ...c, weightKg: round(trend), bfDate };
+}
+
+export function currentComposition(body: BodyEntry[], profile: Profile): CurrentComposition | undefined {
+  const sorted = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  return sorted.length ? compositionAt(sorted, sorted.length - 1, profile) : undefined;
+}
+
+/** Composition au premier relevé comportant un % de gras (point de référence « depuis le début »). */
+export function initialComposition(body: BodyEntry[], profile: Profile): CurrentComposition | undefined {
+  const sorted = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  const i = sorted.findIndex((e) => bodyFatOf(e, profile) !== undefined);
+  return i < 0 ? undefined : compositionAt(sorted, i, profile);
+}
+
 /** Variation de poids hebdomadaire (kg/semaine) via régression linéaire sur les `days` derniers jours. */
 export function weeklyRate(entries: BodyEntry[], days = 21, now = new Date()): number | undefined {
   const cutoff = now.getTime() - days * DAY;
@@ -149,14 +187,16 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
 
 /**
  * Ajustement adaptatif des calories : compare la tendance réelle au rythme visé.
- * 1 kg/semaine d'écart ≈ 1 100 kcal/jour. Pas de 50 kcal, plafonné à ±300.
+ * 1 kg/semaine d'écart ≈ 1 100 kcal/jour, mais une pente sur 2–4 semaines de pesées reste bruitée
+ * (± 0,2 kg/sem.) : on ignore les écarts < 0,2 kg/sem. et on ne corrige que la moitié de l'écart,
+ * par paliers de 50 kcal, plafonnés à ± 250 kcal.
  */
 export function adaptiveAdjustment(actualRateKg: number | undefined, targetRateKg: number): number {
   if (actualRateKg === undefined) return 0;
   const diff = targetRateKg - actualRateKg;
-  if (Math.abs(diff) < 0.1) return 0;
-  const kcal = diff * 1100;
-  return Math.max(-300, Math.min(300, Math.round(kcal / 50) * 50));
+  if (Math.abs(diff) < 0.2) return 0;
+  const kcal = diff * 1100 * 0.5;
+  return Math.max(-250, Math.min(250, Math.round(kcal / 50) * 50));
 }
 
 // ---------- Performance ----------
@@ -168,11 +208,28 @@ export function e1rm(weight: number, reps: number): number {
   return round(weight * (1 + Math.min(reps, 12) / 30));
 }
 
-export function bestE1rm(w: Workout, exerciseId: string): number {
+/** Poids de corps le plus proche avant une date (ou la 1re pesée). */
+export function bodyweightAt(body: BodyEntry[], iso: string): number | undefined {
+  const day = iso.slice(0, 10);
+  let bw: number | undefined;
+  for (const e of [...body].sort((a, b) => a.date.localeCompare(b.date))) {
+    if (e.date > day && bw !== undefined) break;
+    bw = e.weightKg;
+  }
+  return bw;
+}
+
+/** 1RM estimé d'une série ; pour les tractions/dips, la charge inclut le poids du corps. */
+export function setE1rm(exerciseId: string, weight: number, reps: number, bodyweightKg?: number): number {
+  const load = getExercise(exerciseId).bodyweight ? weight + (bodyweightKg ?? 0) : weight;
+  return e1rm(load, reps);
+}
+
+export function bestE1rm(w: Workout, exerciseId: string, bodyweightKg?: number): number {
   let best = 0;
   for (const ex of w.exercises) {
     if (ex.exerciseId !== exerciseId) continue;
-    for (const s of ex.sets) if (s.done) best = Math.max(best, e1rm(s.weight, s.reps));
+    for (const s of ex.sets) if (s.done) best = Math.max(best, setE1rm(exerciseId, s.weight, s.reps, bodyweightKg));
   }
   return best;
 }

@@ -21,7 +21,7 @@ const roundTo = (n: number, step: number) => (step > 0 ? Math.round(n / step) * 
  * Surcharge progressive :
  * - Fourchette fixe (ex. 5×5) : progression linéaire, +incrément si tout est réussi, -10 % après 3 échecs.
  * - Fourchette de reps (ex. 8–12) : double progression, on ajoute des reps puis de la charge
- *   quand toutes les séries atteignent le haut de la fourchette.
+ *   quand la 1re série atteint le haut de la fourchette et les autres en sont à 1 rep.
  */
 export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[]): Suggestion | undefined {
   const last = past[0]?.ex;
@@ -51,7 +51,8 @@ export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[])
     return { weight: topWeight, reps: target.repMax, reason: 'Même charge, valide toutes les séries.' };
   }
 
-  if (allSets && minReps >= target.repMax) {
+  // Critère réaliste : 1re série au haut de la fourchette, les suivantes à 1 rep près (la fatigue s'accumule).
+  if (allSets && working[0].reps >= target.repMax && minReps >= target.repMax - 1) {
     return { weight: topWeight + inc, reps: target.repMin, reason: `Haut de fourchette atteint : +${inc} kg et repars à ${target.repMin} reps.` };
   }
   return {

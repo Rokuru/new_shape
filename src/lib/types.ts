@@ -53,6 +53,8 @@ export interface Exercise {
   secondary: Muscle[];
   equipment: Equipment[];
   kind: 'compound' | 'isolation';
+  /** La charge saisie est un lest : la charge réelle inclut le poids du corps (tractions, dips). */
+  bodyweight?: boolean;
   /** Incrément de charge conseillé en kg. */
   increment: number;
   tips?: string;

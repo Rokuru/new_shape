@@ -1,7 +1,7 @@
 import type { Tab } from '../App';
-import { adaptiveAdjustment, ACTIVITY_LABELS, composition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
+import { adaptiveAdjustment, ACTIVITY_LABELS, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
-import { Empty, fmtNum, signed, Tile } from '../components/ui';
+import { Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 const ADVICE: Record<string, string[]> = {
   cut: [
@@ -27,14 +27,20 @@ const ADVICE: Record<string, string[]> = {
 };
 
 export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
-  const { profile, body, kcalAdjust, setKcalAdjust } = useStore();
+  const { profile, body, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
   const latest = body.at(-1);
   if (!latest) return <Empty>Ajoute une pesée dans l’onglet Corps pour calculer tes besoins.</Empty>;
 
-  const comp = composition(latest, profile);
-  const t = nutritionTargets(profile, latest, comp.bodyFatPct, kcalAdjust);
+  const comp = currentComposition(body, profile)!;
+  const t = nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust);
   const rate = weeklyRate(body);
-  const proposal = adaptiveAdjustment(rate, t.targetRateKg);
+  // Après un changement, on attend 14 jours et on n'évalue que les pesées postérieures,
+  // sinon l'ancienne tendance est comptée deux fois et les suggestions oscillent.
+  const daysSince = kcalAdjustedAt ? Math.floor((Date.now() - new Date(kcalAdjustedAt + 'T00:00:00').getTime()) / 86_400_000) : Infinity;
+  const locked = daysSince < 14;
+  const evalRate = locked ? undefined : weeklyRate(body, Math.min(28, daysSince));
+  const proposal = adaptiveAdjustment(evalRate, t.targetRateKg);
+  const nextEval = kcalAdjustedAt ? new Date(new Date(kcalAdjustedAt + 'T12:00:00').getTime() + 14 * 86_400_000).toISOString().slice(0, 10) : undefined;
   const perMeal = Math.round(latest.weightKg * 0.4);
   const fiber = Math.round((t.calories / 1000) * 14);
   const water = fmtNum((latest.weightKg * 35) / 1000 + 0.5);
@@ -52,14 +58,19 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
       <div className="card">
         <h2>Ajustement adaptatif</h2>
         <p className="small secondary">
-          Les formules donnent un point de départ ; ta balance donne la vérité. Comme MacroFactor ou la méthode de Lyle McDonald, on compare ta tendance réelle (régression sur 3
-          semaines) à l’objectif, puis on corrige par paliers de 50 kcal.
+          Les formules donnent un point de départ ; ta balance donne la vérité. Comme MacroFactor ou la méthode de Lyle McDonald, on compare ta tendance réelle (régression sur 2 à 4
+          semaines) à l’objectif, puis on corrige la moitié de l’écart, au plus toutes les 2 semaines.
         </p>
         <div className="tiles" style={{ marginBottom: 8 }}>
           <Tile label="Objectif / semaine" value={`${signed(t.targetRateKg, 2)} kg`} sub={GOAL_LABELS[profile.goal]} />
           <Tile label="Tendance / semaine" value={rate !== undefined ? `${signed(rate, 2)} kg` : '—'} sub={rate === undefined ? 'min. 3 pesées sur 1 semaine' : '3 dernières semaines'} />
         </div>
-        {rate === undefined ? (
+        {locked ? (
+          <div className="callout">
+            Ajustement modifié le {fmtDate(kcalAdjustedAt!, { day: 'numeric', month: 'long' })}. Laisse 2 semaines à la balance pour refléter le changement : prochaine
+            évaluation le <b>{fmtDate(nextEval!, { day: 'numeric', month: 'long' })}</b>.
+          </div>
+        ) : evalRate === undefined ? (
           <div className="callout">Continue à te peser régulièrement : une suggestion apparaîtra dès qu’il y aura assez de données.</div>
         ) : proposal === 0 ? (
           <div className="callout">Tu es dans la cible 👌 Ne change rien.</div>

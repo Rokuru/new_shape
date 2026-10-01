@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
-import { composition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
+import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
 import { today, uid, useStore } from '../lib/store';
 import type { BodyEntry } from '../lib/types';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented, signed, Tile } from '../components/ui';
@@ -77,7 +77,7 @@ export default function BodyPage() {
   });
   const m = METRICS.find((x) => x.value === metric)!;
   const series = data.filter((d) => d[metric] !== undefined);
-  const comp = last ? composition(last, profile) : undefined;
+  const comp = currentComposition(body, profile);
   const rate = weeklyRate(body);
   const hidden = new Set(profile.sex === 'male' ? ['hipCm'] : []);
 
@@ -86,8 +86,16 @@ export default function BodyPage() {
       <h1>Composition corporelle</h1>
       {comp && last && (
         <div className="tiles">
-          <Tile label="Poids" value={`${fmtNum(last.weightKg)} kg`} sub={rate !== undefined ? `${signed(rate, 2)} kg / sem. (${signed((rate / last.weightKg) * 100, 2)} %)` : `IMC ${fmtNum(comp.bmi)}`} />
-          <Tile label="Masse grasse" value={comp.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'} sub={comp.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Mesure taille + cou'} />
+          <Tile
+            label="Poids (tendance)"
+            value={`${fmtNum(comp.weightKg)} kg`}
+            sub={`${rate !== undefined ? `${signed(rate, 2)} kg / sem. · ` : ''}pesée : ${fmtNum(last.weightKg)} kg`}
+          />
+          <Tile
+            label="Masse grasse"
+            value={comp.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
+            sub={comp.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg · mesuré le ${fmtDate(comp.bfDate!)}` : 'Mesure taille + cou'}
+          />
           <Tile label="Masse maigre" value={comp.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'} sub="muscles, os, eau, organes" />
           <Tile label="FFMI" value={fmtNum(comp.ffmi)} sub={ffmiLabel(comp.ffmi, profile.sex)} />
         </div>

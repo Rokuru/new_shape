@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adaptiveAdjustment, composition, e1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
+import { adaptiveAdjustment, composition, currentComposition, e1rm, setE1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
 import { generateProgram } from './generator';
 import { suggest } from './progression';
 import { DEFAULT_PROFILE } from './store';
@@ -23,6 +23,27 @@ describe('composition corporelle', () => {
     expect(c.fatKg).toBe(12);
     expect(c.leanKg).toBe(68);
     expect(c.ffmi).toBeCloseTo(21, 0);
+  });
+});
+
+describe('composition actuelle', () => {
+  it('reprend le dernier % de gras mesuré quand la dernière pesée n’a pas de mensurations', () => {
+    const body: BodyEntry[] = [
+      { id: 'a', date: '2026-01-01', weightKg: 80, bodyFatPct: 20 },
+      { id: 'b', date: '2026-01-05', weightKg: 79 },
+    ];
+    const c = currentComposition(body, profile)!;
+    expect(c.bodyFatPct).toBe(20);
+    expect(c.bfDate).toBe('2026-01-01');
+    expect(c.leanKg).toBeGreaterThan(62);
+  });
+
+  it('ignore une mesure de plus de 60 jours', () => {
+    const body: BodyEntry[] = [
+      { id: 'a', date: '2026-01-01', weightKg: 80, bodyFatPct: 20 },
+      { id: 'b', date: '2026-04-01', weightKg: 76 },
+    ];
+    expect(currentComposition(body, profile)!.bodyFatPct).toBeUndefined();
   });
 });
 
@@ -57,9 +78,10 @@ describe('nutrition', () => {
   });
 
   it('propose un ajustement quand la tendance dévie', () => {
-    expect(adaptiveAdjustment(-0.1, -0.6)).toBe(-300);
-    expect(adaptiveAdjustment(-0.55, -0.6)).toBe(0);
-    expect(adaptiveAdjustment(-1.2, -0.6)).toBe(300);
+    expect(adaptiveAdjustment(-0.1, -0.6)).toBe(-250);
+    expect(adaptiveAdjustment(-0.3, -0.6)).toBe(-150);
+    expect(adaptiveAdjustment(-0.45, -0.6)).toBe(0);
+    expect(adaptiveAdjustment(-1.2, -0.6)).toBe(250);
     expect(adaptiveAdjustment(undefined, -0.6)).toBe(0);
   });
 });
@@ -68,6 +90,11 @@ describe('performance', () => {
   it('estime le 1RM (Epley)', () => {
     expect(e1rm(100, 1)).toBe(100);
     expect(e1rm(100, 5)).toBeCloseTo(116.7, 1);
+  });
+
+  it('inclut le poids du corps pour les tractions', () => {
+    expect(setE1rm('pullup', 0, 10, 80)).toBeCloseTo(106.7, 1);
+    expect(setE1rm('bench', 80, 1, 80)).toBe(80);
   });
 
   it('compte 1 série par muscle principal et ½ par secondaire', () => {
@@ -85,6 +112,8 @@ describe('surcharge progressive', () => {
   it('double progression : ajoute des reps puis de la charge', () => {
     expect(suggest(dbl, [{ ex: sets(60, [10, 9, 9]) }])).toMatchObject({ weight: 60, reps: 10 });
     expect(suggest(dbl, [{ ex: sets(60, [12, 12, 12]) }])).toMatchObject({ weight: 62.5, reps: 8 });
+    expect(suggest(dbl, [{ ex: sets(60, [12, 12, 11]) }])).toMatchObject({ weight: 62.5 });
+    expect(suggest(dbl, [{ ex: sets(60, [11, 12, 12]) }])).toMatchObject({ weight: 60 });
   });
 
   it('progression linéaire et décharge après 3 échecs', () => {
@@ -106,6 +135,16 @@ describe('générateur de programme', () => {
         for (const e of d.exercises) expect(getExercise(e.exerciseId).equipment).toContain(equipment);
         expect(new Set(d.exercises.map((e) => e.exerciseId)).size).toBe(d.exercises.length);
       }
+    }
+  });
+
+  it('chaque séance du haut contient élévations latérales et travail des bras', () => {
+    for (const minutes of [45, 60, 75, 90]) {
+      const p = generateProgram({ ...profile, daysPerWeek: 4, level: 'intermediate', sessionMinutes: minutes });
+      const vol = volumeFromSets(p.days.flatMap((d) => d.exercises));
+      for (const d of p.days.filter((d) => d.name.startsWith('Haut'))) expect(d.exercises.map((e) => e.exerciseId)).toContain('lateral_raise');
+      for (const m of ['quads', 'chest', 'back', 'hamstrings', 'triceps', 'shoulders'] as const) expect(vol[m]).toBeLessThanOrEqual(22);
+      if (minutes >= 60) expect(vol.biceps).toBeGreaterThanOrEqual(8);
     }
   });
 

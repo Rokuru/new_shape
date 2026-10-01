@@ -40,7 +40,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'bench', name: 'Développé couché', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G], kind: 'compound', increment: 2.5, tips: 'Omoplates serrées, pieds ancrés, barre au niveau du bas des pectoraux.' },
   { id: 'incline_db', name: 'Développé incliné haltères', primary: ['chest'], secondary: ['shoulders', 'triceps'], equipment: [G, D], kind: 'compound', increment: 2 },
   { id: 'db_bench', name: 'Développé couché haltères', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G, D], kind: 'compound', increment: 2 },
-  { id: 'dips', name: 'Dips', primary: ['chest', 'triceps'], secondary: ['shoulders'], equipment: [G, B], kind: 'compound', increment: 2.5 },
+  { id: 'dips', bodyweight: true, name: 'Dips', primary: ['chest', 'triceps'], secondary: ['shoulders'], equipment: [G, B], kind: 'compound', increment: 2.5 },
   { id: 'pushup', name: 'Pompes', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [B, D], kind: 'compound', increment: 0 },
   { id: 'cable_fly', name: 'Écarté poulie', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_fly', name: 'Écarté haltères', primary: ['chest'], secondary: [], equipment: [D], kind: 'isolation', increment: 1 },
@@ -53,7 +53,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'diamond_pushup', name: 'Pompes diamant', primary: ['triceps'], secondary: ['chest'], equipment: [B], kind: 'compound', increment: 0 },
 
   // Tirage
-  { id: 'pullup', name: 'Tractions', primary: ['back'], secondary: ['biceps'], equipment: [G, B], kind: 'compound', increment: 2.5 },
+  { id: 'pullup', bodyweight: true, name: 'Tractions', primary: ['back'], secondary: ['biceps'], equipment: [G, B], kind: 'compound', increment: 2.5 },
   { id: 'lat_pulldown', name: 'Tirage vertical', primary: ['back'], secondary: ['biceps'], equipment: [G], kind: 'compound', increment: 2.5 },
   { id: 'barbell_row', name: 'Rowing barre', primary: ['back'], secondary: ['biceps', 'hamstrings'], equipment: [G], kind: 'compound', increment: 2.5 },
   { id: 'db_row', name: 'Rowing haltère unilatéral', primary: ['back'], secondary: ['biceps'], equipment: [G, D], kind: 'compound', increment: 2 },
@@ -64,7 +64,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'barbell_curl', name: 'Curl barre', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_curl', name: 'Curl haltères incliné', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
   { id: 'hammer_curl', name: 'Curl marteau', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
-  { id: 'chinup', name: 'Tractions supination', primary: ['back', 'biceps'], secondary: [], equipment: [G, B], kind: 'compound', increment: 2.5 },
+  { id: 'chinup', bodyweight: true, name: 'Tractions supination', primary: ['back', 'biceps'], secondary: [], equipment: [G, B], kind: 'compound', increment: 2.5 },
 
   // Gainage
   { id: 'cable_crunch', name: 'Crunch poulie', primary: ['abs'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },

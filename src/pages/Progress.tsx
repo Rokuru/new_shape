@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getExercise } from '../data/exercises';
-import { bestE1rm, e1rm, startOfWeek, tonnage, weeklyVolume } from '../lib/calc';
+import { bestE1rm, bodyweightAt, setE1rm, startOfWeek, tonnage, weeklyVolume } from '../lib/calc';
 import { useStore } from '../lib/store';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Legend } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
 
 export default function ProgressPage() {
-  const { workouts } = useStore();
+  const { workouts, body } = useStore();
   const sorted = useMemo(() => [...workouts].filter((w) => w.finished).sort((a, b) => a.date.localeCompare(b.date)), [workouts]);
 
   const exerciseIds = useMemo(() => {
@@ -16,11 +16,13 @@ export default function ProgressPage() {
     return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
   }, [sorted]);
   const [selected, setSelected] = useState<string>('');
-  const exId = selected || exerciseIds[0];
+  // Par défaut : le mouvement de base le plus pratiqué (plus parlant qu'un accessoire).
+  const MAIN = ['squat', 'bench', 'deadlift', 'ohp', 'hack_squat', 'db_bench', 'leg_press', 'barbell_row', 'pullup'];
+  const exId = selected || exerciseIds.find((id) => MAIN.includes(id)) || exerciseIds[0];
 
   const e1rmSeries = exId
     ? sorted
-        .map((w) => ({ date: w.date.slice(0, 10), e1rm: bestE1rm(w, exId) }))
+        .map((w) => ({ date: w.date.slice(0, 10), e1rm: bestE1rm(w, exId, bodyweightAt(body, w.date)) }))
         .filter((d) => d.e1rm > 0)
     : [];
 
@@ -48,7 +50,7 @@ export default function ProgressPage() {
         for (const e of w.exercises)
           if (e.exerciseId === id)
             for (const s of e.sets) {
-              const v = s.done ? e1rm(s.weight, s.reps) : 0;
+              const v = s.done ? setE1rm(id, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
               if (v > best.v) best = { v, weight: s.weight, reps: s.reps, date: w.date };
             }
       return { id, ...best };
@@ -96,7 +98,7 @@ export default function ProgressPage() {
               <LineChart data={e1rmSeries} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
-                <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} />
+                <YAxis domain={([min, max]: readonly [number, number]) => [Math.floor((min * 0.95) / 5) * 5, Math.ceil((max * 1.03) / 5) * 5] as const} allowDecimals={false} tickLine={false} axisLine={false} />
                 <Tooltip content={<ChartTooltip unit=" kg" />} />
                 <Line type="monotone" dataKey="e1rm" name="1RM estimé" stroke="var(--series-1)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-1)' }} activeDot={{ r: 5 }} />
               </LineChart>
@@ -105,7 +107,7 @@ export default function ProgressPage() {
         ) : (
           <Empty>Encore une séance avec cet exercice pour tracer la courbe.</Empty>
         )}
-        <p className="small muted">1RM estimé avec la formule d’Epley sur la meilleure série de chaque séance.</p>
+        <p className="small muted">1RM estimé avec la formule d’Epley sur la meilleure série de chaque séance. Tractions et dips : poids du corps (PDC) + lest.</p>
       </div>
 
       <div className="card">
@@ -149,11 +151,11 @@ export default function ProgressPage() {
               {records.map((r) => (
                 <tr key={r.id}>
                   <td>{getExercise(r.id).name}</td>
-                  <td className="num">
-                    {fmtNum(r.weight)} × {r.reps}
+                  <td className="num" style={{ whiteSpace: 'nowrap' }}>
+                    {getExercise(r.id).bodyweight ? (r.weight ? `PDC + ${fmtNum(r.weight)}` : 'PDC') : fmtNum(r.weight)} × {r.reps}
                   </td>
                   <td className="num">{fmtNum(r.v)}</td>
-                  <td className="num">{fmtDate(r.date)}</td>
+                  <td className="num" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.date)}</td>
                 </tr>
               ))}
             </tbody>
