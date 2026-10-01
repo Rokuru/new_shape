@@ -1,0 +1,161 @@
+import type { Tab } from '../App';
+import { adaptiveAdjustment, ACTIVITY_LABELS, composition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
+import { useStore } from '../lib/store';
+import { Empty, fmtNum, signed, Tile } from '../components/ui';
+
+const ADVICE: Record<string, string[]> = {
+  cut: [
+    'Vise une perte de 0,5 à 1 % du poids par semaine : au-delà, la perte de muscle augmente (Helms et al., 2014).',
+    'Garde des charges lourdes : c’est le signal qui préserve le muscle. Tu peux réduire le volume d’un tiers si la récupération baisse.',
+    'Protéines hautes (2,2 g/kg) et aliments rassasiants : légumes, viandes maigres, œufs, skyr, pommes de terre.',
+    'Une pause diète (1–2 semaines à maintenance) toutes les 8–12 semaines aide l’adhérence.',
+  ],
+  recomp: [
+    'À maintenance, l’idéal pour les débutants ou ceux qui reprennent : tu peux perdre du gras et gagner du muscle en même temps.',
+    'Juge la réussite au tour de taille (↓) et aux charges (↑), pas au poids qui peut stagner.',
+    'Protéines ≈ 1,8 g/kg et sommeil de 7 à 9 h : ce sont les deux leviers majeurs.',
+  ],
+  bulk: [
+    'Surplus modéré : +0,25 à 0,5 % du poids par semaine. Un surplus plus élevé ajoute surtout du gras (Iraki et al., 2019).',
+    'Si ton tour de taille augmente de plus de 1 cm par mois, réduis les calories de 100–150 kcal.',
+    'Glucides autour des séances pour la performance.',
+  ],
+  strength: [
+    'Léger surplus ou maintenance : la force progresse mieux sans déficit.',
+    'Glucides suffisants (4–6 g/kg) pour soutenir les séances lourdes.',
+  ],
+};
+
+export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
+  const { profile, body, kcalAdjust, setKcalAdjust } = useStore();
+  const latest = body.at(-1);
+  if (!latest) return <Empty>Ajoute une pesée dans l’onglet Corps pour calculer tes besoins.</Empty>;
+
+  const comp = composition(latest, profile);
+  const t = nutritionTargets(profile, latest, comp.bodyFatPct, kcalAdjust);
+  const rate = weeklyRate(body);
+  const proposal = adaptiveAdjustment(rate, t.targetRateKg);
+  const perMeal = Math.round(latest.weightKg * 0.4);
+  const fiber = Math.round((t.calories / 1000) * 14);
+  const water = fmtNum((latest.weightKg * 35) / 1000 + 0.5);
+
+  return (
+    <div>
+      <h1>Nutrition</h1>
+      <div className="tiles">
+        <Tile label="Calories / jour" value={fmtNum(t.calories, 0)} sub={kcalAdjust ? `dont ajustement ${signed(kcalAdjust, 0)} kcal` : `maintenance ≈ ${fmtNum(t.tdee, 0)}`} />
+        <Tile label="Protéines" value={`${t.proteinG} g`} sub={`${fmtNum(t.proteinG / latest.weightKg)} g/kg`} />
+        <Tile label="Lipides" value={`${t.fatG} g`} sub={`${Math.round(((t.fatG * 9) / t.calories) * 100)} % des calories`} />
+        <Tile label="Glucides" value={`${t.carbsG} g`} sub="le reste des calories" />
+      </div>
+
+      <div className="card">
+        <h2>Ajustement adaptatif</h2>
+        <p className="small secondary">
+          Les formules donnent un point de départ ; ta balance donne la vérité. Comme MacroFactor ou la méthode de Lyle McDonald, on compare ta tendance réelle (régression sur 3
+          semaines) à l’objectif, puis on corrige par paliers de 50 kcal.
+        </p>
+        <div className="tiles" style={{ marginBottom: 8 }}>
+          <Tile label="Objectif / semaine" value={`${signed(t.targetRateKg, 2)} kg`} sub={GOAL_LABELS[profile.goal]} />
+          <Tile label="Tendance / semaine" value={rate !== undefined ? `${signed(rate, 2)} kg` : '—'} sub={rate === undefined ? 'min. 3 pesées sur 1 semaine' : '3 dernières semaines'} />
+        </div>
+        {rate === undefined ? (
+          <div className="callout">Continue à te peser régulièrement : une suggestion apparaîtra dès qu’il y aura assez de données.</div>
+        ) : proposal === 0 ? (
+          <div className="callout">Tu es dans la cible 👌 Ne change rien.</div>
+        ) : (
+          <div className="callout">
+            Ta tendance s’écarte de l’objectif. Suggestion : <b>{signed(proposal, 0)} kcal/jour</b>.
+            <div className="row" style={{ marginTop: 8 }}>
+              <button className="btn primary sm" onClick={() => setKcalAdjust(kcalAdjust + proposal)}>
+                Appliquer
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="row">
+          <span className="small secondary">Ajustement manuel :</span>
+          <button className="btn sm" onClick={() => setKcalAdjust(kcalAdjust - 50)}>
+            −50
+          </button>
+          <b>{signed(kcalAdjust, 0)} kcal</b>
+          <button className="btn sm" onClick={() => setKcalAdjust(kcalAdjust + 50)}>
+            +50
+          </button>
+          {kcalAdjust !== 0 && (
+            <button className="btn sm ghost" onClick={() => setKcalAdjust(0)}>
+              Réinitialiser
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-2">
+        <div className="card">
+          <h2>Comment c’est calculé</h2>
+          <table>
+            <tbody>
+              <tr>
+                <td>Métabolisme de base ({t.method})</td>
+                <td className="num">{fmtNum(t.bmr, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td>× activité ({ACTIVITY_LABELS[profile.activity].split(' (')[0].toLowerCase()})</td>
+                <td className="num">{fmtNum(t.tdee, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td>Objectif {GOAL_LABELS[profile.goal].toLowerCase()}</td>
+                <td className="num">{signed(t.calories - t.tdee - kcalAdjust, 0)} kcal</td>
+              </tr>
+              {kcalAdjust !== 0 && (
+                <tr>
+                  <td>Ajustement</td>
+                  <td className="num">{signed(kcalAdjust, 0)} kcal</td>
+                </tr>
+              )}
+              <tr>
+                <td>
+                  <b>Cible</b>
+                </td>
+                <td className="num">
+                  <b>{fmtNum(t.calories, 0)} kcal</b>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="small muted" style={{ marginTop: 8 }}>
+            {t.method === 'Katch-McArdle' ? 'Basé sur ta masse maigre, plus précis quand le % de gras est connu.' : (
+              <>
+                Ajoute ton % de masse grasse (onglet <a href="#body" onClick={() => go('body')}>Corps</a>) pour passer à la formule Katch-McArdle.
+              </>
+            )}
+          </p>
+        </div>
+        <div className="card">
+          <h2>Repères du quotidien</h2>
+          <ul className="small secondary" style={{ paddingLeft: 18, margin: 0 }}>
+            <li>
+              Protéines : ~<b>{perMeal} g par repas</b> sur 3 à 5 repas (0,4 g/kg, Schoenfeld & Aragon 2018).
+            </li>
+            <li>
+              Fibres : ~<b>{fiber} g / jour</b> (14 g / 1000 kcal).
+            </li>
+            <li>
+              Eau : ~<b>{water} L / jour</b>, plus selon la transpiration.
+            </li>
+            <li>Créatine monohydrate : 3–5 g / jour, le supplément le mieux étudié pour la force et le muscle.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Conseils – {GOAL_LABELS[profile.goal]}</h2>
+        <ul className="small secondary" style={{ paddingLeft: 18, margin: 0 }}>
+          {ADVICE[profile.goal].map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}

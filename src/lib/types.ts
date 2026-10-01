@@ -1,0 +1,112 @@
+export type Sex = 'male' | 'female';
+export type Goal = 'cut' | 'recomp' | 'bulk' | 'strength';
+export type Level = 'beginner' | 'intermediate' | 'advanced';
+export type Equipment = 'full_gym' | 'home_dumbbells' | 'bodyweight';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+
+export type Muscle =
+  | 'chest'
+  | 'back'
+  | 'shoulders'
+  | 'biceps'
+  | 'triceps'
+  | 'quads'
+  | 'hamstrings'
+  | 'glutes'
+  | 'calves'
+  | 'abs';
+
+export interface Profile {
+  name: string;
+  sex: Sex;
+  birthYear: number;
+  heightCm: number;
+  activity: ActivityLevel;
+  goal: Goal;
+  level: Level;
+  equipment: Equipment;
+  daysPerWeek: number;
+  sessionMinutes: number;
+  /** Muscles que l'utilisateur veut prioriser (volume supplémentaire). */
+  priorities: Muscle[];
+}
+
+export interface BodyEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  weightKg: number;
+  /** % de masse grasse saisi directement (balance, DEXA, pince...). */
+  bodyFatPct?: number;
+  waistCm?: number;
+  neckCm?: number;
+  hipCm?: number;
+  chestCm?: number;
+  armCm?: number;
+  thighCm?: number;
+  note?: string;
+}
+
+export interface Exercise {
+  id: string;
+  name: string;
+  primary: Muscle[];
+  secondary: Muscle[];
+  equipment: Equipment[];
+  kind: 'compound' | 'isolation';
+  /** Incrément de charge conseillé en kg. */
+  increment: number;
+  tips?: string;
+}
+
+export interface PlannedExercise {
+  exerciseId: string;
+  sets: number;
+  repMin: number;
+  repMax: number;
+  /** RIR cible (répétitions en réserve). */
+  rir: number;
+  restSec: number;
+  note?: string;
+}
+
+export interface ProgramDay {
+  name: string;
+  exercises: PlannedExercise[];
+}
+
+export interface Program {
+  id: string;
+  name: string;
+  author: string;
+  description: string;
+  level: Level[];
+  goals: Goal[];
+  daysPerWeek: number;
+  progression: string;
+  days: ProgramDay[];
+  custom?: boolean;
+}
+
+export interface LoggedSet {
+  weight: number;
+  reps: number;
+  rir?: number;
+  done: boolean;
+}
+
+export interface LoggedExercise {
+  exerciseId: string;
+  target?: PlannedExercise;
+  sets: LoggedSet[];
+}
+
+export interface Workout {
+  id: string;
+  date: string; // ISO datetime
+  programId?: string;
+  dayName: string;
+  exercises: LoggedExercise[];
+  durationMin?: number;
+  note?: string;
+  finished: boolean;
+}
