@@ -1,3 +1,4 @@
+import { addDays, dayKey, localDate, parseLocalDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { bodyFatOf, bodyweightAt, bestE1rm, startOfWeek, tonnage, weightTrend } from './calc';
@@ -27,7 +28,6 @@ export interface SharePayload {
   friends: string[];
 }
 
-const DAY = 86_400_000;
 
 export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | 'friends' | 'share'>, user: GitHubUser, now = new Date()): SharePayload {
   const workouts = s.workouts.filter((w) => w.finished).sort((a, b) => a.date.localeCompare(b.date));
@@ -39,7 +39,7 @@ export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | '
   const lifts: SharePayload['lifts'] = {};
   for (const id of top) {
     lifts[id] = workouts
-      .map((w) => ({ date: w.date.slice(0, 10), e1rm: bestE1rm(w, id, bodyweightAt(s.body, w.date)) }))
+      .map((w) => ({ date: dayKey(w.date), e1rm: bestE1rm(w, id, bodyweightAt(s.body, w.date)) }))
       .filter((p) => p.e1rm > 0)
       .slice(-60);
   }
@@ -48,12 +48,10 @@ export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | '
   const weekly: SharePayload['weekly'] = [];
   const start = startOfWeek(now);
   for (let i = 25; i >= 0; i--) {
-    const from = start.getTime() - i * 7 * DAY;
-    const ws = workouts.filter((w) => {
-      const t = new Date(w.date).getTime();
-      return t >= from && t < from + 7 * DAY;
-    });
-    weekly.push({ week: new Date(from).toISOString().slice(0, 10), sessions: ws.length, tonnage: Math.round(ws.reduce((t, w) => t + tonnage(w), 0)) });
+    const week = addDays(localDate(start), -i * 7);
+    const end = addDays(week, 7);
+    const ws = workouts.filter((w) => dayKey(w.date) >= week && dayKey(w.date) < end);
+    weekly.push({ week, sessions: ws.length, tonnage: Math.round(ws.reduce((t, w) => t + tonnage(w), 0)) });
   }
 
   let body: SharePayload['body'];
@@ -62,7 +60,7 @@ export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | '
     const trend = new Map(weightTrend(s.body).map((t) => [t.date, t.trend]));
     const byWeek = new Map<string, NonNullable<SharePayload['body']>[number]>();
     for (const e of [...s.body].sort((a, b) => a.date.localeCompare(b.date))) {
-      const wk = startOfWeek(new Date(e.date + 'T12:00:00')).toISOString().slice(0, 10);
+      const wk = localDate(startOfWeek(parseLocalDate(e.date)));
       const prev = byWeek.get(wk);
       // Garde le % de gras / muscle mesuré dans la semaine même si la dernière pesée n'en a pas.
       byWeek.set(wk, { date: e.date, weight: trend.get(e.date) ?? e.weightKg, bf: bodyFatOf(e, s.profile) ?? prev?.bf, muscle: e.bia?.muscleKg ?? prev?.muscle });

@@ -1,3 +1,4 @@
+import { addDays, dayKey, localDate } from '../lib/dates';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getExercise } from '../data/exercises';
@@ -22,7 +23,7 @@ export default function ProgressPage() {
 
   const e1rmSeries = exId
     ? sorted
-        .map((w) => ({ date: w.date.slice(0, 10), e1rm: bestE1rm(w, exId, bodyweightAt(body, w.date)) }))
+        .map((w) => ({ date: dayKey(w.date), e1rm: bestE1rm(w, exId, bodyweightAt(body, w.date)) }))
         .filter((d) => d.e1rm > 0)
     : [];
 
@@ -30,15 +31,10 @@ export default function ProgressPage() {
     const out: { week: string; tonnage: number; sessions: number }[] = [];
     const start = startOfWeek(new Date());
     for (let i = 11; i >= 0; i--) {
-      const from = new Date(start);
-      from.setDate(from.getDate() - i * 7);
-      const to = new Date(from);
-      to.setDate(to.getDate() + 7);
-      const ws = sorted.filter((w) => {
-        const t = new Date(w.date).getTime();
-        return t >= from.getTime() && t < to.getTime();
-      });
-      out.push({ week: from.toISOString().slice(0, 10), tonnage: Math.round(ws.reduce((s, w) => s + tonnage(w), 0) / 100) / 10, sessions: ws.length });
+      const week = addDays(localDate(start), -i * 7);
+      const end = addDays(week, 7);
+      const ws = sorted.filter((w) => dayKey(w.date) >= week && dayKey(w.date) < end);
+      out.push({ week, tonnage: Math.round(ws.reduce((s, w) => s + tonnage(w), 0) / 100) / 10, sessions: ws.length });
     }
     return out;
   }, [sorted]);

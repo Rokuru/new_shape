@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { cardioStats, dailyTotals, isValidCardio, type DayTotal } from '../lib/cardio';
-import { today, uid, useStore } from '../lib/store';
+import { uid, useStore } from '../lib/store';
+import { useToday } from '../hooks/useToday';
 import type { CardioEntry } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon, Segmented, Tile } from './ui';
 
@@ -22,7 +23,10 @@ const readMode = (): Mode => {
 export default function CardioCard() {
   const { cardio, profile, body, addCardio, deleteCardio } = useStore();
   const weightKg = body.at(-1)?.weightKg ?? 75;
-  const [date, setDate] = useState(today());
+  const todayKey = useToday();
+  const [picked, setDate] = useState<string>();
+  // Sans choix explicite, la date suit le jour courant (même si l'app est restée ouverte depuis la veille).
+  const date = picked ?? todayKey;
   const [form, setForm] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
   const [mode, setModeState] = useState<Mode>(readMode);
@@ -97,7 +101,7 @@ export default function CardioCard() {
       <div className="form-grid">
         <label className="field">
           Date
-          <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" value={date} max={todayKey} onChange={(e) => setDate(e.target.value)} />
         </label>
         {mode === 'tapis' ? (
           <>
