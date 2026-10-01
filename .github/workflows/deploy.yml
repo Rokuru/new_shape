@@ -1,19 +1,24 @@
-name: Déploiement GitHub Pages
+name: CI et déploiement
 
 on:
+  # Chaque PR vers main est vérifiée (tests + build) avant fusion.
+  pull_request:
+    branches: [main]
+  # Seule la branche main est mise en production.
   push:
-    branches: [main, claude/muscu-tracker]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  test:
+    name: Tests et build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +29,24 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: dist
+          path: dist
+
+  deploy:
+    name: Mise en production (GitHub Pages)
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
       - name: Publier dist/ sur la branche gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
