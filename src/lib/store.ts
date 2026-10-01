@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
-import type { BodyEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
+import type { BodyEntry, CardioEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
 import { history, suggest } from './progression';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -44,6 +44,8 @@ interface State {
   deleted: string[];
   /** Pseudos GitHub suivis. */
   friends: string[];
+  /** Marche sur tapis (pas + inclinaison). */
+  cardio: CardioEntry[];
   /** Partage public de mes progrès (gist public), pour que mes amis me trouvent. */
   share: ShareSettings;
 
@@ -59,6 +61,8 @@ interface State {
   finishWorkout: () => void;
   cancelWorkout: () => void;
   deleteWorkout: (id: string) => void;
+  addCardio: (e: CardioEntry) => void;
+  deleteCardio: (id: string) => void;
   setKcalAdjust: (n: number) => void;
   importData: (data: unknown) => void;
   applySynced: (data: SyncedData) => void;
@@ -94,6 +98,7 @@ const initial = {
   kcalAdjustedAt: undefined as string | undefined,
   deleted: [] as string[],
   friends: [] as string[],
+  cardio: [] as CardioEntry[],
   share: { enabled: false, body: false } as ShareSettings,
 };
 
@@ -154,6 +159,8 @@ export const useStore = create<State>()(
         });
       },
       cancelWorkout: () => set({ activeWorkout: undefined }),
+      addCardio: (e) => set((s) => ({ cardio: [...s.cardio, e].sort((a, b) => a.date.localeCompare(b.date)) })),
+      deleteCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id), deleted: [...s.deleted, id] })),
       deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id), deleted: [...s.deleted, id] })),
       setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),
       importData: (data) => {
@@ -173,13 +180,14 @@ export const useStore = create<State>()(
           kcalAdjustedAt: d.kcalAdjustedAt,
           deleted: Array.isArray(d.deleted) ? d.deleted : [],
           friends: Array.isArray(d.friends) ? d.friends : [],
+          cardio: Array.isArray(d.cardio) ? d.cardio : [],
           share: d.share ?? initial.share,
         });
       },
       addFriend: (login) => set((s) => (s.friends.some((f) => f.toLowerCase() === login.toLowerCase()) ? {} : { friends: [...s.friends, login] })),
       removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
       setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
-      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile }, friends: d.friends ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
+      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile }, friends: d.friends ?? [], cardio: d.cardio ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
       reset: () => set({ ...initial }),
     }),
     { name: 'new-shape-v1', version: 1 },
@@ -187,7 +195,7 @@ export const useStore = create<State>()(
 );
 
 /** Données synchronisées entre appareils (tout sauf la séance en cours). */
-export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share'] as const;
+export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share', 'cardio'] as const;
 export type SyncedData = Pick<State, (typeof SYNCED_KEYS)[number]>;
 
 export function pickSynced(s: SyncedData): SyncedData {

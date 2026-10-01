@@ -68,6 +68,20 @@ export interface BodyEntry {
   bia?: BiaData;
 }
 
+/**
+ * Marche sur tapis : vitesse + durée + inclinaison (saisie principale),
+ * ou nombre de pas pour ceux qui l'ont.
+ */
+export interface CardioEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  /** Inclinaison du tapis en %. */
+  inclinePct: number;
+  speedKmh?: number;
+  durationMin?: number;
+  steps?: number;
+}
+
 export interface Exercise {
   id: string;
   name: string;

@@ -6,6 +6,7 @@ import { history, suggest } from '../lib/progression';
 import { allPrograms, useStore } from '../lib/store';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
+import CardioCard from '../components/CardioCard';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout } = useStore();
@@ -46,6 +47,10 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
       <button className="btn block" onClick={() => startWorkout()}>
         <Icon name="plus" size={18} /> Séance libre
       </button>
+
+      <div style={{ marginTop: 16 }}>
+        <CardioCard />
+      </div>
 
       <h2 style={{ marginTop: 24 }}>Historique</h2>
       <div className="card">

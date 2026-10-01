@@ -4,10 +4,11 @@ import { getExercise } from '../data/exercises';
 import { bodyweightAt, currentComposition, initialComposition, setE1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
 import { allPrograms, useStore } from '../lib/store';
 import { biaTrend } from '../lib/bia';
+import { dailyTotals } from '../lib/cardio';
 import { ChartTooltip, Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
-  const { profile, body, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
+  const { profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
   const latest = body.at(-1);
   const comp = currentComposition(body, profile);
@@ -21,6 +22,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
+  const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
   const nextDay = program?.days[nextDayIndex % program.days.length];
 
   return (
@@ -87,6 +89,13 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             label="Muscle (balance)"
             value={`${fmtNum(muscle.at(-1))} kg`}
             sub={muscle.length > 1 ? `tendance ${signed(muscle.at(-1)! - muscle[0])} kg depuis le début` : 'Tanita'}
+          />
+        )}
+        {cardio.length > 0 && (
+          <Tile
+            label="Tapis aujourd’hui"
+            value={`${cardioToday.kcal} kcal`}
+            sub={cardioToday.minutes ? `${cardioToday.minutes} min · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
           />
         )}
         <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
