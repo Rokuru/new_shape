@@ -3,7 +3,7 @@ import type { Tab } from '../App';
 import AccountCard from '../components/AccountCard';
 import ProfileForm from '../components/ProfileForm';
 import { logout, useAuth } from '../lib/sync';
-import { exportData, useStore } from '../lib/store';
+import { exportData, today, useStore } from '../lib/store';
 import { Segmented } from '../components/ui';
 
 type Theme = 'auto' | 'light' | 'dark';
@@ -40,7 +40,7 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
     const blob = new Blob([exportData()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `new-shape-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `new-shape-${today()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   };

@@ -1,3 +1,4 @@
+import { dayKey } from './dates';
 import { getExercise, MUSCLES } from '../data/exercises';
 import type { ActivityLevel, BodyEntry, Goal, Muscle, Profile, Workout } from './types';
 
@@ -214,7 +215,7 @@ export function e1rm(weight: number, reps: number): number {
 
 /** Poids de corps le plus proche avant une date (ou la 1re pesée). */
 export function bodyweightAt(body: BodyEntry[], iso: string): number | undefined {
-  const day = iso.slice(0, 10);
+  const day = dayKey(iso);
   let bw: number | undefined;
   for (const e of [...body].sort((a, b) => a.date.localeCompare(b.date))) {
     if (e.date > day && bw !== undefined) break;

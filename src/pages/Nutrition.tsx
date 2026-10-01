@@ -1,3 +1,4 @@
+import { addDays, daysBetween, localDate } from '../lib/dates';
 import type { Tab } from '../App';
 import { adaptiveAdjustment, ACTIVITY_LABELS, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
@@ -38,11 +39,11 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   const rate = weeklyRate(body);
   // Après un changement, on attend 14 jours et on n'évalue que les pesées postérieures,
   // sinon l'ancienne tendance est comptée deux fois et les suggestions oscillent.
-  const daysSince = kcalAdjustedAt ? Math.floor((Date.now() - new Date(kcalAdjustedAt + 'T00:00:00').getTime()) / 86_400_000) : Infinity;
+  const daysSince = kcalAdjustedAt ? daysBetween(kcalAdjustedAt, localDate()) : Infinity;
   const locked = daysSince < 14;
   const evalRate = locked ? undefined : weeklyRate(body, Math.min(28, daysSince));
   const proposal = adaptiveAdjustment(evalRate, t.targetRateKg);
-  const nextEval = kcalAdjustedAt ? new Date(new Date(kcalAdjustedAt + 'T12:00:00').getTime() + 14 * 86_400_000).toISOString().slice(0, 10) : undefined;
+  const nextEval = kcalAdjustedAt ? addDays(kcalAdjustedAt, 14) : undefined;
   const perMeal = Math.round(latest.weightKg * 0.4);
   const fiber = Math.round((t.calories / 1000) * 14);
   const water = fmtNum((latest.weightKg * 35) / 1000 + 0.5);

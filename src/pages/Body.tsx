@@ -3,7 +3,8 @@ import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Toolt
 import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
 import { biaTrend } from '../lib/bia';
 import BiaPanel, { BiaFields, readBia } from '../components/BiaPanel';
-import { today, uid, useStore } from '../lib/store';
+import { uid, useStore } from '../lib/store';
+import { useToday } from '../hooks/useToday';
 import type { BodyEntry } from '../lib/types';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented, signed, Tile } from '../components/ui';
 
@@ -37,7 +38,9 @@ const FIELDS: { key: keyof BodyEntry; label: string; hint?: string }[] = [
 export default function BodyPage() {
   const { profile, body, upsertBody, deleteBody } = useStore();
   const last = body.at(-1);
-  const [date, setDate] = useState(today());
+  const todayKey = useToday();
+  const [picked, setDate] = useState<string>();
+  const date = picked ?? todayKey;
   const [form, setForm] = useState<Record<string, string>>({});
   const [metric, setMetric] = useState<Metric>('weight');
   const [msg, setMsg] = useState('');
@@ -153,7 +156,7 @@ export default function BodyPage() {
         <div className="form-grid">
           <label className="field">
             Date
-            <input type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
+            <input type="date" value={date} max={todayKey} onChange={(e) => setDate(e.target.value)} />
           </label>
           {FIELDS.filter((f) => !hidden.has(f.key)).map((f) => (
             <label className="field" key={f.key} title={f.hint}>

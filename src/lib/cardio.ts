@@ -1,3 +1,4 @@
+import { addDays, localDate } from './dates';
 import type { CardioEntry, Profile } from './types';
 import { round } from './calc';
 
@@ -84,10 +85,9 @@ export interface DayTotal {
 /** Total par jour sur les `days` derniers jours (jours sans tapis inclus, à 0). */
 export function dailyTotals(entries: CardioEntry[], profile: Profile, weightKg: number, days = 14, now = new Date()): DayTotal[] {
   const out: DayTotal[] = [];
+  const todayKey = localDate(now);
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const date = d.toISOString().slice(0, 10);
+    const date = addDays(todayKey, -i);
     const stats = entries.filter((e) => e.date === date && isValidCardio(e)).map((e) => cardioStats(e, profile, weightKg));
     const sum = (k: 'durationMin' | 'distanceKm' | 'steps' | 'kcal' | 'elevationM') => stats.reduce((s, x) => s + x[k], 0);
     out.push({ date, minutes: sum('durationMin'), distanceKm: round(sum('distanceKm'), 2), steps: sum('steps'), kcal: sum('kcal'), elevationM: sum('elevationM') });

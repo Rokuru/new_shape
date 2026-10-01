@@ -1,3 +1,4 @@
+import { localDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
@@ -5,7 +6,8 @@ import type { BodyEntry, CardioEntry, LoggedExercise, Profile, Program, ProgramD
 import { history, suggest } from './progression';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-export const today = () => new Date().toISOString().slice(0, 10);
+/** Jour local (et non UTC) au format AAAA-MM-JJ. */
+export const today = () => localDate();
 
 export const DEFAULT_PROFILE: Profile = {
   name: '',
