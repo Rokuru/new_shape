@@ -752,6 +752,13 @@ label.field {
   color: var(--text-2);
   min-width: 0;
 }
+/* Libellé sur 2 lignes : le champ reste aligné en bas avec ceux de la même rangée */
+label.field > input,
+label.field > select,
+label.field > textarea,
+label.field > .row {
+  margin-top: auto;
+}
 input,
 select,
 textarea {
@@ -784,6 +791,17 @@ textarea:focus {
   border-color: var(--accent);
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--band);
+}
+/* Safari iOS : sans ça, le champ date garde une largeur minimale et déborde de sa colonne */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  max-width: 100%;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
 }
 input[type='file'] {
   padding: 8px;
