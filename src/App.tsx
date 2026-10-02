@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './components/ui';
 import Logo from './components/Logo';
+import PullToRefresh from './components/PullToRefresh';
 import { useStore } from './lib/store';
 import { useAuth } from './lib/sync';
 import Dashboard from './pages/Dashboard';
@@ -59,6 +60,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <PullToRefresh />
       {/* iPad / ordinateur : navigation latérale */}
       <aside className="sidebar" aria-label="Navigation principale">
         <button className="sidebar-logo" onClick={() => go('home')} aria-label="Accueil New Shape">
