@@ -1497,6 +1497,56 @@ details[open] > summary::before {
   gap: 0;
 }
 
+/* ---------- Tirer pour actualiser ---------- */
+html,
+body {
+  /* désactive le rebond / rechargement natif : le geste est géré par l'app (sans perte) */
+  overscroll-behavior-y: none;
+}
+.ptr {
+  position: fixed;
+  left: 50%;
+  top: calc(env(safe-area-inset-top) + 64px);
+  z-index: 29;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-text);
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+  transition:
+    transform 0.25s ease,
+    opacity 0.25s ease,
+    background 0.2s,
+    color 0.2s;
+}
+.ptr.ready {
+  color: #fff;
+  background: var(--accent);
+}
+.ptr.busy svg {
+  animation: spin 0.8s linear infinite;
+}
+.ptr.done {
+  color: #fff;
+  background: var(--good-mark);
+}
+@media (min-width: 768px) {
+  .ptr {
+    top: calc(env(safe-area-inset-top) + 8px);
+    left: calc(50% + var(--sidebar-w) / 2);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ---------- Animations ---------- */
 @keyframes page-in {
   from {

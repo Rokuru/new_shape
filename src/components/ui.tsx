@@ -22,6 +22,7 @@ const paths: Record<string, ReactNode> = {
   play: <path d="M7 4.5v15l12-7.5z" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   calendar: <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 2v4M16 2v4" />,
+  refresh: <path d="M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7" />,
   target: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />,
 };
 
