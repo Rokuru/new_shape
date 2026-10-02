@@ -1,4 +1,5 @@
-import type { ChangeEvent } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { PROFILE_LIMITS } from '../lib/store';
 import { MUSCLE_LABELS, MUSCLES } from '../data/exercises';
 import { ACTIVITY_LABELS, GOAL_LABELS } from '../lib/calc';
 import type { ActivityLevel, Equipment, Goal, Level, Profile } from '../lib/types';
@@ -33,11 +34,11 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
         </label>
         <label className="field">
           Année de naissance
-          <input type="number" inputMode="numeric" value={profile.birthYear} onChange={num('birthYear')} />
+          <BoundedNumber value={profile.birthYear} {...PROFILE_LIMITS.birthYear} onValid={(v) => onChange({ birthYear: v })} />
         </label>
         <label className="field">
           Taille (cm)
-          <input type="number" inputMode="numeric" value={profile.heightCm} onChange={num('heightCm')} />
+          <BoundedNumber value={profile.heightCm} {...PROFILE_LIMITS.heightCm} onValid={(v) => onChange({ heightCm: v })} />
         </label>
       </div>
       <div className="form-grid">
@@ -124,5 +125,32 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
         </div>
       </div>
     </div>
+  );
+}
+
+/** Champ numérique libre pendant la frappe ; la valeur n'est enregistrée que si elle est plausible. */
+function BoundedNumber({ value, min, max, onValid }: { value: number; min: number; max: number; onValid: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const n = Number(text.replace(',', '.'));
+  const valid = text.trim() !== '' && Number.isFinite(n) && n >= min && n <= max;
+  return (
+    <>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        max={max}
+        value={text}
+        aria-invalid={!valid}
+        onChange={(e) => {
+          setText(e.target.value);
+          const v = Number(e.target.value);
+          if (e.target.value.trim() !== '' && Number.isFinite(v) && v >= min && v <= max) onValid(Math.round(v));
+        }}
+        onBlur={() => !valid && setText(String(value))}
+      />
+      {!valid && <span className="field-error">Entre {min} et {max}</span>}
+    </>
   );
 }

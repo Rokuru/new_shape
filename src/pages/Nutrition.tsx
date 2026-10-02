@@ -59,6 +59,13 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
         <Tile label="Glucides" value={`${t.carbsG} g`} sub="le reste des calories" />
       </div>
 
+      {t.floored && (
+        <div className="callout" style={{ borderColor: 'var(--warning)' }}>
+          ⚠️ Cible remontée au minimum de sécurité ({fmtNum(t.calories, 0)} kcal) : on ne descend jamais sous ton métabolisme de base ni sous 1 200 kcal (femmes) / 1 500 kcal
+          (hommes) sans suivi médical.
+        </div>
+      )}
+
       <div className="card">
         <h2>Ajustement adaptatif</h2>
         <p className="small secondary">

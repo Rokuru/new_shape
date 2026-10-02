@@ -260,7 +260,13 @@ function ExerciseCard({
   const last = past[0];
   const sug = ex.target ? suggest(ex.target, past) : undefined;
   const t = ex.target;
-  const num = (v: string) => Number(v.replace(',', '.')) || 0;
+  // Charge 0–999 kg (2 décimales), répétitions entières 0–999 : jamais de valeur négative ou absurde.
+  const num = (v: string, max: number, decimals: number) => {
+    const n = Number(v.replace(',', '.'));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    const f = 10 ** decimals;
+    return Math.min(max, Math.round(n * f) / f);
+  };
 
   return (
     <div className="card">
@@ -312,8 +318,8 @@ function ExerciseCard({
       {ex.sets.map((s, k) => (
         <div className={`set-row ${s.done ? 'done' : ''}`} key={k}>
           <span className="muted small">{k + 1}</span>
-          <input inputMode="decimal" aria-label={`Charge série ${k + 1}`} value={s.weight || ''} placeholder="0" onChange={(e) => onSet(k, { weight: num(e.target.value) })} />
-          <input inputMode="numeric" aria-label={`Répétitions série ${k + 1}`} value={s.reps || ''} placeholder="0" onChange={(e) => onSet(k, { reps: num(e.target.value) })} />
+          <input inputMode="decimal" aria-label={`Charge série ${k + 1}`} value={s.weight || ''} placeholder="0" onChange={(e) => onSet(k, { weight: num(e.target.value, 999, 2) })} />
+          <input inputMode="numeric" aria-label={`Répétitions série ${k + 1}`} value={s.reps || ''} placeholder="0" onChange={(e) => onSet(k, { reps: num(e.target.value, 999, 0) })} />
           <select aria-label={`RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => onSet(k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
             <option value="">–</option>
             {[0, 1, 2, 3, 4].map((r) => (

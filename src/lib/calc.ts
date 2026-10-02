@@ -216,6 +216,8 @@ export interface NutritionTargets {
   proteinG: number;
   fatG: number;
   carbsG: number;
+  /** La cible a été remontée au plancher de sécurité. */
+  floored: boolean;
   method: string;
   methodId: Exclude<BmrMethod, 'auto'>;
   targetRateKg: number;
@@ -234,13 +236,16 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
   // ~7 700 kcal par kg de tissu ; on plafonne le déficit à 25 % du TDEE.
   const delta = Math.max((targetRateKg * 7700) / 7, -0.25 * tdee);
   const r10 = (n: number) => Math.round(n / 10) * 10;
-  const calories = r10(tdee) + r10(delta) + r10(kcalAdjust);
+  // Plancher de sécurité : jamais sous le métabolisme de base ni sous 1 200 (femmes) / 1 500 kcal (hommes).
+  const floor = Math.ceil(Math.max(bmr, profile.sex === 'female' ? 1200 : 1500) / 10) * 10;
+  const raw = r10(tdee) + r10(delta) + r10(kcalAdjust);
+  const calories = Math.max(raw, floor);
   // Protéines : 2,2 g/kg en sèche (Helms 2014), 1,8 g/kg sinon (Morton 2018 : plateau ≈ 1,6 g/kg).
   const proteinG = Math.round(w * (profile.goal === 'cut' ? 2.2 : 1.8));
   // Lipides : ~25 % des calories, minimum 0,6 g/kg pour la santé hormonale.
   const fatG = Math.round(Math.max((calories * 0.25) / 9, w * 0.6));
   const carbsG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
-  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2) };
+  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, floored: raw < floor, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2) };
 }
 
 /**

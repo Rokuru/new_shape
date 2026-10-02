@@ -185,3 +185,22 @@ describe('générateur de programme', () => {
     for (const p of PROGRAMS) for (const d of p.days) for (const e of d.exercises) expect(getExercise(e.exerciseId).primary.length).toBeGreaterThan(0);
   });
 });
+
+describe('garde-fous (test de singe)', () => {
+  it('la cible calorique ne descend jamais sous le plancher de sécurité', async () => {
+    const latest = { id: '1', date: '2026-01-01', weightKg: 50 };
+    const t = nutritionTargets({ ...profile, sex: 'female', goal: 'cut', activity: 'sedentary' }, latest, undefined, -2000);
+    expect(t.calories).toBeGreaterThanOrEqual(Math.max(1200, t.bmr));
+    expect(t.floored).toBe(true);
+  });
+
+  it('un profil absurde (taille, année) est ramené à des valeurs plausibles', async () => {
+    const { sanitizeProfile, DEFAULT_PROFILE: D } = await import('./store');
+    const p = sanitizeProfile({ ...profile, heightCm: -5, birthYear: 99999, daysPerWeek: 0, sessionMinutes: 1e9 });
+    expect(p.heightCm).toBe(D.heightCm);
+    expect(p.birthYear).toBe(D.birthYear);
+    expect(p.daysPerWeek).toBe(D.daysPerWeek);
+    expect(p.sessionMinutes).toBe(D.sessionMinutes);
+    expect(sanitizeProfile({ ...profile, heightCm: 182, birthYear: 1990 }).heightCm).toBe(182);
+  });
+});

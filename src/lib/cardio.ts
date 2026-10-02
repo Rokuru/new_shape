@@ -68,7 +68,7 @@ export function cardioStats(e: CardioEntry, profile: Profile, weightKg: number):
     steps,
     stepsEstimated: e.steps === undefined,
     elevationM: Math.round(distanceKm * 1000 * grade),
-    kcal: Math.round(kcal),
+    kcal: Math.max(0, Math.round(kcal)),
     estimated,
   };
 }
