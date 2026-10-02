@@ -3,7 +3,7 @@ import { MUSCLE_LABELS } from '../data/exercises';
 import { EQUIPMENT_LABELS } from '../components/ProfileForm';
 import { canDo, programScore, programStats, STYLE_LABELS } from '../lib/programStats';
 import type { Tab } from '../App';
-import { getExercise, MUSCLES } from '../data/exercises';
+import { MUSCLES } from '../data/exercises';
 import { PROGRAMS } from '../data/programs';
 import { GOAL_LABELS, volumeFromSets } from '../lib/calc';
 import { generateProgram, weeklySetTarget } from '../lib/generator';
@@ -12,6 +12,7 @@ import type { Program, ProgramStyle } from '../lib/types';
 import { LEVEL_LABELS } from '../components/ProfileForm';
 import { fmtNum, Icon } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
+import { ExerciseLink } from '../components/ExerciseInfo';
 
 export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
   const { profile, customPrograms, activeProgramId, activateProgram, saveCustomProgram, deleteCustomProgram } = useStore();
@@ -233,7 +234,9 @@ function ProgramDetail({ program, open }: { program: Program; open?: boolean }) 
               <tbody>
                 {d.exercises.map((e, j) => (
                   <tr key={j}>
-                    <td>{getExercise(e.exerciseId).name}</td>
+                    <td>
+                      <ExerciseLink id={e.exerciseId} />
+                    </td>
                     <td className="num" style={{ whiteSpace: 'nowrap' }}>
                       {e.sets} × {e.repMin === e.repMax ? e.repMin : `${e.repMin}–${e.repMax}`}
                     </td>
