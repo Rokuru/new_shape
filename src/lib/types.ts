@@ -29,7 +29,11 @@ export interface Profile {
   sessionMinutes: number;
   /** Muscles que l'utilisateur veut prioriser (volume supplémentaire). */
   priorities: Muscle[];
+  /** Formule du métabolisme de base choisie (auto par défaut). */
+  bmrMethod?: BmrMethod;
 }
+
+export type BmrMethod = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'tinsley';
 
 /** Segments mesurés par une balance impédancemètre segmentaire (Tanita BC-545N…). */
 export type Segment = 'armR' | 'armL' | 'legR' | 'legL' | 'trunk';

@@ -1,6 +1,6 @@
 import { dayKey } from './dates';
 import { getExercise, MUSCLES } from '../data/exercises';
-import type { ActivityLevel, BodyEntry, Goal, Muscle, Profile, Workout } from './types';
+import type { ActivityLevel, BmrMethod, BodyEntry, Goal, Muscle, Profile, Workout } from './types';
 
 export const round = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 
@@ -149,6 +149,66 @@ export const GOAL_LABELS: Record<Goal, string> = {
   strength: 'Force',
 };
 
+export interface BmrFormula {
+  label: string;
+  /** Nécessite le % de masse grasse (formule basée sur la masse maigre). */
+  needsLean: boolean;
+  description: string;
+  source: { label: string; url: string };
+  compute: (c: { weightKg: number; heightCm: number; age: number; male: boolean; leanKg?: number }) => number | undefined;
+}
+
+/** Formules du métabolisme de base proposées dans l'onglet Nutrition. */
+export const BMR_FORMULAS: Record<Exclude<BmrMethod, 'auto'>, BmrFormula> = {
+  mifflin: {
+    label: 'Mifflin-St Jeor',
+    needsLean: false,
+    description: 'Mifflin-St Jeor (1990), la référence pour le grand public : poids, taille, âge et sexe. La plus juste en moyenne chez les personnes non sportives.',
+    source: { label: 'MacroFactor – comparatif des formules de métabolisme', url: 'https://macrofactorapp.com/best-bmr-equations/' },
+    compute: ({ weightKg, heightCm, age, male }) => 10 * weightKg + 6.25 * heightCm - 5 * age + (male ? 5 : -161),
+  },
+  harris: {
+    label: 'Harris-Benedict révisée',
+    needsLean: false,
+    description: 'La formule historique de Harris et Benedict (1919), recalculée par Roza et Shizgal en 1984. Donne souvent 5 à 10 % de plus que Mifflin-St Jeor.',
+    source: { label: 'Roza & Shizgal 1984 – coefficients révisés', url: 'https://richtlijnendatabase.nl/gerelateerde_documenten/file/3130/1/Harris%20en%20Benedict%20formule.pdf' },
+    compute: ({ weightKg, heightCm, age, male }) =>
+      male ? 88.362 + 13.397 * weightKg + 4.799 * heightCm - 5.677 * age : 447.593 + 9.247 * weightKg + 3.098 * heightCm - 4.33 * age,
+  },
+  katch: {
+    label: 'Katch-McArdle',
+    needsLean: true,
+    description: 'Basée sur la masse maigre : plus précise que les formules poids/taille quand le % de gras est connu.',
+    source: { label: 'MacroFactor – comparatif des formules de métabolisme', url: 'https://macrofactorapp.com/best-bmr-equations/' },
+    compute: ({ leanKg }) => (leanKg === undefined ? undefined : 370 + 21.6 * leanKg),
+  },
+  cunningham: {
+    label: 'Cunningham',
+    needsLean: true,
+    description: 'Cunningham (1980), basée sur la masse maigre, souvent conseillée aux sportifs : donne un peu plus que Katch-McArdle.',
+    source: { label: 'Cunningham 1980 – Am J Clin Nutr (PDF)', url: 'https://pdodds.w3.uvm.edu/files/papers/others/1980/cunningham1980a.pdf' },
+    compute: ({ leanKg }) => (leanKg === undefined ? undefined : 500 + 22 * leanKg),
+  },
+  tinsley: {
+    label: 'Tinsley (musclés)',
+    needsLean: true,
+    description: 'Tinsley et al. (2019), établie sur des athlètes de physique (culturistes, hommes et femmes) : la plus adaptée si tu es musclé et que ton % de gras est fiable.',
+    source: { label: 'Tinsley et al. 2019 – Appl Physiol Nutr Metab', url: 'https://scholars.ttu.edu/en/publications/resting-metabolic-rate-in-muscular-physique-athletes-validity-of--5' },
+    compute: ({ leanKg }) => (leanKg === undefined ? undefined : 284 + 25.9 * leanKg),
+  },
+};
+
+/** Métabolisme de base selon la formule choisie ; « auto » = Katch-McArdle si le % de gras est connu, sinon Mifflin-St Jeor. */
+export function computeBmr(profile: Profile, weightKg: number, bodyFatPct?: number): { bmr: number; method: Exclude<BmrMethod, 'auto'> } {
+  const leanKg = bodyFatPct !== undefined ? weightKg * (1 - bodyFatPct / 100) : undefined;
+  const ctx = { weightKg, heightCm: profile.heightCm, age: ageFrom(profile.birthYear), male: profile.sex === 'male', leanKg };
+  const wanted = profile.bmrMethod ?? 'auto';
+  let method: Exclude<BmrMethod, 'auto'> = wanted === 'auto' ? (leanKg !== undefined ? 'katch' : 'mifflin') : wanted;
+  // Formule basée sur la masse maigre sans % de gras connu : repli sur Mifflin-St Jeor.
+  if (BMR_FORMULAS[method].needsLean && leanKg === undefined) method = 'mifflin';
+  return { bmr: BMR_FORMULAS[method].compute(ctx)!, method };
+}
+
 export interface NutritionTargets {
   bmr: number;
   tdee: number;
@@ -156,7 +216,8 @@ export interface NutritionTargets {
   proteinG: number;
   fatG: number;
   carbsG: number;
-  method: 'Katch-McArdle' | 'Mifflin-St Jeor';
+  method: string;
+  methodId: Exclude<BmrMethod, 'auto'>;
   targetRateKg: number;
 }
 
@@ -166,16 +227,8 @@ export interface NutritionTargets {
  */
 export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct?: number, kcalAdjust = 0, activityKcal = 0): NutritionTargets {
   const w = latest.weightKg;
-  const age = ageFrom(profile.birthYear);
-  let bmr: number;
-  let method: NutritionTargets['method'];
-  if (bodyFatPct !== undefined) {
-    bmr = 370 + 21.6 * w * (1 - bodyFatPct / 100);
-    method = 'Katch-McArdle';
-  } else {
-    bmr = 10 * w + 6.25 * profile.heightCm - 5 * age + (profile.sex === 'male' ? 5 : -161);
-    method = 'Mifflin-St Jeor';
-  }
+  const { bmr, method: methodId } = computeBmr(profile, w, bodyFatPct);
+  const method = BMR_FORMULAS[methodId].label;
   const tdee = bmr * ACTIVITY_FACTORS[profile.activity] + activityKcal;
   const targetRateKg = (GOAL_RATE[profile.goal] / 100) * w;
   // ~7 700 kcal par kg de tissu ; on plafonne le déficit à 25 % du TDEE.
@@ -187,7 +240,7 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
   // Lipides : ~25 % des calories, minimum 0,6 g/kg pour la santé hormonale.
   const fatG = Math.round(Math.max((calories * 0.25) / 9, w * 0.6));
   const carbsG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
-  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, proteinG, fatG, carbsG, method, targetRateKg: round(targetRateKg, 2) };
+  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2) };
 }
 
 /**

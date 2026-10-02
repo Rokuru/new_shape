@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adaptiveAdjustment, composition, currentComposition, e1rm, setE1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
+import { adaptiveAdjustment, computeBmr, composition, currentComposition, e1rm, setE1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
 import { generateProgram } from './generator';
 import { suggest } from './progression';
 import { DEFAULT_PROFILE } from './store';
@@ -75,6 +75,22 @@ describe('nutrition', () => {
     expect(cut.proteinG * 4 + cut.fatG * 9 + cut.carbsG * 4).toBeCloseTo(cut.calories, -1);
     const bulk = nutritionTargets({ ...profile, goal: 'bulk' }, latest);
     expect(bulk.calories).toBeGreaterThan(bulk.tdee);
+  });
+
+  it('formules de métabolisme de base au choix', () => {
+    const age = new Date().getFullYear() - 1990;
+    // Mifflin-St Jeor, homme 80 kg / 180 cm
+    expect(computeBmr(profile, 80).bmr).toBeCloseTo(10 * 80 + 6.25 * 180 - 5 * age + 5, 5);
+    expect(computeBmr(profile, 80).method).toBe('mifflin');
+    // Auto + % de gras connu → Katch-McArdle (masse maigre 64 kg)
+    expect(computeBmr(profile, 80, 20)).toEqual({ bmr: 370 + 21.6 * 64, method: 'katch' });
+    expect(computeBmr({ ...profile, bmrMethod: 'cunningham' }, 80, 20).bmr).toBeCloseTo(500 + 22 * 64, 5);
+    expect(computeBmr({ ...profile, bmrMethod: 'tinsley' }, 80, 20).bmr).toBeCloseTo(284 + 25.9 * 64, 5);
+    expect(computeBmr({ ...profile, bmrMethod: 'harris' }, 80).bmr).toBeCloseTo(88.362 + 13.397 * 80 + 4.799 * 180 - 5.677 * age, 5);
+    // Formule « masse maigre » sans % de gras : repli sur Mifflin-St Jeor
+    expect(computeBmr({ ...profile, bmrMethod: 'tinsley' }, 80).method).toBe('mifflin');
+    const t = nutritionTargets({ ...profile, bmrMethod: 'harris' }, { id: '1', date: '2026-01-01', weightKg: 80 });
+    expect(t.methodId).toBe('harris');
   });
 
   it('propose un ajustement quand la tendance dévie', () => {
