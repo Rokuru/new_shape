@@ -123,6 +123,19 @@ export interface Program {
   progression: string;
   days: ProgramDay[];
   custom?: boolean;
+  /** Famille de méthode, pour filtrer et comparer. */
+  style?: ProgramStyle;
+  /** Ce qu'en disent les études (points forts, limites). */
+  evidence?: string;
+  /** Sources consultées (auteur, synthèses, études). */
+  sources?: ProgramSource[];
+}
+
+export type ProgramStyle = 'force' | 'powerbuilding' | 'hypertrophie' | 'haute_intensite' | 'poids_du_corps';
+
+export interface ProgramSource {
+  label: string;
+  url: string;
 }
 
 export interface LoggedSet {

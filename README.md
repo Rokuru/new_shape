@@ -8,7 +8,12 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
   - split selon le nombre de séances : full body (2–3 j), upper/lower (4 j), upper/lower + PPL (5 j), PPL ×2 (6 j) ;
   - chaque muscle travaillé 2×/semaine, 10–20 séries hebdomadaires selon le niveau, plafonné par la durée de séance ;
   - aperçu du volume par muscle comparé aux repères MEV / MAV / MRV de Renaissance Periodization.
-- **Bibliothèque de programmes** inspirés de méthodes connues : StrongLifts/Starting Strength 5×5, GZCLP, 5/3/1 BBB (Wendler), PHUL, PPL r/Fitness, Upper/Lower « science-based » (Nippard, Israetel, Schoenfeld), full body haltères.
+- **Bibliothèque de 19 programmes** inspirés de coachs et de chercheurs reconnus, chacun avec ses sources et une analyse au regard des méta-analyses (volume, fréquence, proximité de l’échec) :
+  - force : StrongLifts 5×5, Starting Strength (Rippetoe), Texas Method (Rippetoe & Kilgore), Madcow 5×5 (Bill Starr), 5/3/1 BBB (Wendler) ;
+  - force + muscle : GZCLP (Lefever), PHUL (Campbell), PHAT (Layne Norton) ;
+  - hypertrophie : Muscle & Strength Pyramid (Eric Helms), Generic Bulking Routine (Lyle McDonald), German Volume Training (Poliquin), FST-7 (Hany Rambod), Golden Six (attribué à Arnold), Strong Curves (Bret Contreras), PPL r/Fitness, Upper/Lower « science-based », full body haltères ;
+  - haute intensité : Blood & Guts (Dorian Yates) ; poids du corps : Recommended Routine (r/bodyweightfitness, Steven Low) ;
+  - filtres par méthode, tableau comparatif calculé (séries dures / semaine, fréquence par muscle, part de séries lourdes, durée, muscles sous le minimum efficace) et tri selon le niveau, le matériel, l’objectif et le nombre de séances.
 - **Carnet de séance** : charges et reps pré-remplies, suggestion de surcharge progressive (progression linéaire ou double progression, décharge après 3 échecs), RIR, minuteur de repos, exercices libres, notes.
 - **Composition corporelle** : poids lissé (moyenne mobile exponentielle), % de gras (saisi ou estimé par la méthode US Navy), masses grasse/maigre, FFMI, mensurations, graphiques.
 - **Balance à bio-impédance (Tanita BC-545N…)** : saisie des valeurs dans l’ordre d’affichage de la balance (% gras, eau, muscle, masse physique, os, calories, âge métabolique, graisse viscérale) et de l’analyse segmentaire (bras, jambes, tronc), avec tendances lissées, interprétation et détection d’asymétries.
