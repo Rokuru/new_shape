@@ -46,6 +46,11 @@ export default function CardioCard() {
   const preview = isValidCardio(draft) ? cardioStats(draft, profile, weightKg) : undefined;
 
   const save = () => {
+    // Safari iOS n'applique pas l'attribut max du sélecteur de date : on refuse ici une date future.
+    if (date > todayKey) {
+      setMsg('La date est dans le futur : choisis aujourd’hui ou un jour passé.');
+      return;
+    }
     if (!isValidCardio(draft)) {
       setMsg(mode === 'tapis' ? 'Indique la vitesse et la durée (ou passe en mode « Pas » si tu n’as que tes pas).' : 'Indique ton nombre de pas.');
       return;

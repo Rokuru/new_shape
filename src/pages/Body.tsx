@@ -68,6 +68,11 @@ export default function BodyPage() {
   const previewBf = navyBodyFat(profile.sex, profile.heightCm, parsed('waistCm'), parsed('neckCm'), parsed('hipCm'));
 
   const save = () => {
+    // Safari iOS n'applique pas l'attribut max du sélecteur de date : on refuse ici une date future.
+    if (date > todayKey) {
+      setMsg('La date est dans le futur : choisis aujourd’hui ou un jour passé.');
+      return;
+    }
     const weightKg = parsed('weightKg');
     if (!weightKg) {
       setMsg('Le poids est obligatoire.');
