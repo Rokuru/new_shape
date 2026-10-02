@@ -106,3 +106,14 @@ describe('séances courtes (15–30 min)', () => {
     expect(programStats(best).minutes).toBeLessThanOrEqual(25);
   });
 });
+
+describe('fiches d’exercice', () => {
+  it('chaque exercice a une fiche (schéma, matériel, consignes)', async () => {
+    const { GUIDES, PATTERN_STEPS } = await import('../data/exerciseGuide');
+    for (const e of EXERCISES) {
+      expect(GUIDES[e.id], e.id).toBeDefined();
+      expect(GUIDES[e.id].gear.length, e.id).toBeGreaterThan(2);
+      expect(PATTERN_STEPS[GUIDES[e.id].pattern].length, e.id).toBeGreaterThanOrEqual(3);
+    }
+  });
+});

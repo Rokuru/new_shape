@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from './components/ui';
 import Logo from './components/Logo';
 import PullToRefresh from './components/PullToRefresh';
+import { ExerciseInfoProvider } from './components/ExerciseInfo';
 import { useStore } from './lib/store';
 import { useAuth } from './lib/sync';
 import Dashboard from './pages/Dashboard';
@@ -59,6 +60,7 @@ export default function App() {
   const label = (t: (typeof TABS)[number]) => (t.id === 'workout' && hasActive ? 'En cours' : t.label);
 
   return (
+    <ExerciseInfoProvider>
     <div className="shell">
       <PullToRefresh />
       {/* iPad / ordinateur : navigation latérale */}
@@ -136,5 +138,6 @@ export default function App() {
         ))}
       </nav>
     </div>
+    </ExerciseInfoProvider>
   );
 }

@@ -7,6 +7,7 @@ import { allPrograms, useStore } from '../lib/store';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
 import CardioCard from '../components/CardioCard';
+import { ExerciseLink } from '../components/ExerciseInfo';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout } = useStore();
@@ -265,7 +266,9 @@ function ExerciseCard({
     <div className="card">
       <div className="spread">
         <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0 }}>{info.name}</h3>
+          <h3 style={{ margin: 0 }}>
+            <ExerciseLink id={ex.exerciseId} />
+          </h3>
           {t && (
             <div className="small secondary">
               {t.sets} × {t.repMin === t.repMax ? t.repMin : `${t.repMin}–${t.repMax}`} · RIR {t.rir} · repos {Math.round(t.restSec / 60 * 10) / 10} min
