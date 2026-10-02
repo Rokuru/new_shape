@@ -23,6 +23,24 @@ export const DEFAULT_PROFILE: Profile = {
   priorities: [],
 };
 
+/** Bornes plausibles des champs numériques du profil (utilisées aussi par le formulaire). */
+export const PROFILE_LIMITS = {
+  heightCm: { min: 120, max: 230 },
+  birthYear: { min: new Date().getFullYear() - 100, max: new Date().getFullYear() - 12 },
+} as const;
+
+/** Remplace toute valeur numérique absurde du profil (saisie, ancienne sauvegarde, synchro) par la valeur par défaut. */
+export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
+  const out: Profile = { ...DEFAULT_PROFILE, ...(p ?? {}) };
+  const ok = (v: unknown, min: number, max: number) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+  if (!ok(out.heightCm, PROFILE_LIMITS.heightCm.min, PROFILE_LIMITS.heightCm.max)) out.heightCm = DEFAULT_PROFILE.heightCm;
+  if (!ok(out.birthYear, PROFILE_LIMITS.birthYear.min, PROFILE_LIMITS.birthYear.max)) out.birthYear = DEFAULT_PROFILE.birthYear;
+  if (!ok(out.daysPerWeek, 2, 6)) out.daysPerWeek = DEFAULT_PROFILE.daysPerWeek;
+  if (!ok(out.sessionMinutes, 10, 180)) out.sessionMinutes = DEFAULT_PROFILE.sessionMinutes;
+  if (!Array.isArray(out.priorities)) out.priorities = [];
+  return out;
+}
+
 export interface ShareSettings {
   enabled: boolean;
   /** Inclure poids et composition corporelle. */
@@ -108,7 +126,7 @@ export const useStore = create<State>()(
   persist(
     (set, get) => ({
       ...initial,
-      setProfile: (p) => set((s) => ({ profile: { ...s.profile, ...p } })),
+      setProfile: (p) => set((s) => ({ profile: sanitizeProfile({ ...s.profile, ...p }) })),
       completeOnboarding: () => set({ onboarded: true }),
       upsertBody: (e) =>
         set((s) => {
@@ -172,7 +190,7 @@ export const useStore = create<State>()(
         set({
           ...initial,
           onboarded: true,
-          profile: { ...DEFAULT_PROFILE, ...d.profile },
+          profile: sanitizeProfile(d.profile),
           body: d.body,
           workouts: d.workouts,
           customPrograms: d.customPrograms ?? [],
@@ -189,10 +207,18 @@ export const useStore = create<State>()(
       addFriend: (login) => set((s) => (s.friends.some((f) => f.toLowerCase() === login.toLowerCase()) ? {} : { friends: [...s.friends, login] })),
       removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
       setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
-      applySynced: (d) => set({ ...pickSynced(d), profile: { ...DEFAULT_PROFILE, ...d.profile }, friends: d.friends ?? [], cardio: d.cardio ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
+      applySynced: (d) => set({ ...pickSynced(d), profile: sanitizeProfile(d.profile), friends: d.friends ?? [], cardio: d.cardio ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
       reset: () => set({ ...initial }),
     }),
-    { name: 'new-shape-v1', version: 1 },
+    {
+      name: 'new-shape-v1',
+      version: 1,
+      // Données déjà enregistrées avec un profil incohérent : corrigées au chargement.
+      merge: (persisted, current) => {
+        const s = { ...current, ...(persisted as Partial<State>) };
+        return { ...s, profile: sanitizeProfile(s.profile) };
+      },
+    },
   ),
 );
 

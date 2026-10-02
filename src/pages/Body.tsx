@@ -78,6 +78,20 @@ export default function BodyPage() {
       setMsg('Le poids est obligatoire.');
       return;
     }
+    if (weightKg < 25 || weightKg > 350) {
+      setMsg('Poids hors limites : entre 25 et 350 kg.');
+      return;
+    }
+    const bf = parsed('bodyFatPct');
+    if (bf !== undefined && (bf < 2 || bf > 70)) {
+      setMsg('% de masse grasse hors limites : entre 2 et 70 %.');
+      return;
+    }
+    const badCm = FIELDS.find((f) => f.key.endsWith('Cm') && parsed(f.key) !== undefined && (parsed(f.key)! < 10 || parsed(f.key)! > 250));
+    if (badCm) {
+      setMsg(`${badCm.label} : valeur hors limites (10 à 250 cm).`);
+      return;
+    }
     const entry: BodyEntry = { id: uid(), date, weightKg };
     for (const f of FIELDS) if (f.key !== 'weightKg' && parsed(f.key)) (entry as unknown as Record<string, number>)[f.key] = parsed(f.key)!;
     if (form.note) entry.note = form.note;

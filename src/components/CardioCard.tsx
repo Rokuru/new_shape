@@ -55,8 +55,8 @@ export default function CardioCard() {
       setMsg(mode === 'tapis' ? 'Indique la vitesse et la durée (ou passe en mode « Pas » si tu n’as que tes pas).' : 'Indique ton nombre de pas.');
       return;
     }
-    if (draft.inclinePct > 30 || (draft.speedKmh ?? 0) > 25 || (draft.durationMin ?? 0) > 600) {
-      setMsg('Valeur hors limites : inclinaison en % (0–30), vitesse en km/h, durée en minutes.');
+    if (draft.inclinePct > 30 || (draft.speedKmh ?? 0) > 25 || (draft.durationMin ?? 0) > 600 || (draft.steps ?? 0) > 100000) {
+      setMsg('Valeur hors limites : inclinaison en % (0–30), vitesse en km/h (≤ 25), durée en minutes (≤ 600), pas (≤ 100 000).');
       return;
     }
     addCardio({ ...draft, id: uid(), steps: draft.steps ? Math.round(draft.steps) : undefined });
