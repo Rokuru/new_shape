@@ -4,6 +4,16 @@ import App from './App';
 import { applyTheme, readTheme } from './pages/Profile';
 import { consumeOAuthCallback } from './lib/github';
 import { login, startSync, useAuth } from './lib/sync';
+// Typographies auto-hébergées (hors-ligne, sans appel à Google Fonts) : Barlow pour le texte,
+// Barlow Condensed pour les titres, le logo et les chiffres.
+import '@fontsource/barlow/latin-400.css';
+import '@fontsource/barlow/latin-500.css';
+import '@fontsource/barlow/latin-600.css';
+import '@fontsource/barlow/latin-700.css';
+import '@fontsource/barlow-condensed/latin-600.css';
+import '@fontsource/barlow-condensed/latin-700.css';
+import '@fontsource/barlow-condensed/latin-800.css';
+import '@fontsource/barlow-condensed/latin-800-italic.css';
 import './styles.css';
 
 applyTheme(readTheme());

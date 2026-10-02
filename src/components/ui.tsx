@@ -13,6 +13,16 @@ const paths: Record<string, ReactNode> = {
   plus: <path d="M12 5v14M5 12h14" />,
   trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
+  scale: <path d="M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 10a4 4 0 0 1 8 0M12 10l2-2.5" />,
+  drop: <path d="M12 3l5.4 6a7.2 7.2 0 1 1-10.8 0z" />,
+  flame: <path d="M12 22c3.9 0 7-2.8 7-6.6 0-3.1-1.9-5.2-3.5-7-.5 1.6-1.4 2.6-2.6 3.1.4-3.4-1.4-6.3-4-8.5-.2 3.5-1.9 5.5-3.3 7.2C4.6 11.4 5 12.9 5 15.4 5 19.2 8.1 22 12 22z" />,
+  bolt: <path d="M13 2L4 14h7l-1 8 9-12h-7z" />,
+  walk: <path d="M13 4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM9 21l2.5-6.5L14 17v4M7.5 11l2.5-3.5 4 1 2.5 3.5M10 7.5l1.5 7" />,
+  trophy: <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />,
+  play: <path d="M7 4.5v15l12-7.5z" />,
+  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  calendar: <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 2v4M16 2v4" />,
+  target: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />,
 };
 
 export function Icon({ name, size = 22 }: { name: keyof typeof paths | string; size?: number }) {
@@ -23,10 +33,17 @@ export function Icon({ name, size = 22 }: { name: keyof typeof paths | string; s
   );
 }
 
-export function Tile({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
+export function Tile({ label, value, sub, icon, tone = 'blue' }: { label: string; value: ReactNode; sub?: ReactNode; icon?: string; tone?: 'blue' | 'green' }) {
   return (
-    <div className="tile">
-      <div className="label">{label}</div>
+    <div className={`tile ${icon ? `tone-${tone}` : ''}`}>
+      <div className="tile-head">
+        <div className="label">{label}</div>
+        {icon && (
+          <span className="tile-icon">
+            <Icon name={icon} size={18} />
+          </span>
+        )}
+      </div>
       <div className="value">{value}</div>
       {sub !== undefined && <div className="sub">{sub}</div>}
     </div>

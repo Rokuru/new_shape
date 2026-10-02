@@ -18,6 +18,8 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   return (
     <div>
       <h1>Séance</h1>
+      <div className="split">
+      <div>
       {program ? (
         <div className="card">
           <div className="card-header">
@@ -32,8 +34,8 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
                   </div>
                   <div className="small muted">{d.exercises.length} exercices · {d.exercises.reduce((s, e) => s + e.sets, 0)} séries</div>
                 </div>
-                <button className={`btn ${i === nextDayIndex % program.days.length ? 'primary' : ''}`} onClick={() => startWorkout(program, i)}>
-                  Démarrer
+                <button className={`btn ${i === nextDayIndex % program.days.length ? 'go' : ''}`} onClick={() => startWorkout(program, i)}>
+                  {i === nextDayIndex % program.days.length && <Icon name="play" size={18} />} Démarrer
                 </button>
               </div>
             ))}
@@ -47,9 +49,11 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
       <button className="btn block" onClick={() => startWorkout()}>
         <Icon name="plus" size={18} /> Séance libre
       </button>
+      </div>
 
-      <div style={{ marginTop: 16 }}>
+      <div>
         <CardioCard />
+      </div>
       </div>
 
       <h2 style={{ marginTop: 24 }}>Historique</h2>

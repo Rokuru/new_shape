@@ -85,7 +85,7 @@ export default function CardioCard() {
           value={`${todayTotal.kcal} kcal`}
           sub={todayTotal.minutes ? `${fmtNum(todayTotal.steps, 0)} pas · ${fmtNum(todayTotal.distanceKm, 1)} km${todayTotal.elevationM ? ` · +${todayTotal.elevationM} m` : ''}` : 'rien enregistré'}
         />
-        <Tile label="Moyenne / jour (7 j)" value={`${Math.round(avg('kcal'))} kcal`} sub={`${fmtNum(avg('steps'), 0)} pas · ${fmtNum(avg('distanceKm'), 1)} km`} />
+        <Tile label="Moyenne / jour (7 j)" value={`${Math.round(avg('kcal'))} kcal`} sub={`${fmtNum(avg('steps'), 0)} pas · ${fmtNum(avg('distanceKm'), 1)} km`} />
       </div>
 
       <div style={{ marginBottom: 10 }}>
