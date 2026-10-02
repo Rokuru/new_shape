@@ -103,7 +103,7 @@ export default function BiaPanel({ body, profile }: { body: BodyEntry[]; profile
         {b.physique !== undefined && <Tile label="Masse physique" value={String(b.physique)} sub={PHYSIQUE_LABELS[Math.round(b.physique)]} />}
         {b.metabolicAge !== undefined && <Tile label="Âge métabolique" value={`${b.metabolicAge} ans`} sub={<Status {...metabolicAgeStatus(b.metabolicAge, profile)} />} />}
         {b.boneKg !== undefined && <Tile label="Masse osseuse" value={`${fmtNum(b.boneKg)} kg`} sub="stable chez l’adulte" />}
-        {b.kcal !== undefined && <Tile label="Calories (balance)" value={`${fmtNum(b.kcal, 0)} kcal`} sub="à comparer à l’onglet Nutrition" />}
+        {b.kcal !== undefined && <Tile label="Calories (balance)" value={fmtNum(b.kcal, 0)} sub="kcal · à comparer à l’onglet Nutrition" />}
       </div>
 
       {seg && (
