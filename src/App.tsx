@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './components/ui';
+import Logo from './components/Logo';
 import { useStore } from './lib/store';
 import { useAuth } from './lib/sync';
 import Dashboard from './pages/Dashboard';
@@ -49,28 +50,66 @@ export default function App() {
 
   if (!onboarded) return <Onboarding />;
 
+  const avatar = user ? (
+    <img className="avatar" src={user.avatarUrl} alt="" width={24} height={24} style={syncError ? { outline: '2px solid var(--critical)' } : undefined} />
+  ) : (
+    <Icon name="user" size={20} />
+  );
+  const label = (t: (typeof TABS)[number]) => (t.id === 'workout' && hasActive ? 'En cours' : t.label);
+
   return (
-    <>
-      <div className="app">
+    <div className="shell">
+      {/* iPad / ordinateur : navigation latérale */}
+      <aside className="sidebar" aria-label="Navigation principale">
+        <button className="sidebar-logo" onClick={() => go('home')} aria-label="Accueil New Shape">
+          <span className="logo-full">
+            <Logo size={34} />
+          </span>
+          <span className="logo-compact">
+            <Logo size={38} compact />
+          </span>
+        </button>
+        <nav className="side-nav">
+          {TABS.map((t) => (
+            <button key={t.id} className={`side-link ${tab === t.id ? 'active' : ''}`} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
+              <span className="side-icon">
+                <Icon name={t.icon} />
+                {t.id === 'workout' && hasActive && <i className="live-dot" aria-hidden />}
+              </span>
+              <span className="side-label">{label(t)}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="side-nav side-foot">
+          <button className={`side-link ${tab === 'friends' ? 'active' : ''}`} onClick={() => go('friends')} aria-current={tab === 'friends' ? 'page' : undefined}>
+            <span className="side-icon">
+              <Icon name="users" />
+            </span>
+            <span className="side-label">Amis</span>
+          </button>
+          <button className={`side-link ${tab === 'profile' ? 'active' : ''}`} onClick={() => go('profile')} aria-current={tab === 'profile' ? 'page' : undefined} aria-label="Profil et réglages">
+            <span className="side-icon">{avatar}</span>
+            <span className="side-label">{user ? user.login : 'Profil'}</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="main-col">
+        {/* iPhone : barre du haut */}
         <header className="topbar">
-          <div className="brand">
-            New<span>Shape</span>
-          </div>
-          <div className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-          <button className={`btn sm ${tab === 'friends' ? 'primary' : 'ghost'}`} onClick={() => go('friends')} aria-label="Amis">
-            <Icon name="users" size={18} /> Amis
+          <button className="topbar-logo" onClick={() => go('home')} aria-label="Accueil New Shape">
+            <Logo size={30} />
           </button>
-          <button className="btn ghost sm" onClick={() => go('profile')} aria-label="Profil et réglages">
-            {user ? (
-              <img src={user.avatarUrl} alt="" width={20} height={20} style={{ borderRadius: '50%', outline: syncError ? '2px solid var(--critical)' : undefined }} />
-            ) : (
-              <Icon name="user" size={18} />
-            )}{' '}
-            Profil
-          </button>
+          <div className="topbar-actions">
+            <button className={`icon-btn ${tab === 'friends' ? 'active' : ''}`} onClick={() => go('friends')} aria-label="Amis">
+              <Icon name="users" size={20} />
+            </button>
+            <button className={`icon-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => go('profile')} aria-label="Profil et réglages">
+              {avatar}
+            </button>
           </div>
         </header>
-        <main>
+        <main className="content" key={tab}>
           {tab === 'home' && <Dashboard go={go} />}
           {tab === 'workout' && <WorkoutPage go={go} />}
           {tab === 'programs' && <ProgramsPage go={go} />}
@@ -81,16 +120,19 @@ export default function App() {
           {tab === 'friends' && <FriendsPage go={go} />}
         </main>
       </div>
-      <nav className="nav" aria-label="Navigation principale">
-        <div className="nav-inner">
-          {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
+
+      {/* iPhone : onglets en bas */}
+      <nav className="tabbar" aria-label="Navigation principale">
+        {TABS.map((t) => (
+          <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
+            <span className="tab-icon">
               <Icon name={t.icon} />
-              {t.id === 'workout' && hasActive ? 'En cours' : t.label}
-            </button>
-          ))}
-        </div>
+              {t.id === 'workout' && hasActive && <i className="live-dot" aria-hidden />}
+            </span>
+            {label(t)}
+          </button>
+        ))}
       </nav>
-    </>
+    </div>
   );
 }

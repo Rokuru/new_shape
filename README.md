@@ -24,6 +24,14 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
 - **Amis** : chacun peut activer le partage de ses progrès (gist **public** de son compte, résumé : 1RM estimés, régularité, dernières séances et, au choix, poids et composition). On ajoute un ami par son pseudo GitHub pour comparer les courbes (en kg ou en % de progression), la régularité et l’évolution du poids.
 - Sans connexion : données dans le navigateur, export / import JSON. Thème clair / sombre.
 
+## Design
+
+- **Logo** : un kettlebell traversé par une courbe qui monte (la musculation + la progression), en dégradé bleu → vert. Source : `public/icon.svg` ; les icônes PNG de l’app (iPhone, Android) se régénèrent avec `node scripts/icons.cjs` (Playwright).
+- **Typographie** : Barlow pour le texte, Barlow Condensed pour les titres, le logo et les chiffres (licence SIL OFL), auto-hébergées via Fontsource : pas d’appel à Google Fonts, l’app reste utilisable hors-ligne.
+- **Couleurs** : bleu `#2563eb`, vert `#10b981`, bouton d’action vert `#22c55e`, barres de navigation bleu nuit. Contrastes vérifiés (WCAG AA) et palette des graphiques validée pour le daltonisme.
+- **Responsive** : onglets en bas sur iPhone (zones sûres de l’encoche gérées), rail d’icônes à gauche sur iPad, barre latérale complète sur ordinateur ; 16 px minimum dans les champs pour éviter le zoom de Safari iOS.
+- Inspirations : Whoop (chiffres massifs, mode sombre), Strava (cartes et bouton d’action franc), Nike Training Club (titres condensés en capitales), Apple Fitness (anneau de régularité), Hevy / Strong (séries validées en vert).
+
 ## Démarrer
 
 ```bash
@@ -78,8 +86,9 @@ src/
                github (API, OAuth), sync (synchronisation et fusion),
                share (partage public et amis), bia (balance Tanita)
   pages/       Accueil, Séance, Programmes, Corps, Nutrition, Progrès, Amis, Profil
-  components/  UI partagée, formulaire de profil, barres de volume
+  components/  UI partagée, logo, formulaire de profil, barres de volume
 auth-worker/   proxy OAuth (Cloudflare Worker)
+scripts/       génération des icônes PNG à partir du logo
 ```
 
 Les valeurs calculées sont des estimations ; elles ne remplacent pas l’avis d’un professionnel de santé.

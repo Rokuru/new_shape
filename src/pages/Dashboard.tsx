@@ -7,7 +7,7 @@ import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
 import { activityAverage } from '../lib/energy';
 import { useToday } from '../hooks/useToday';
-import { ChartTooltip, Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
+import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const { profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
@@ -28,68 +28,97 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
   const nextDay = program?.days[nextDayIndex % program.days.length];
 
+  const exNames = nextDay?.exercises.map((e) => getExercise(e.exerciseId).name) ?? [];
+  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
     <div>
-      <h1>Salut{profile.name ? ` ${profile.name}` : ''} 👋</h1>
-      <p className="secondary">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-
-      <div className="card">
-        {activeWorkout ? (
-          <div className="spread">
-            <div>
-              <div className="small secondary">Séance en cours</div>
-              <h2 style={{ margin: 0 }}>{activeWorkout.dayName}</h2>
-            </div>
-            <button className="btn primary" onClick={() => go('workout')}>
-              Reprendre
-            </button>
+      <section className="hero">
+        <div className="hero-top">
+          <div style={{ minWidth: 0 }}>
+            <div className="hero-kicker">{today}</div>
+            <h1>Salut{profile.name ? ` ${profile.name}` : ''} 👋</h1>
           </div>
-        ) : program && nextDay ? (
-          <div className="spread">
-            <div style={{ minWidth: 0 }}>
-              <div className="small secondary">Prochaine séance · {program.name}</div>
-              <h2 style={{ margin: '2px 0' }}>{nextDay.name}</h2>
-              <div className="small muted">{nextDay.exercises.map((e) => getExercise(e.exerciseId).name).join(' · ')}</div>
-            </div>
-            <button
-              className="btn primary"
-              onClick={() => {
-                startWorkout(program, nextDayIndex % program.days.length);
-                go('workout');
-              }}
-            >
-              Démarrer
-            </button>
-          </div>
-        ) : (
-          <div className="spread">
-            <span>Aucun programme actif.</span>
-            <button className="btn primary" onClick={() => go('programs')}>
-              Choisir
-            </button>
-          </div>
-        )}
-      </div>
+          <WeekRing done={thisWeek} target={profile.daysPerWeek} />
+        </div>
+        <div className="hero-next">
+          {activeWorkout ? (
+            <>
+              <div className="label">Séance en cours</div>
+              <div className="hero-session">{activeWorkout.dayName}</div>
+              <div className="hero-actions">
+                <button className="btn go lg" onClick={() => go('workout')}>
+                  <Icon name="play" size={20} /> Reprendre
+                </button>
+              </div>
+            </>
+          ) : program && nextDay ? (
+            <>
+              <div className="label">Prochaine séance · {program.name}</div>
+              <div className="hero-session">{nextDay.name}</div>
+              <div className="hero-ex">
+                {/* iPhone : 3 exercices affichés, écrans plus larges : 6 */}
+                {exNames.slice(0, 6).map((n, i) => (
+                  <span key={i} className={i >= 3 ? 'extra' : undefined}>
+                    {n}
+                  </span>
+                ))}
+                {exNames.length > 3 && <span className="more-sm">+{exNames.length - 3}</span>}
+                {exNames.length > 6 && <span className="more-lg">+{exNames.length - 6}</span>}
+              </div>
+              <div className="hero-actions">
+                <button
+                  className="btn go lg"
+                  onClick={() => {
+                    startWorkout(program, nextDayIndex % program.days.length);
+                    go('workout');
+                  }}
+                >
+                  <Icon name="play" size={20} /> Démarrer
+                </button>
+                <button className="btn ghost hide-xs" onClick={() => go('programs')}>
+                  Voir le programme
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="label">Aucun programme actif</div>
+              <div className="hero-actions" style={{ marginTop: 8 }}>
+                <button className="btn go lg" onClick={() => go('programs')}>
+                  Choisir un programme <Icon name="arrow" size={20} />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       <div className="tiles">
         <Tile
           label="Poids (tendance)"
+          icon="scale"
           value={trend.length ? `${fmtNum(trend.at(-1)!.trend)} kg` : '—'}
           sub={rate !== undefined ? `${signed(rate, 2)} kg / sem.` : 'Pèse-toi 3×/sem.'}
         />
         <Tile
           label="Masse grasse"
+          icon="drop"
           value={comp?.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
           sub={comp?.fatKg !== undefined && firstComp?.fatKg !== undefined && sinceStart ? `${signed(comp.fatKg - firstComp.fatKg)} kg depuis le début` : comp?.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Ajoute tes mensurations'}
         />
         <Tile
           label="Masse maigre"
+          icon="dumbbell"
+          tone="green"
           value={comp?.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'}
           sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && sinceStart ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}` : undefined}
         />
         {muscle.length > 0 && (
           <Tile
             label="Muscle (balance)"
+            icon="bolt"
+            tone="green"
             value={`${fmtNum(muscle.at(-1))} kg`}
             sub={muscle.length > 1 ? `tendance ${signed(muscle.at(-1)! - muscle[0])} kg depuis le début` : 'Tanita'}
           />
@@ -97,30 +126,37 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         {cardio.length > 0 && (
           <Tile
             label="Marche aujourd’hui"
+            icon="walk"
+            tone="green"
             value={`${cardioToday.kcal} kcal`}
             sub={cardioToday.minutes ? `${fmtNum(cardioToday.steps, 0)} pas · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
           />
         )}
-        <Tile label="Séances cette semaine" value={`${thisWeek} / ${profile.daysPerWeek}`} sub={`${workouts.length} au total`} />
-        {nut && <Tile label="Calories / jour" value={fmtNum(nut.calories, 0)} sub={`${nut.proteinG} g de protéines`} />}
+        {nut && <Tile label="Calories / jour" icon="flame" value={fmtNum(nut.calories, 0)} sub={`${nut.proteinG} g de protéines`} />}
       </div>
 
       <div className="grid grid-2">
         <div className="card">
           <div className="card-header">
-            <h3>Poids – tendance lissée</h3>
-            <button className="btn ghost sm" onClick={() => go('body')}>
-              Ajouter une pesée
+            <h2>Poids – tendance</h2>
+            <button className="btn sm" onClick={() => go('body')}>
+              <Icon name="plus" size={16} /> Pesée
             </button>
           </div>
           {trend.length >= 2 ? (
             <div className="chart sm">
               <ResponsiveContainer>
                 <AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                  <defs>
+                    <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor="var(--series-1)" stopOpacity={0.22} />
+                      <stop offset="1" stopColor="var(--series-1)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
                   <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
                   <YAxis domain={['dataMin - 1', 'dataMax + 1']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 0)} />
                   <Tooltip content={<ChartTooltip unit=" kg" />} />
-                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="var(--band)" dot={false} activeDot={{ r: 4 }} />
+                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="url(#weightFill)" dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -131,27 +167,53 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 
         <div className="card">
           <div className="card-header">
-            <h3>Records récents</h3>
+            <h2>Records récents</h2>
             <button className="btn ghost sm" onClick={() => go('progress')}>
-              Tout voir
+              Tout voir <Icon name="arrow" size={16} />
             </button>
           </div>
           {prs.length ? (
             prs.map((p) => (
-              <div className="list-item" key={p.exerciseId + p.date}>
-                <div>
+              <div className="pr-item" key={p.exerciseId + p.date}>
+                <span className="pr-badge">
+                  <Icon name="trophy" size={20} />
+                </span>
+                <div className="pr-main">
                   <div>{getExercise(p.exerciseId).name}</div>
                   <div className="small muted">
                     {fmtDate(p.date)} · {getExercise(p.exerciseId).bodyweight ? `PDC${p.weight ? ` + ${fmtNum(p.weight)} kg` : ''}` : `${fmtNum(p.weight)} kg`} × {p.reps}
                   </div>
                 </div>
-                <span className="status ok">1RM est. {fmtNum(p.e1rm)} kg</span>
+                <span className="status ok">1RM {fmtNum(p.e1rm)} kg</span>
               </div>
             ))
           ) : (
             <Empty>Tes records apparaîtront ici après tes premières séances.</Empty>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Anneau de régularité : séances faites cette semaine par rapport à l'objectif du profil. */
+function WeekRing({ done, target }: { done: number; target: number }) {
+  const size = 92;
+  const stroke = 9;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = target > 0 ? Math.min(1, done / target) : 0;
+  return (
+    <div className="ring" role="img" aria-label={`${done} séance${done > 1 ? 's' : ''} sur ${target} cette semaine`}>
+      <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle className="ring-track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} />
+        <circle className="ring-fill" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+      </svg>
+      <div aria-hidden>
+        <span className="ring-value">
+          {done}/{target}
+        </span>
+        <span className="ring-label">séances</span>
       </div>
     </div>
   );

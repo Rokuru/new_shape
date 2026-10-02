@@ -3,6 +3,8 @@ import AccountCard from '../components/AccountCard';
 import ProfileForm from '../components/ProfileForm';
 import { generateProgram } from '../lib/generator';
 import { today, uid, useStore } from '../lib/store';
+import Logo from '../components/Logo';
+import { Icon } from '../components/ui';
 
 export default function Onboarding() {
   const { profile, setProfile, upsertBody, saveCustomProgram, activateProgram, completeOnboarding, importData } = useStore();
@@ -34,15 +36,27 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="app" style={{ paddingBottom: 32 }}>
-      <div className="brand" style={{ marginBottom: 16 }}>
-        New<span>Shape</span>
-      </div>
-      <h1>Construisons ton plan</h1>
-      <p className="secondary">
-        Quelques infos pour générer un programme adapté (split, volume, exercices), calculer tes besoins nutritionnels et suivre ta composition
-        corporelle. Tes données restent sur ton appareil, ou dans ton compte GitHub si tu te connectes.
-      </p>
+    <div className="onboarding">
+      <header className="onboarding-hero">
+        <Logo size={44} />
+        <h1>Construisons ton plan</h1>
+        <p>
+          Quelques infos pour générer un programme adapté (split, volume, exercices), calculer tes besoins nutritionnels et suivre ta composition corporelle.
+          Tes données restent sur ton appareil, ou dans ton compte GitHub si tu te connectes.
+        </p>
+        <div className="onboarding-points">
+          <span>
+            <Icon name="dumbbell" size={16} /> Programme sur mesure
+          </span>
+          <span>
+            <Icon name="chart" size={16} /> Progression suivie
+          </span>
+          <span>
+            <Icon name="flame" size={16} /> Nutrition ajustée
+          </span>
+        </div>
+      </header>
+      <div className="onboarding-body">
       <details className="card">
         <summary>Déjà utilisateur ? Retrouve tes données avec GitHub</summary>
         <div style={{ marginTop: 12 }}>
@@ -70,13 +84,14 @@ export default function Onboarding() {
         </p>
       </div>
       {err && <div className="callout" style={{ borderColor: 'var(--critical)' }}>{err}</div>}
-      <button className="btn primary block" onClick={start}>
-        Générer mon programme
+      <button className="btn go lg block" onClick={start}>
+        Générer mon programme <Icon name="arrow" size={20} />
       </button>
       <label className="btn ghost block" style={{ marginTop: 8 }}>
         Restaurer une sauvegarde (.json)
         <input type="file" accept="application/json" hidden onChange={(e) => onImport(e.target.files?.[0])} />
       </label>
+      </div>
     </div>
   );
 }
