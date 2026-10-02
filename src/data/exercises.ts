@@ -34,14 +34,23 @@ export const EXERCISES: Exercise[] = [
   { id: 'nordic', name: 'Nordic curl', primary: ['hamstrings'], secondary: [], equipment: [B], kind: 'isolation', increment: 0 },
   { id: 'hip_thrust', name: 'Hip thrust', primary: ['glutes'], secondary: ['hamstrings'], equipment: [G, D, B], kind: 'compound', increment: 5 },
   { id: 'calf_raise', name: 'Mollets debout', primary: ['calves'], secondary: [], equipment: [G, D, B], kind: 'isolation', increment: 2.5 },
+  { id: 'seated_calf', name: 'Mollets assis', primary: ['calves'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 2.5 },
+  { id: 'glute_bridge', name: 'Pont fessier', primary: ['glutes'], secondary: ['hamstrings'], equipment: [G, D, B], kind: 'isolation', increment: 2.5 },
+  { id: 'step_up', name: 'Montée sur banc', primary: ['quads', 'glutes'], secondary: ['hamstrings'], equipment: [G, D, B], kind: 'compound', increment: 2 },
+  { id: 'sl_rdl', name: 'Soulevé de terre roumain une jambe', primary: ['hamstrings', 'glutes'], secondary: ['back'], equipment: [G, D, B], kind: 'compound', increment: 2 },
+  { id: 'back_extension', name: 'Extension lombaire (banc à 45°)', primary: ['glutes', 'hamstrings'], secondary: ['back'], equipment: [G], kind: 'compound', increment: 2.5 },
+  { id: 'power_clean', name: 'Épaulé en puissance', primary: ['glutes', 'hamstrings', 'back'], secondary: ['quads', 'shoulders'], equipment: [G], kind: 'compound', increment: 2.5, tips: 'Barre près du corps, extension complète des hanches avant de tirer avec les bras ; réception en quart de squat.' },
   { id: 'pistol_squat', name: 'Squat une jambe (assisté)', primary: ['quads', 'glutes'], secondary: [], equipment: [B], kind: 'compound', increment: 0 },
 
   // Poussée
   { id: 'bench', name: 'Développé couché', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G], kind: 'compound', increment: 2.5, tips: 'Omoplates serrées, pieds ancrés, barre au niveau du bas des pectoraux.' },
   { id: 'incline_db', name: 'Développé incliné haltères', primary: ['chest'], secondary: ['shoulders', 'triceps'], equipment: [G, D], kind: 'compound', increment: 2 },
+  { id: 'incline_bench', name: 'Développé incliné barre', primary: ['chest'], secondary: ['shoulders', 'triceps'], equipment: [G], kind: 'compound', increment: 2.5 },
+  { id: 'close_grip_bench', name: 'Développé couché prise serrée', primary: ['triceps', 'chest'], secondary: ['shoulders'], equipment: [G], kind: 'compound', increment: 2.5 },
   { id: 'db_bench', name: 'Développé couché haltères', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G, D], kind: 'compound', increment: 2 },
   { id: 'dips', bodyweight: true, name: 'Dips', primary: ['chest', 'triceps'], secondary: ['shoulders'], equipment: [G, B], kind: 'compound', increment: 2.5 },
   { id: 'pushup', name: 'Pompes', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [B, D], kind: 'compound', increment: 0 },
+  { id: 'pec_deck', name: 'Pec deck (butterfly)', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'cable_fly', name: 'Écarté poulie', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_fly', name: 'Écarté haltères', primary: ['chest'], secondary: [], equipment: [D], kind: 'isolation', increment: 1 },
   { id: 'ohp', name: 'Développé militaire', primary: ['shoulders'], secondary: ['triceps'], equipment: [G], kind: 'compound', increment: 2.5 },
@@ -50,6 +59,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'lateral_raise', name: 'Élévations latérales', primary: ['shoulders'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
   { id: 'triceps_pushdown', name: 'Extension triceps poulie', primary: ['triceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'overhead_ext', name: 'Extension triceps au-dessus de la tête', primary: ['triceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
+  { id: 'skull_crusher', name: 'Barre au front', primary: ['triceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
   { id: 'diamond_pushup', name: 'Pompes diamant', primary: ['triceps'], secondary: ['chest'], equipment: [B], kind: 'compound', increment: 0 },
 
   // Tirage
@@ -63,12 +73,16 @@ export const EXERCISES: Exercise[] = [
   { id: 'rear_delt_fly', name: 'Oiseau haltères', primary: ['shoulders'], secondary: ['back'], equipment: [D, G], kind: 'isolation', increment: 1 },
   { id: 'barbell_curl', name: 'Curl barre', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_curl', name: 'Curl haltères incliné', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
+  { id: 'preacher_curl', name: 'Curl pupitre', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 1 },
   { id: 'hammer_curl', name: 'Curl marteau', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
   { id: 'chinup', bodyweight: true, name: 'Tractions supination', primary: ['back', 'biceps'], secondary: [], equipment: [G, B], kind: 'compound', increment: 2.5 },
 
   // Gainage
   { id: 'cable_crunch', name: 'Crunch poulie', primary: ['abs'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'hanging_leg_raise', name: 'Relevé de jambes suspendu', primary: ['abs'], secondary: [], equipment: [G, B], kind: 'isolation', increment: 0 },
+  { id: 'crunch', name: 'Crunch / relevé de buste', primary: ['abs'], secondary: [], equipment: [B, D, G], kind: 'isolation', increment: 0 },
+  { id: 'side_plank', name: 'Gainage latéral (secondes)', primary: ['abs'], secondary: [], equipment: [B, D, G], kind: 'isolation', increment: 0 },
+  { id: 'superman', name: 'Superman / arch hold (secondes)', primary: ['back'], secondary: ['glutes'], equipment: [B, D, G], kind: 'isolation', increment: 0 },
   { id: 'plank', name: 'Gainage (secondes)', primary: ['abs'], secondary: [], equipment: [B, D, G], kind: 'isolation', increment: 0 },
 ];
 
