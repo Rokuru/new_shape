@@ -67,7 +67,7 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
       <h2>Bibliothèque</h2>
       <p className="small secondary">
         {PROGRAMS.length} programmes inspirés de coachs et de chercheurs reconnus, chacun avec ses sources et ce qu’en disent les études. Triés selon ton profil (niveau, matériel,
-        objectif, séances).
+        objectif, nombre et durée des séances).
       </p>
       <div className="chips" style={{ marginBottom: 12 }}>
         {(['all', ...Object.keys(STYLE_LABELS)] as (ProgramStyle | 'all')[]).map((s) => (

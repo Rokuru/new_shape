@@ -40,6 +40,14 @@ export const EXERCISES: Exercise[] = [
   { id: 'sl_rdl', name: 'Soulevé de terre roumain une jambe', primary: ['hamstrings', 'glutes'], secondary: ['back'], equipment: [G, D, B], kind: 'compound', increment: 2 },
   { id: 'back_extension', name: 'Extension lombaire (banc à 45°)', primary: ['glutes', 'hamstrings'], secondary: ['back'], equipment: [G], kind: 'compound', increment: 2.5 },
   { id: 'power_clean', name: 'Épaulé en puissance', primary: ['glutes', 'hamstrings', 'back'], secondary: ['quads', 'shoulders'], equipment: [G], kind: 'compound', increment: 2.5, tips: 'Barre près du corps, extension complète des hanches avant de tirer avec les bras ; réception en quart de squat.' },
+  { id: 'bw_squat', name: 'Squat au poids du corps', primary: ['quads', 'glutes'], secondary: ['hamstrings'], equipment: [B, D, G], kind: 'compound', increment: 0 },
+  { id: 'lunge', name: 'Fentes', primary: ['quads', 'glutes'], secondary: ['hamstrings'], equipment: [B, D, G], kind: 'compound', increment: 2 },
+  { id: 'wall_sit', name: 'Chaise contre le mur (secondes)', primary: ['quads'], secondary: ['glutes'], equipment: [B, D, G], kind: 'isolation', increment: 0 },
+  { id: 'jumping_jacks', name: 'Jumping jacks (secondes)', primary: ['calves'], secondary: ['shoulders', 'quads'], equipment: [B, D, G], kind: 'compound', increment: 0 },
+  { id: 'high_knees', name: 'Montées de genoux sur place (secondes)', primary: ['quads'], secondary: ['abs', 'calves'], equipment: [B, D, G], kind: 'compound', increment: 0 },
+  { id: 'kb_swing', name: 'Swing kettlebell (ou haltère)', primary: ['glutes', 'hamstrings'], secondary: ['back', 'abs'], equipment: [G, D], kind: 'compound', increment: 4, tips: 'Charnière de hanche, pas un squat : les hanches projettent la kettlebell, les bras ne font que la guider.' },
+  { id: 'kb_clean', name: 'Épaulé kettlebell', primary: ['glutes', 'hamstrings', 'back'], secondary: ['shoulders'], equipment: [G, D], kind: 'compound', increment: 4 },
+  { id: 'turkish_getup', name: 'Turkish get-up', primary: ['shoulders', 'abs'], secondary: ['glutes', 'quads'], equipment: [G, D], kind: 'compound', increment: 4, tips: 'Lentement, le regard sur la charge, bras tendu à la verticale du début à la fin.' },
   { id: 'pistol_squat', name: 'Squat une jambe (assisté)', primary: ['quads', 'glutes'], secondary: [], equipment: [B], kind: 'compound', increment: 0 },
 
   // Poussée
@@ -49,6 +57,8 @@ export const EXERCISES: Exercise[] = [
   { id: 'close_grip_bench', name: 'Développé couché prise serrée', primary: ['triceps', 'chest'], secondary: ['shoulders'], equipment: [G], kind: 'compound', increment: 2.5 },
   { id: 'db_bench', name: 'Développé couché haltères', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G, D], kind: 'compound', increment: 2 },
   { id: 'dips', bodyweight: true, name: 'Dips', primary: ['chest', 'triceps'], secondary: ['shoulders'], equipment: [G, B], kind: 'compound', increment: 2.5 },
+  { id: 'pushup_rotation', name: 'Pompes avec rotation', primary: ['chest'], secondary: ['shoulders', 'abs', 'triceps'], equipment: [B, D, G], kind: 'compound', increment: 0 },
+  { id: 'bench_dip', name: 'Dips sur chaise / banc', primary: ['triceps'], secondary: ['chest', 'shoulders'], equipment: [B, D, G], kind: 'compound', increment: 0 },
   { id: 'pushup', name: 'Pompes', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [B, D], kind: 'compound', increment: 0 },
   { id: 'pec_deck', name: 'Pec deck (butterfly)', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'cable_fly', name: 'Écarté poulie', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },

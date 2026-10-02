@@ -138,6 +138,16 @@ describe('générateur de programme', () => {
     }
   });
 
+  it.each([15, 30])('séances de %i min : peu de séries, repos courts', (minutes) => {
+    for (const days of [2, 3, 4]) {
+      const p = generateProgram({ ...profile, daysPerWeek: days, sessionMinutes: minutes });
+      for (const d of p.days) {
+        expect(d.exercises.reduce((s, e) => s + e.sets, 0)).toBeLessThanOrEqual(Math.floor(minutes / 2.5));
+        for (const e of d.exercises) expect(e.restSec).toBeLessThanOrEqual(90);
+      }
+    }
+  });
+
   it('chaque séance du haut contient élévations latérales et travail des bras', () => {
     for (const minutes of [45, 60, 75, 90]) {
       const p = generateProgram({ ...profile, daysPerWeek: 4, level: 'intermediate', sessionMinutes: minutes });
