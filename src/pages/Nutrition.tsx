@@ -1,7 +1,8 @@
 import { addDays, daysBetween, localDate } from '../lib/dates';
 import type { Tab } from '../App';
-import { adaptiveAdjustment, ACTIVITY_LABELS, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
+import { adaptiveAdjustment, ACTIVITY_LABELS, BMR_FORMULAS, computeBmr, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
+import type { BmrMethod } from '../lib/types';
 import { activityAverage } from '../lib/energy';
 import { Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
@@ -29,7 +30,7 @@ const ADVICE: Record<string, string[]> = {
 };
 
 export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
-  const { profile, body, workouts, cardio, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
+  const { profile, setProfile, body, workouts, cardio, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
   const latest = body.at(-1);
   if (!latest) return <Empty>Ajoute une pesée dans l’onglet Corps pour calculer tes besoins.</Empty>;
 
@@ -107,6 +108,27 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
       <div className="grid grid-2">
         <div className="card">
           <h2>Comment c’est calculé</h2>
+          <label className="field" style={{ marginBottom: 10 }}>
+            Formule du métabolisme de base
+            <select value={profile.bmrMethod ?? 'auto'} onChange={(e) => setProfile({ bmrMethod: e.target.value as BmrMethod })}>
+              <option value="auto">Automatique (recommandé) – {BMR_FORMULAS[computeBmr({ ...profile, bmrMethod: 'auto' }, comp.weightKg, comp.bodyFatPct).method].label}</option>
+              {(Object.keys(BMR_FORMULAS) as Exclude<BmrMethod, 'auto'>[]).map((k) => {
+                const f = BMR_FORMULAS[k];
+                const unavailable = f.needsLean && comp.bodyFatPct === undefined;
+                return (
+                  <option key={k} value={k} disabled={unavailable}>
+                    {f.label} – {unavailable ? '% de gras requis' : `${fmtNum(computeBmr({ ...profile, bmrMethod: k }, comp.weightKg, comp.bodyFatPct).bmr, 0)} kcal`}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <p className="small secondary" style={{ marginTop: 0 }}>
+            {BMR_FORMULAS[t.methodId].description}{' '}
+            <a href={BMR_FORMULAS[t.methodId].source.url} target="_blank" rel="noopener noreferrer">
+              Source
+            </a>
+          </p>
           <table>
             <tbody>
               <tr>
@@ -119,14 +141,21 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
               </tr>
               <tr>
                 <td>
-                  + sport, moyenne / jour
+                  + musculation, moyenne / jour
                   <div className="small muted">
-                    {act.source === 'plan'
-                      ? `d’après ton plan (${profile.daysPerWeek} × ${profile.sessionMinutes} min / sem.)`
-                      : `musculation ${act.training} + marche ${act.walking} kcal, ${act.days} derniers jours`}
+                    {act.source === 'plan' ? `d’après ton plan (${profile.daysPerWeek} × ${profile.sessionMinutes} min / sem.)` : `tes séances des ${act.days} derniers jours`}
                   </div>
                 </td>
-                <td className="num">+{fmtNum(act.perDay, 0)} kcal</td>
+                <td className="num">+{fmtNum(act.training, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td>
+                  + marche, moyenne / jour
+                  <div className="small muted">
+                    {act.walking ? `tes marches des ${act.days} dernier${act.days > 1 ? 's' : ''} jour${act.days > 1 ? 's' : ''}` : 'aucune marche enregistrée sur la période'}
+                  </div>
+                </td>
+                <td className="num">+{fmtNum(act.perDay - act.training, 0)} kcal</td>
               </tr>
               <tr>
                 <td>= Maintenance</td>
@@ -153,9 +182,11 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
             </tbody>
           </table>
           <p className="small muted" style={{ marginTop: 8 }}>
-            {t.method === 'Katch-McArdle' ? 'Basé sur ta masse maigre, plus précis quand le % de gras est connu.' : (
+            {comp.bodyFatPct !== undefined ? (
+              'Ton % de gras est connu : les formules basées sur la masse maigre (Katch-McArdle, Cunningham, Tinsley) sont disponibles.'
+            ) : (
               <>
-                Ajoute ton % de masse grasse (onglet <a href="#body" onClick={() => go('body')}>Corps</a>) pour passer à la formule Katch-McArdle.
+                Ajoute ton % de masse grasse (onglet <a href="#body" onClick={() => go('body')}>Corps</a>) pour débloquer les formules basées sur la masse maigre.
               </>
             )}
           </p>
