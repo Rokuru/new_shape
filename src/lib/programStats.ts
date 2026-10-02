@@ -8,6 +8,7 @@ export const STYLE_LABELS: Record<ProgramStyle, string> = {
   hypertrophie: 'Hypertrophie',
   haute_intensite: 'Haute intensité',
   poids_du_corps: 'Poids du corps',
+  court: 'Séances courtes',
 };
 
 /** Une série compte comme « dure » si elle finit à 3 répétitions de l'échec ou moins (séries de vitesse, d'échauffement et de récupération exclues). */
@@ -50,7 +51,7 @@ export function programStats(p: Program): ProgramStats {
 
   // ~40 s d'effort par série + repos prescrit, + 10 min d'échauffement.
   const dayMinutes = p.days.map((d) => 10 + d.exercises.reduce((s, e) => s + (e.sets * (40 + e.restSec)) / 60, 0));
-  const minutes = Math.round(dayMinutes.reduce((a, b) => a + b, 0) / p.days.length / 5) * 5;
+  const minutes = p.durationMin ?? Math.round(dayMinutes.reduce((a, b) => a + b, 0) / p.days.length / 5) * 5;
 
   const belowMev = MUSCLES.filter((m) => VOLUME_LANDMARKS[m].mev > 0 && perMuscle[m] < VOLUME_LANDMARKS[m].mev);
 
@@ -64,9 +65,12 @@ export function canDo(p: Program, equipment: Equipment): boolean {
   return p.days.every((d) => d.exercises.every((e) => getExercise(e.exerciseId).equipment.some((x) => x === equipment || (equipment === 'home_dumbbells' && x === 'bodyweight'))));
 }
 
-/** Adéquation au profil : niveau (2), matériel (2), objectif (1), nombre de séances (1). */
+/** Adéquation au profil : niveau (2), matériel (2), objectif (1), nombre de séances (1), durée de séance (2 si séances courtes, sinon 1). */
 export function programScore(p: Program, profile: Profile): number {
-  return (p.level.includes(profile.level) ? 2 : 0) + (canDo(p, profile.equipment) ? 2 : 0) + (p.goals.includes(profile.goal) ? 1 : 0) + (p.daysPerWeek === profile.daysPerWeek ? 1 : 0);
+  const minutes = programStats(p).minutes;
+  const fitsTime = minutes <= profile.sessionMinutes + 10;
+  const timeScore = fitsTime ? (profile.sessionMinutes <= 30 ? 2 : 1) : 0;
+  return (p.level.includes(profile.level) ? 2 : 0) + (canDo(p, profile.equipment) ? 2 : 0) + (p.goals.includes(profile.goal) ? 1 : 0) + (p.daysPerWeek === profile.daysPerWeek ? 1 : 0) + timeScore;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;

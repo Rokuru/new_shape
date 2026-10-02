@@ -125,13 +125,15 @@ export interface Program {
   custom?: boolean;
   /** Famille de méthode, pour filtrer et comparer. */
   style?: ProgramStyle;
+  /** Durée annoncée d'une séance (min), échauffement compris, quand l'estimation par séries ne convient pas (circuits). */
+  durationMin?: number;
   /** Ce qu'en disent les études (points forts, limites). */
   evidence?: string;
   /** Sources consultées (auteur, synthèses, études). */
   sources?: ProgramSource[];
 }
 
-export type ProgramStyle = 'force' | 'powerbuilding' | 'hypertrophie' | 'haute_intensite' | 'poids_du_corps';
+export type ProgramStyle = 'force' | 'powerbuilding' | 'hypertrophie' | 'haute_intensite' | 'poids_du_corps' | 'court';
 
 export interface ProgramSource {
   label: string;

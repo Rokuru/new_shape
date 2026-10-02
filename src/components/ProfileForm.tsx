@@ -94,7 +94,7 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
         <label className="field">
           Durée d’une séance
           <select value={profile.sessionMinutes} onChange={num('sessionMinutes')}>
-            {[45, 60, 75, 90].map((d) => (
+            {[15, 30, 45, 60, 75, 90].map((d) => (
               <option key={d} value={d}>
                 {d} min
               </option>

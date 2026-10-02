@@ -503,4 +503,186 @@ export const PROGRAMS: Program[] = [
       },
     ],
   },
+
+  // ——— Séances courtes (15–30 min) ———
+  {
+    id: 'seven_minute',
+    name: '7-Minute Workout scientifique',
+    author: 'Brett Klika (CSCS) & Chris Jordan (ACSM-certifié), Human Performance Institute – ACSM’s Health & Fitness Journal (2013)',
+    description:
+      'Circuit de 12 exercices au poids du corps, 30 s d’effort et 10 s de transition, à répéter 2 à 3 fois. Une chaise et un mur suffisent. Environ 20 min échauffement compris.',
+    level: ['beginner', 'intermediate'],
+    goals: ['cut', 'recomp'],
+    daysPerWeek: 3,
+    style: 'court',
+    durationMin: 20,
+    progression: 'Commencer par 2 tours, puis 3. Viser chaque semaine plus de répétitions dans les 30 s (noter le nombre dans « reps »), en gardant une exécution propre.',
+    evidence:
+      'Les auteurs s’appuient sur les études de l’entraînement en circuit à haute intensité : en peu de temps, il améliore la condition physique et la santé métabolique. Sans charge, il développe peu la force maximale : un bon complément ou un programme pour les semaines chargées.',
+    sources: [
+      { label: 'Breaking Muscle – le circuit au poids du corps de Klika & Jordan (ACSM)', url: 'https://breakingmuscle.com/the-8-minute-bodyweight-circuit-does-it-actually-work/' },
+      { label: 'Topend Sports – The 7-minute Workout', url: 'https://www.topendsports.com/fitness/programs/7min-workout.htm' },
+    ],
+    days: [
+      {
+        name: 'Circuit (2 à 3 tours)',
+        exercises: [
+          ex('jumping_jacks', 3, 30, 30, 1, 10, '30 s d’effort, 10 s de transition'),
+          ex('wall_sit', 3, 30, 30, 1, 10, '30 s'),
+          ex('pushup', 3, 8, 20, 1, 10, '30 s, max de reps'),
+          ex('crunch', 3, 10, 25, 1, 10, '30 s'),
+          ex('step_up', 3, 10, 20, 1, 10, '30 s, sur une chaise'),
+          ex('bw_squat', 3, 12, 25, 1, 10, '30 s'),
+          ex('bench_dip', 3, 8, 20, 1, 10, '30 s, sur une chaise'),
+          ex('plank', 3, 30, 30, 1, 10, '30 s'),
+          ex('high_knees', 3, 30, 30, 1, 10, '30 s'),
+          ex('lunge', 3, 10, 20, 1, 10, '30 s, en alternant'),
+          ex('pushup_rotation', 3, 6, 14, 1, 10, '30 s'),
+          ex('side_plank', 3, 15, 15, 1, 60, '15 s par côté, puis 1 min avant le tour suivant'),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'minimal_dose',
+    name: 'Minimum efficace en 20 min (supersets)',
+    author: 'D’après Iversen, Norum, Schoenfeld & Fimland – « No Time to Lift? », Sports Medicine (2021)',
+    description:
+      'Programme conçu à partir de la revue scientifique sur l’entraînement « gain de temps » : 3 mouvements polyarticulaires par séance, montés en supersets, 2 séances A/B par semaine minimum.',
+    level: ['beginner', 'intermediate'],
+    goals: ['recomp', 'bulk', 'strength', 'cut'],
+    daysPerWeek: 2,
+    style: 'court',
+    durationMin: 20,
+    progression: 'Double progression dans la plage 6–15 répétitions, séries menées à 0–2 répétitions de l’échec. Passer à 3 séances (A/B/A) quand l’emploi du temps le permet.',
+    evidence:
+      'La revue recommande au moins 4 séries par muscle et par semaine, des mouvements bilatéraux polyarticulaires (une poussée de jambes, un tirage, une poussée du haut) et des supersets, qui divisent environ par deux la durée de séance pour le même volume.',
+    sources: [
+      { label: 'Iversen et al. 2021 – No Time to Lift? (Sports Med, texte intégral PMC)', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC8449772' },
+      STUDY.volume,
+    ],
+    days: [
+      { name: 'Séance A', exercises: [ex('leg_press', 3, 6, 15, 1, 90, 'Échauffement : 1 série légère'), ex('bench', 3, 6, 15, 1, 30, 'Superset A1'), ex('lat_pulldown', 3, 6, 15, 1, 90, 'Superset A2')] },
+      { name: 'Séance B', exercises: [ex('rdl', 3, 6, 12, 1, 90), ex('db_ohp', 3, 8, 15, 1, 30, 'Superset B1'), ex('cable_row', 3, 8, 15, 1, 90, 'Superset B2')] },
+    ],
+  },
+  {
+    id: 'easy_strength',
+    name: 'Easy Strength (5 mouvements, 2×5)',
+    author: 'Dan John (coach de force, maître RKC) & Pavel Tsatsouline (StrongFirst) – Easy Strength (2011)',
+    description:
+      'Cinq mouvements, 2×5 à une charge confortable, 5 jours par semaine pendant 40 séances. Jamais à l’échec : on « pratique » la force comme un geste technique. 20 min par séance.',
+    level: ['intermediate', 'advanced'],
+    goals: ['strength', 'recomp'],
+    daysPerWeek: 5,
+    style: 'court',
+    durationMin: 20,
+    progression: 'Charge de départ ≈ 70 % du max (on pourrait faire 10 reps). Quand une série semble « trop facile », +2,5 kg. Une fois par semaine : 5-3-2 un peu plus lourd. Jamais plus de 10 reps par mouvement.',
+    evidence:
+      'Fréquence élevée et effort sous-maximal : très efficace pour la force et la technique, avec peu de fatigue. Volume trop faible pour une prise de muscle maximale ; idéal en complément d’un sport ou quand le temps manque.',
+    sources: [
+      { label: 'Experience Life – The Easy Strength Workout (Dan John)', url: 'https://experiencelife.lifetime.life/article/the-easy-strength-workout/' },
+      { label: 'Liftosaur – Easy Strength', url: 'https://www.liftosaur.com/programs/easy-strength' },
+    ],
+    days: [
+      {
+        name: 'Séance du jour',
+        exercises: [ex('deadlift', 2, 5, 5, 4, 90, 'Charnière'), ex('bench', 2, 5, 5, 4, 90, 'Poussée (ou développé incliné)'), ex('pullup', 2, 5, 5, 4, 90, 'Tirage'), ex('goblet_squat', 2, 5, 5, 4, 60, 'Squat léger'), ex('hanging_leg_raise', 2, 5, 5, 3, 60, 'Gainage')],
+      },
+    ],
+  },
+  {
+    id: 'simple_sinister',
+    name: 'Simple & Sinister (kettlebell)',
+    author: 'Pavel Tsatsouline, fondateur de StrongFirst (certification kettlebell SFG)',
+    description:
+      '100 swings à une main (10 séries de 10) puis 10 get-ups (5 par côté), presque tous les jours. Une seule kettlebell, 20 à 25 min échauffement compris. Une haltère peut dépanner.',
+    level: ['beginner', 'intermediate', 'advanced'],
+    goals: ['strength', 'recomp', 'cut'],
+    daysPerWeek: 5,
+    style: 'court',
+    durationMin: 25,
+    progression: 'Objectif « Simple » : swings et get-ups à 32 kg (hommes) / 24 et 16 kg (femmes). Passer à la kettlebell suivante série par série. Swings : 10 toutes les 30 s ; get-ups : 1 par minute.',
+    evidence:
+      'Peu de mouvements mais une grande partie du corps sollicitée : chaîne postérieure, épaules, gainage et condition physique. Pas assez de volume pour les pectoraux, les bras ou les quadriceps en hypertrophie.',
+    sources: [
+      { label: 'StrongFirst – Simple & Sinister', url: 'https://www.strongfirst.com/?p=62090' },
+      { label: 'Lift Vault – Simple & Sinister', url: 'https://liftvault.com/programs/strength/simple-sinister-kettlebell-program-spreadsheet-pavel/' },
+    ],
+    days: [{ name: 'Séance du jour', exercises: [ex('kb_swing', 10, 10, 10, 3, 30, 'Swing à une main, en alternant'), ex('turkish_getup', 10, 1, 1, 3, 45, '1 par minute, côtés alternés')] }],
+  },
+  {
+    id: 'power_to_the_people',
+    name: 'Power to the People! (2 mouvements)',
+    author: 'Pavel Tsatsouline (StrongFirst) – Power to the People! (1999)',
+    description:
+      'Seulement deux mouvements : soulevé de terre et développé, 2×5 chacun (la 2e série à 90 % de la 1re), 5 jours par semaine. Environ 20 min.',
+    level: ['beginner', 'intermediate'],
+    goals: ['strength'],
+    daysPerWeek: 5,
+    style: 'court',
+    durationMin: 20,
+    progression: 'Cycle de charge : +2,5 kg par séance pendant 2 à 3 semaines, puis on redescend de 10 % et on remonte plus haut. Jamais à l’échec.',
+    evidence:
+      'Pratique quotidienne et sous-maximale de deux mouvements : bonne progression de force sur ces gestes. Très incomplet pour l’hypertrophie (tirage, jambes en squat, bras).',
+    sources: [
+      { label: 'StrongFirst – forum, programme Power to the People', url: 'https://www.strongfirst.com/community/threads/pttp-with-triples.16767/' },
+      { label: 'Starting Strength – résumé du programme', url: 'https://startingstrength.com/resources/forum/general-programming/19799-power-people-programming-summary-2.html' },
+    ],
+    days: [{ name: 'Séance du jour', exercises: [ex('deadlift', 2, 5, 5, 2, 120, '2e série à 90 %'), ex('ohp', 2, 5, 5, 2, 120, 'Développé militaire (ou « side press »), 2e série à 90 %')] }],
+  },
+  {
+    id: 'armor_building_complex',
+    name: 'Armor Building Complex (2 kettlebells)',
+    author: 'Dan John (coach de force, maître RKC)',
+    description:
+      'Complexe enchaîné sans poser les charges : 2 épaulés, 1 développé, 3 front squats avec 2 kettlebells. Autant de tours que possible en 15 à 20 min, 2 à 3 fois par semaine.',
+    level: ['intermediate', 'advanced'],
+    goals: ['recomp', 'strength', 'cut'],
+    daysPerWeek: 3,
+    style: 'court',
+    durationMin: 20,
+    progression: 'Semaine 1 : 5, 10 puis 15 tours sur les trois séances ; viser ensuite 10, 15 et 20 tours. Quand 20 tours passent, prendre des kettlebells plus lourdes.',
+    evidence:
+      'Travail global très dense (force-endurance, épaules, chaîne postérieure, quadriceps). Le développé est le maillon limitant : choisir une charge proche de son 5RM au développé.',
+    sources: [
+      { label: 'Breaking Muscle – The Armor Building Kettlebell Complex', url: 'https://breakingmuscle.com/the-armor-building-kettlebell-complex-and-4-other-beastly-strength-builders/' },
+      { label: 'StrongFirst – forum, Armor Building Complex', url: 'https://www.strongfirst.com/community/threads/dan-john-kettlebell-armour-building-complex-humane-burpee.27428/post-569041' },
+    ],
+    days: [
+      {
+        name: 'Complexe (10 à 20 tours)',
+        exercises: [ex('kb_clean', 12, 2, 2, 2, 30, 'Enchaîner…'), ex('db_ohp', 12, 1, 1, 2, 30, '…développé…'), ex('goblet_squat', 12, 3, 3, 2, 45, '…3 front squats, puis repos')],
+      },
+    ],
+  },
+  {
+    id: 'tabata_bodyweight',
+    name: 'Tabata au poids du corps (4 blocs)',
+    author: 'D’après le protocole d’Izumi Tabata (National Institute of Fitness and Sports, Tokyo, 1996)',
+    description:
+      '4 blocs Tabata de 4 minutes : 8 fois 20 s d’effort maximal et 10 s de repos, 1 min entre les blocs. 15 min avec l’échauffement. À faire 2 à 3 fois par semaine.',
+    level: ['intermediate', 'advanced'],
+    goals: ['cut', 'recomp'],
+    daysPerWeek: 3,
+    style: 'court',
+    durationMin: 15,
+    progression: 'Noter le nombre de répétitions sur le moins bon des 8 intervalles et essayer de le battre. Commencer par 2 blocs si besoin.',
+    evidence:
+      'L’étude originale (vélo à intensité supra-maximale) montre de gros gains de capacité aérobie et anaérobie en 4 min. Au poids du corps l’intensité est plus faible : c’est un excellent entraînement cardio-métabolique, pas un programme de force.',
+    sources: [
+      { label: 'Tabata et al. 1996 – Med Sci Sports Exerc 28(10)', url: 'https://www.bisp-surf.de/Record/PU199612201631' },
+    ],
+    days: [
+      {
+        name: '4 blocs Tabata',
+        exercises: [
+          ex('bw_squat', 8, 8, 15, 0, 10, 'Bloc 1 : 20 s / 10 s'),
+          ex('pushup', 8, 4, 12, 0, 10, 'Bloc 2 : 20 s / 10 s'),
+          ex('high_knees', 8, 20, 20, 0, 10, 'Bloc 3 : 20 s / 10 s'),
+          ex('lunge', 8, 6, 12, 0, 60, 'Bloc 4 : 20 s / 10 s'),
+        ],
+      },
+    ],
+  },
 ];

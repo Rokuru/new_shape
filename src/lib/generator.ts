@@ -135,9 +135,12 @@ const total = (d: ProgramDay) => d.exercises.reduce((s, e) => s + e.sets, 0);
  */
 export function generateProgram(profile: Profile): Program {
   const { types, label } = splitFor(profile.daysPerWeek);
-  const maxSets = Math.max(8, Math.floor(profile.sessionMinutes / 3.5));
+  // Séances courtes (≤ 30 min) : moins de séries par exercice, repos raccourcis et supersets
+  // (Iversen et al. 2021) – environ 2,5 min par série au lieu de 3,5.
+  const short = profile.sessionMinutes <= 30;
+  const maxSets = short ? Math.floor(profile.sessionMinutes / 2.5) : Math.max(8, Math.floor(profile.sessionMinutes / 3.5));
   const seen: Partial<Record<DayType, number>> = {};
-  const mainSets = profile.level === 'advanced' ? 4 : 3;
+  const mainSets = short ? 2 : profile.level === 'advanced' ? 4 : 3;
 
   const days: ProgramDay[] = types.map((type) => {
     const variant = seen[type] ?? 0;
@@ -168,6 +171,7 @@ export function generateProgram(profile: Profile): Program {
   boostPriorities(profile, days, maxSets);
   balanceVolume(profile, days, maxSets);
   trimVolume(profile, days);
+  if (short) for (const d of days) for (const e of d.exercises) e.restSec = Math.min(e.restSec, 90);
 
   return {
     id: `custom_${Date.now()}`,
@@ -175,7 +179,7 @@ export function generateProgram(profile: Profile): Program {
     author: 'Généré à partir de ton profil',
     description: `${GOAL_LABELS[profile.goal]}, ${profile.daysPerWeek} séances de ~${profile.sessionMinutes} min. ${
       profile.priorities.length ? `Priorités : ${profile.priorities.map((m) => MUSCLE_LABELS[m]).join(', ')}.` : ''
-    }`,
+    }${short ? ' Séances courtes : enchaîne les exercices deux par deux (superset haut/bas ou poussée/tirage) et limite les repos à 60–90 s.' : ''}`,
     level: [profile.level],
     goals: [profile.goal],
     daysPerWeek: types.length,

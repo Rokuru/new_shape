@@ -7,8 +7,8 @@ import { DEFAULT_PROFILE } from './store';
 const byId = (id: string) => PROGRAMS.find((p) => p.id === id)!;
 
 describe('bibliothèque de programmes', () => {
-  it('contient au moins 19 programmes aux identifiants uniques', () => {
-    expect(PROGRAMS.length).toBeGreaterThanOrEqual(19);
+  it('contient au moins 26 programmes aux identifiants uniques', () => {
+    expect(PROGRAMS.length).toBeGreaterThanOrEqual(26);
     expect(new Set(PROGRAMS.map((p) => p.id)).size).toBe(PROGRAMS.length);
   });
 
@@ -33,7 +33,7 @@ describe('bibliothèque de programmes', () => {
           expect(e.repMin).toBeGreaterThan(0);
           expect(e.repMax).toBeGreaterThanOrEqual(e.repMin);
           expect(e.rir).toBeGreaterThanOrEqual(0);
-          expect(e.restSec).toBeGreaterThanOrEqual(30);
+          expect(e.restSec).toBeGreaterThanOrEqual(10);
         }
       }
   });
@@ -45,7 +45,7 @@ describe('bibliothèque de programmes', () => {
 
   it('couvre tous les styles, niveaux et un programme sans matériel', () => {
     const styles = new Set(PROGRAMS.map((p) => p.style));
-    for (const s of ['force', 'powerbuilding', 'hypertrophie', 'haute_intensite', 'poids_du_corps']) expect(styles.has(s as never)).toBe(true);
+    for (const s of ['force', 'powerbuilding', 'hypertrophie', 'haute_intensite', 'poids_du_corps', 'court']) expect(styles.has(s as never)).toBe(true);
     for (const l of ['beginner', 'intermediate', 'advanced'] as const) expect(PROGRAMS.some((p) => p.level.includes(l))).toBe(true);
     expect(PROGRAMS.filter((p) => canDo(p, 'bodyweight')).map((p) => p.id)).toContain('bwf_recommended_routine');
   });
@@ -81,7 +81,7 @@ describe('comparaison chiffrée', () => {
   it('durée de séance plausible', () => {
     for (const p of PROGRAMS) {
       const { minutes } = programStats(p);
-      expect(minutes, p.id).toBeGreaterThanOrEqual(25);
+      expect(minutes, p.id).toBeGreaterThanOrEqual(p.style === 'court' ? 10 : 25);
       expect(minutes, p.id).toBeLessThanOrEqual(150);
     }
   });
@@ -90,5 +90,19 @@ describe('comparaison chiffrée', () => {
     const home = { ...DEFAULT_PROFILE, equipment: 'bodyweight' as const, level: 'beginner' as const, goal: 'recomp' as const, daysPerWeek: 3 };
     const best = [...PROGRAMS].sort((a, b) => programScore(b, home) - programScore(a, home))[0];
     expect(best.id).toBe('bwf_recommended_routine');
+  });
+});
+
+describe('séances courtes (15–30 min)', () => {
+  it('au moins 5 programmes de 30 min maximum, chacun sourcé', () => {
+    const short = PROGRAMS.filter((p) => programStats(p).minutes <= 30);
+    expect(short.length).toBeGreaterThanOrEqual(5);
+    for (const p of short) expect(p.sources?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('un profil « 15 min » voit d’abord des programmes courts', () => {
+    const profile = { ...DEFAULT_PROFILE, sessionMinutes: 15, equipment: 'bodyweight' as const, level: 'beginner' as const, goal: 'cut' as const, daysPerWeek: 3 };
+    const best = [...PROGRAMS].sort((a, b) => programScore(b, profile) - programScore(a, profile))[0];
+    expect(programStats(best).minutes).toBeLessThanOrEqual(25);
   });
 });
