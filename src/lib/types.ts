@@ -31,6 +31,10 @@ export interface Profile {
   priorities: Muscle[];
   /** Formule du métabolisme de base choisie (auto par défaut). */
   bmrMethod?: BmrMethod;
+  /** Poids visé (kg) et poids de tendance au moment où l'objectif a été fixé. */
+  targetWeightKg?: number;
+  targetStartKg?: number;
+  targetSetAt?: string;
 }
 
 export type BmrMethod = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'tinsley';

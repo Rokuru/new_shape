@@ -38,6 +38,8 @@ export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
   if (!ok(out.daysPerWeek, 2, 6)) out.daysPerWeek = DEFAULT_PROFILE.daysPerWeek;
   if (!ok(out.sessionMinutes, 10, 180)) out.sessionMinutes = DEFAULT_PROFILE.sessionMinutes;
   if (!Array.isArray(out.priorities)) out.priorities = [];
+  if (out.targetWeightKg !== undefined && !ok(out.targetWeightKg, 30, 300)) delete out.targetWeightKg;
+  if (out.targetStartKg !== undefined && !ok(out.targetStartKg, 25, 350)) delete out.targetStartKg;
   return out;
 }
 
@@ -81,6 +83,7 @@ interface State {
   finishWorkout: () => void;
   cancelWorkout: () => void;
   deleteWorkout: (id: string) => void;
+  updateWorkout: (w: Workout) => void;
   addCardio: (e: CardioEntry) => void;
   deleteCardio: (id: string) => void;
   setKcalAdjust: (n: number) => void;
@@ -181,6 +184,7 @@ export const useStore = create<State>()(
       cancelWorkout: () => set({ activeWorkout: undefined }),
       addCardio: (e) => set((s) => ({ cardio: [...s.cardio, e].sort((a, b) => a.date.localeCompare(b.date)) })),
       deleteCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id), deleted: [...s.deleted, id] })),
+      updateWorkout: (w) => set((s) => ({ workouts: s.workouts.map((x) => (x.id === w.id ? w : x)).sort((a, b) => a.date.localeCompare(b.date)) })),
       deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id), deleted: [...s.deleted, id] })),
       setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),
       importData: (data) => {

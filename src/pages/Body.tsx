@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
 import { biaTrend } from '../lib/bia';
 import BiaPanel, { BiaFields } from '../components/BiaPanel';
 import BodyHistory from '../components/BodyHistory';
+import GoalCard from '../components/GoalCard';
 import { BODY_FIELDS as FIELDS, buildBodyEntry } from '../lib/bodyForm';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
@@ -134,6 +135,8 @@ export default function BodyPage() {
         </div>
       )}
 
+      <GoalCard />
+
       <div className="card">
         <h2>Nouvelle mesure</h2>
         <div className="form-grid">
@@ -192,6 +195,7 @@ export default function BodyPage() {
                 items={[
                   { label: nz.name, color: 'var(--muted)' },
                   { label: 'Tendance lissée', color: 'var(--series-1)' },
+                  ...(metric === 'weight' && profile.targetWeightKg !== undefined ? [{ label: 'Objectif', color: 'var(--brand-green)', dashed: true }] : []),
                 ]}
               />
             )}
@@ -210,6 +214,15 @@ export default function BodyPage() {
                   <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
                   <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 1)} />
                   <Tooltip content={<ChartTooltip unit={m.unit} />} />
+                  {metric === 'weight' && profile.targetWeightKg !== undefined && (
+                    <ReferenceLine
+                      y={profile.targetWeightKg}
+                      stroke="var(--brand-green)"
+                      strokeDasharray="6 4"
+                      ifOverflow="extendDomain"
+                      label={{ value: `Objectif ${fmtNum(profile.targetWeightKg)} kg`, position: 'insideBottomRight', fill: 'var(--green-text)', fontSize: 12 }}
+                    />
+                  )}
                   {nz ? (
                     <>
                       <Scatter dataKey={nz.raw} name="Mesure" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />

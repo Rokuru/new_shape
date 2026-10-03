@@ -7,11 +7,12 @@ import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
 import { activityAverage } from '../lib/energy';
 import { useToday } from '../hooks/useToday';
+import { goalProjection } from '../lib/goal';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const { profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
-  useToday(); // re-rendu au changement de jour (app restée ouverte après minuit)
+  const todayKey = useToday(); // re-rendu au changement de jour (app restée ouverte après minuit)
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
   const latest = body.at(-1);
   const comp = currentComposition(body, profile);
@@ -23,6 +24,10 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
   const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay) : undefined;
 
+  const goal =
+    comp && profile.targetWeightKg !== undefined
+      ? goalProjection({ currentKg: comp.weightKg, targetKg: profile.targetWeightKg, startKg: profile.targetStartKg ?? comp.weightKg, ratePerWeek: rate, today: todayKey })
+      : undefined;
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
   const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
@@ -101,6 +106,21 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           value={trend.length ? `${fmtNum(trend.at(-1)!.trend)} kg` : '—'}
           sub={rate !== undefined ? `${signed(rate, 2)} kg / sem.` : 'Pèse-toi 3×/sem.'}
         />
+        {goal && (
+          <Tile
+            label="Objectif"
+            icon="target"
+            tone="green"
+            value={goal.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(goal.remainingKg)} kg`}
+            sub={
+              goal.status === 'reached'
+                ? `${fmtNum(profile.targetWeightKg)} kg`
+                : goal.status === 'on_track' && goal.eta
+                  ? `vers ${fmtNum(profile.targetWeightKg)} kg · ≈ ${fmtDate(goal.eta, { month: 'short', year: 'numeric' })}`
+                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`
+            }
+          />
+        )}
         <Tile
           label="Masse grasse"
           icon="drop"

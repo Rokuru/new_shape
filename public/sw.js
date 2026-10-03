@@ -17,3 +17,14 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(req).then((r) => r || caches.match('./'))),
   );
 });
+
+// Notification de fin de repos : un toucher ramène sur l'appli déjà ouverte.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => 'focus' in c);
+      return open ? open.focus() : self.clients.openWindow('./#workout');
+    }),
+  );
+});
