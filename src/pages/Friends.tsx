@@ -3,7 +3,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import type { Tab } from '../App';
 import { getExercise } from '../data/exercises';
 import { GOAL_LABELS } from '../lib/calc';
-import { buildShare, lookupFriend, mergeSeries, refreshFriends, useFriends, usePublish, type FriendEntry, type SharePayload } from '../lib/share';
+import { buildShare, friendHash, lookupFriend, mergeSeries, refreshFriends, useFriends, usePublish, type FriendEntry, type SharePayload } from '../lib/share';
 import { useStore } from '../lib/store';
 import { syncNow, useAuth } from '../lib/sync';
 import { LEVEL_LABELS } from '../components/ProfileForm';
@@ -209,7 +209,17 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
 function FriendRow({ login, entry, me, active, onSelect }: { login: string; entry?: FriendEntry; me: string; active: boolean; onSelect: () => void }) {
   const { removeFriend } = useStore();
   const s = entry?.share;
-  const mutual = s?.friends.some((f) => f.toLowerCase() === me.toLowerCase());
+  // Ami mutuel : ancien format (pseudos en clair) ou empreinte « ami:moi » dans son partage.
+  const [hashMatch, setHashMatch] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (s?.friendHashes?.length) void friendHash(login, me).then((h) => alive && setHashMatch(s.friendHashes!.includes(h)));
+    else setHashMatch(false);
+    return () => {
+      alive = false;
+    };
+  }, [s, login, me]);
+  const mutual = hashMatch || s?.friends.some((f) => f.toLowerCase() === me.toLowerCase());
   const thisWeek = s?.weekly.at(-1)?.sessions;
   return (
     <div className="list-item" style={active ? { background: 'var(--surface-2)', margin: '0 -8px', padding: '10px 8px', borderRadius: 8 } : undefined}>
@@ -399,8 +409,8 @@ function Compare({ friend }: { friend: SharePayload }) {
       <div className="card">
         <h2>Dernières séances de {fname}</h2>
         {friend.recent.length === 0 && <Empty>Aucune séance partagée.</Empty>}
-        {friend.recent.map((w) => (
-          <div className="list-item" key={w.date} style={{ display: 'block' }}>
+        {friend.recent.map((w, i) => (
+          <div className="list-item" key={i} style={{ display: 'block' }}>
             <div className="spread">
               <b>{w.dayName}</b>
               <span className="small muted">

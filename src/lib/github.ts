@@ -53,13 +53,14 @@ async function api<T>(token: string, path: string, init: RequestInit = {}): Prom
 
 export async function fetchUser(token: string): Promise<GitHubUser> {
   const u = await api<{ login: string; name: string | null; avatar_url: string }>(token, '/user');
-  return { login: u.login, name: u.name, avatarUrl: u.avatar_url };
+  return { login: u.login, name: u.name, avatarUrl: safeAvatar(u.avatar_url) };
 }
 
 interface GistFile {
   content?: string;
   truncated?: boolean;
   raw_url?: string;
+  size?: number;
 }
 interface Gist {
   id: string;
@@ -79,12 +80,16 @@ export async function findGist(token: string, file = GIST_FILE): Promise<string 
   return undefined;
 }
 
-export async function readGist(token: string, id: string, file = GIST_FILE): Promise<string | undefined> {
+export async function readGist(token: string, id: string, file = GIST_FILE, maxBytes = Infinity): Promise<string | undefined> {
+  if (!/^[0-9a-f]{1,64}$/i.test(id)) throw new GitHubError('Identifiant de gist invalide', 400);
   const gist = await api<Gist>(token, `/gists/${id}`);
   const f = gist.files[file];
   if (!f) return undefined;
-  // Au-delà de 1 Mo, l'API tronque le contenu : on lit alors le fichier brut.
+  // Fichier d'un tiers trop gros : refusé sans le télécharger (évite de saturer le téléphone).
+  if ((f.size ?? 0) > maxBytes) return undefined;
+  // Au-delà de 1 Mo, l'API tronque le contenu : on lit alors le fichier brut, uniquement sur le domaine de GitHub.
   if (f.truncated && f.raw_url) {
+    if (!f.raw_url.startsWith('https://gist.githubusercontent.com/')) throw new GitHubError('Adresse de gist inattendue', 400);
     const res = await fetch(f.raw_url);
     if (!res.ok) throw new GitHubError(`Lecture du gist impossible (${res.status})`, res.status);
     return res.text();
@@ -135,7 +140,7 @@ export async function fetchPublicShare(token: string, login: string): Promise<st
   for (let page = 1; page <= 3; page++) {
     const gists = await api<Gist[]>(token, `/users/${encodeURIComponent(login)}/gists?per_page=100&page=${page}`);
     const found = gists.find((g) => g.files[SHARE_FILE]);
-    if (found) return readGist(token, found.id, SHARE_FILE);
+    if (found) return readGist(token, found.id, SHARE_FILE, 512 * 1024);
     if (gists.length < 100) return undefined;
   }
   return undefined;
@@ -166,7 +171,8 @@ export function startOAuth() {
   } catch {
     /* stockage indisponible : la vérification échouera proprement */
   }
-  const params = new URLSearchParams({ client_id: GITHUB_CLIENT_ID, redirect_uri: redirectUri(), scope: 'gist read:user', state });
+  // Permission minimale : « gist » suffit (le profil public se lit sans permission).
+  const params = new URLSearchParams({ client_id: GITHUB_CLIENT_ID, redirect_uri: redirectUri(), scope: 'gist', state });
   window.location.assign(`https://github.com/login/oauth/authorize?${params}`);
 }
 
@@ -207,4 +213,18 @@ export async function consumeOAuthCallback(): Promise<string | undefined> {
   const data = (await res.json().catch(() => ({}))) as { access_token?: string; error?: string };
   if (!res.ok || !data.access_token) throw new Error(`Connexion GitHub impossible : ${explainOAuthError(data.error ?? String(res.status))}`);
   return data.access_token;
+}
+
+/**
+ * Révoque le jeton OAuth auprès de GitHub (via le proxy, qui détient le secret).
+ * Sans effet sur un jeton personnel collé à la main ou si le proxy n'est pas à jour : la déconnexion locale a lieu quand même.
+ */
+export async function revokeToken(token: string): Promise<boolean> {
+  if (!OAUTH_ENABLED) return false;
+  try {
+    const res = await fetch(`${AUTH_PROXY_URL}/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: token }), keepalive: true });
+    return res.ok && ((await res.json().catch(() => ({}))) as { revoked?: boolean }).revoked === true;
+  } catch {
+    return false;
+  }
 }

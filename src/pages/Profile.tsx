@@ -42,7 +42,8 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
     a.href = URL.createObjectURL(blob);
     a.download = `new-shape-${today()}.json`;
     a.click();
-    URL.revokeObjectURL(a.href);
+    // Safari iOS lit le fichier après le clic : libérer l'URL tout de suite peut annuler le téléchargement.
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
   const upload = async (file?: File) => {

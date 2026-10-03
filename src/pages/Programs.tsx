@@ -14,6 +14,7 @@ import { fmtNum, Icon } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import ProgramEditor, { blankProgram, toEditable } from '../components/ProgramEditor';
+import { safeUrl } from '../lib/sanitize';
 import { getExercise } from '../data/exercises';
 import { getStretch, suggestStretches } from '../data/stretches';
 
@@ -248,13 +249,15 @@ function ProgramCard({
           {program.evidence && <p className="small secondary" style={{ marginTop: 8 }}>{program.evidence}</p>}
           {program.sources && (
             <ul className="small" style={{ paddingLeft: 18, margin: '6px 0 0' }}>
-              {program.sources.map((s) => (
-                <li key={s.url}>
-                  <a href={s.url} target="_blank" rel="noopener noreferrer">
-                    {s.label}
-                  </a>
-                </li>
-              ))}
+              {program.sources.map((s) =>
+                safeUrl(s.url) ? (
+                  <li key={s.url}>
+                    <a href={safeUrl(s.url)} target="_blank" rel="noopener noreferrer">
+                      {s.label}
+                    </a>
+                  </li>
+                ) : null,
+              )}
             </ul>
           )}
         </details>

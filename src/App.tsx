@@ -3,6 +3,7 @@ import { Icon } from './components/ui';
 import Logo from './components/Logo';
 import PullToRefresh from './components/PullToRefresh';
 import { ExerciseInfoProvider } from './components/ExerciseInfo';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useStore } from './lib/store';
 import { useAuth } from './lib/sync';
 import Dashboard from './pages/Dashboard';
@@ -114,6 +115,8 @@ export default function App() {
           </div>
         </header>
         <main className="content" key={tab}>
+          {/* Une page qui plante n'empêche pas d'utiliser les autres (navigation toujours disponible). */}
+          <ErrorBoundary onHome={() => go('home')}>
           {tab === 'home' && <Dashboard go={go} />}
           {tab === 'workout' && <WorkoutPage go={go} />}
           {tab === 'programs' && <ProgramsPage go={go} />}
@@ -122,6 +125,7 @@ export default function App() {
           {tab === 'progress' && <ProgressPage />}
           {tab === 'profile' && <ProfilePage go={go} />}
           {tab === 'friends' && <FriendsPage go={go} />}
+          </ErrorBoundary>
         </main>
       </div>
 

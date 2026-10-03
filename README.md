@@ -70,13 +70,16 @@ Deux façons de se connecter :
 
 Configuration actuelle : Client ID `Ov23liyZi5eEiCRHEjXB`, Worker `https://new-shape-auth.vincent-pedussel.workers.dev`.
 
-Le jeton reste dans le navigateur de l’utilisateur (localStorage) et ne sert qu’à lire / écrire son gist.
+Le jeton reste dans le navigateur de l’utilisateur (localStorage), ne sert qu’à lire / écrire son gist et est révoqué à la déconnexion.
+Voir [SECURITY.md](SECURITY.md) pour le modèle de sécurité (CSP, validation des données, partage public, limites connues)
+et la mise à jour du Worker.
 
 ### Amis
 
 - Les données complètes restent dans le gist **secret** `new-shape-data.json`.
 - Le partage (désactivé par défaut) publie un résumé dans un gist **public** `new-shape-share.json` ; le désactiver supprime ce gist.
-- Trouver un ami = lire les gists publics de son compte (`/users/{pseudo}/gists`). La liste d’amis est synchronisée avec le reste des données ; « Ami mutuel » s’affiche quand l’ami vous suit aussi.
+- Trouver un ami = lire les gists publics de son compte (`/users/{pseudo}/gists`). La liste d’amis est synchronisée avec le reste des données ; « Ami mutuel » s’affiche quand l’ami vous suit aussi (le partage public ne contient que des empreintes de la liste d’amis, pas les pseudos en clair).
+- Les données d’un ami sont non fiables : elles sont revalidées (`parseShare`) et son identité vient de l’API GitHub.
 
 ## Structure
 

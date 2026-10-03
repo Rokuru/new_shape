@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createGist, fetchUser, findGist, GitHubError, readGist, updateGist, type GitHubUser } from './github';
+import { createGist, fetchUser, findGist, GitHubError, readGist, revokeToken, updateGist, type GitHubUser } from './github';
 import { pickSynced, SYNCED_KEYS, useStore, type SyncedData } from './store';
-import { publishShare, usePublish } from './share';
+import { publishShare, useFriends, usePublish } from './share';
 
 /** Contenu du gist : les données + la date de la dernière modification. */
 export interface SyncPayload {
@@ -198,9 +198,15 @@ export async function login(token: string) {
 /** Déconnexion : les données restent dans le gist ; on peut aussi les effacer de cet appareil. */
 export function logout(clearLocal: boolean) {
   clearTimeout(timer);
+  // Le jeton est aussi invalidé chez GitHub : volé ou resté sur un appareil, il ne sert plus à rien.
+  const { token } = useAuth.getState();
+  if (token) void revokeToken(token);
   useAuth.setState({ token: undefined, user: undefined, gistId: undefined, syncedAt: undefined, dirtyAt: undefined, status: 'idle', error: undefined, lastSyncAt: undefined });
   usePublish.setState({ gistId: undefined, lastContent: undefined, error: undefined, publishedAt: undefined });
-  if (clearLocal) useStore.getState().reset();
+  if (clearLocal) {
+    useStore.getState().reset();
+    useFriends.setState({ data: {} });
+  }
 }
 
 let started = false;
