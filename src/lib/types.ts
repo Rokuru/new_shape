@@ -100,6 +100,8 @@ export interface FoodEntry {
   /** Heure de saisie (ISO), pour l'ordre et l'affichage. */
   at: string;
   kcal: number;
+  /** Protéines (g), facultatif. */
+  proteinG?: number;
   label?: string;
 }
 

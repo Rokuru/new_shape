@@ -64,7 +64,7 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
         <Tile label="Glucides" value={`${t.carbsG} g`} sub="le reste des calories" />
       </div>
 
-      <FoodLog target={t.calories} />
+      <FoodLog target={t.calories} proteinTarget={t.proteinG} />
 
       {t.floored && (
         <div className="callout" style={{ borderColor: 'var(--warning)' }}>
