@@ -215,14 +215,32 @@ export const BMR_FORMULAS: Record<Exclude<BmrMethod, 'auto'>, BmrFormula> = {
   },
 };
 
-/** Métabolisme de base selon la formule choisie ; « auto » = Katch-McArdle si le % de gras est connu, sinon Mifflin-St Jeor. */
-export function computeBmr(profile: Profile, weightKg: number, bodyFatPct?: number): { bmr: number; method: Exclude<BmrMethod, 'auto'> } {
+/** % de gras au-delà duquel le mode automatique repasse sur Mifflin-St Jeor (seuils « obésité » usuels). */
+export const HIGH_FAT_PCT = { male: 25, female: 32 } as const;
+
+/**
+ * Métabolisme de base selon la formule choisie. « auto » :
+ * - % de gras connu et modéré : Katch-McArdle (masse maigre) ;
+ * - % de gras élevé : Mifflin-St Jeor. Les formules à masse maigre ignorent la masse grasse, qui dépense elle aussi
+ *   (~4,5 kcal/kg/jour), et la mesure du % de gras par balance est la moins fiable à ces niveaux : elles sous-estiment.
+ *   Mifflin-St Jeor est la plus juste chez les personnes en surpoids (Frankenfield 2005) ;
+ * - % de gras inconnu : Mifflin-St Jeor.
+ */
+export function computeBmr(
+  profile: Profile,
+  weightKg: number,
+  bodyFatPct?: number,
+): { bmr: number; method: Exclude<BmrMethod, 'auto'>; autoReason?: 'noFat' | 'highFat' | 'lean' } {
   const leanKg = bodyFatPct !== undefined ? weightKg * (1 - bodyFatPct / 100) : undefined;
   const ctx = { weightKg, heightCm: profile.heightCm, age: ageFrom(profile.birthYear), male: profile.sex === 'male', leanKg };
   const wanted = profile.bmrMethod ?? 'auto';
-  let method: Exclude<BmrMethod, 'auto'> = wanted === 'auto' ? (leanKg !== undefined ? 'katch' : 'mifflin') : wanted;
+  if (wanted === 'auto') {
+    const reason = bodyFatPct === undefined ? 'noFat' : bodyFatPct >= HIGH_FAT_PCT[profile.sex === 'female' ? 'female' : 'male'] ? 'highFat' : 'lean';
+    const method = reason === 'lean' ? 'katch' : 'mifflin';
+    return { bmr: BMR_FORMULAS[method].compute(ctx)!, method, autoReason: reason };
+  }
   // Formule basée sur la masse maigre sans % de gras connu : repli sur Mifflin-St Jeor.
-  if (BMR_FORMULAS[method].needsLean && leanKg === undefined) method = 'mifflin';
+  const method = BMR_FORMULAS[wanted].needsLean && leanKg === undefined ? 'mifflin' : wanted;
   return { bmr: BMR_FORMULAS[method].compute(ctx)!, method };
 }
 
@@ -252,6 +270,15 @@ export interface NutritionTargets {
   carbsG: number;
   /** La cible a été remontée au plancher de sécurité. */
   floored: boolean;
+  /** Le déficit a été plafonné à 25 % de la dépense. */
+  capped: boolean;
+  /**
+   * Rythme attendu avec la cible réellement donnée (kg/semaine), quand le plancher ou le plafond de déficit
+   * empêche d'atteindre `targetRateKg`. Calculé par rapport à la maintenance corrigée de l'ajustement.
+   */
+  expectedRateKg?: number;
+  /** Pourquoi le mode automatique a choisi cette formule. */
+  autoReason?: 'noFat' | 'highFat' | 'lean';
   method: string;
   methodId: Exclude<BmrMethod, 'auto'>;
   targetRateKg: number;
@@ -265,12 +292,13 @@ export interface NutritionTargets {
  */
 export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct?: number, kcalAdjust = 0, activityKcal = 0): NutritionTargets {
   const w = latest.weightKg;
-  const { bmr, method: methodId } = computeBmr(profile, w, bodyFatPct);
+  const { bmr, method: methodId, autoReason } = computeBmr(profile, w, bodyFatPct);
   const method = BMR_FORMULAS[methodId].label;
   const tdee = bmr * ACTIVITY_FACTORS[profile.activity] + activityKcal;
   const targetRateKg = (GOAL_RATE[profile.goal] / 100) * w;
   // ~7 700 kcal par kg de tissu ; on plafonne le déficit à 25 % du TDEE.
-  const delta = Math.max((targetRateKg * 7700) / 7, -0.25 * tdee);
+  const wantedDelta = (targetRateKg * 7700) / 7;
+  const delta = Math.max(wantedDelta, -0.25 * tdee);
   const r10 = (n: number) => Math.round(n / 10) * 10;
   // Plancher de sécurité : jamais sous le métabolisme de base ni sous 1 200 (femmes) / 1 500 kcal (hommes).
   const floor = Math.ceil(Math.max(bmr, profile.sex === 'female' ? 1200 : 1500) / 10) * 10;
@@ -283,7 +311,11 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
   // Lipides : ~25 % des calories, minimum 0,6 g/kg pour la santé hormonale.
   const fatG = Math.round(Math.max((calories * 0.25) / 9, ref * 0.6));
   const carbsG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
-  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, floored: raw < floor, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2), refWeightKg: ref };
+  const floored = raw < floor;
+  const capped = delta > wantedDelta;
+  // Rythme réellement visé : écart entre la cible et la maintenance estimée (corrigée par l'ajustement), 7 700 kcal/kg.
+  const expectedRateKg = floored || capped ? round(((calories - r10(tdee) - r10(kcalAdjust)) * 7) / 7700, 2) : undefined;
+  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, floored, capped, expectedRateKg, autoReason, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2), refWeightKg: ref };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { addDays, daysBetween, localDate } from '../lib/dates';
 import type { Tab } from '../App';
-import { adaptiveAdjustment, ACTIVITY_LABELS, BMR_FORMULAS, computeBmr, currentComposition, GOAL_LABELS, nutritionTargets, weeklyRate } from '../lib/calc';
+import { adaptiveAdjustment, ACTIVITY_LABELS, BMR_FORMULAS, computeBmr, currentComposition, GOAL_LABELS, HIGH_FAT_PCT, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
 import type { BmrMethod } from '../lib/types';
 import { activityAverage } from '../lib/energy';
@@ -44,7 +44,9 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   const daysSince = kcalAdjustedAt ? daysBetween(kcalAdjustedAt, localDate()) : Infinity;
   const locked = daysSince < 14;
   const evalRate = locked ? undefined : weeklyRate(body, Math.min(28, daysSince));
-  const proposal = adaptiveAdjustment(evalRate, t.targetRateKg);
+  // Si la cible est bornée (plancher ou plafond de déficit), on juge la tendance sur le rythme réellement visé.
+  const aimRate = t.expectedRateKg ?? t.targetRateKg;
+  const proposal = adaptiveAdjustment(evalRate, aimRate);
   const nextEval = kcalAdjustedAt ? addDays(kcalAdjustedAt, 14) : undefined;
   const perMeal = Math.round(t.refWeightKg * 0.4);
   const fiber = Math.round((t.calories / 1000) * 14);
@@ -66,10 +68,22 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
 
       <FoodLog target={t.calories} proteinTarget={t.proteinG} />
 
-      {t.floored && (
+      {t.expectedRateKg !== undefined && (
         <div className="callout" style={{ borderColor: 'var(--warning)' }}>
-          ⚠️ Cible remontée au minimum de sécurité ({fmtNum(t.calories, 0)} kcal) : on ne descend jamais sous ton métabolisme de base ni sous 1 200 kcal (femmes) / 1 500 kcal
-          (hommes) sans suivi médical.
+          {t.floored ? (
+            <>
+              ⚠️ <b>Cible remontée au minimum de sécurité ({fmtNum(t.calories, 0)} kcal).</b> On ne descend jamais sous ton métabolisme de base ni sous 1 200 kcal (femmes) / 1 500 kcal
+              (hommes) sans suivi médical : en dessous, les apports en protéines, vitamines et minéraux deviennent difficiles à couvrir et la perte de muscle augmente.
+            </>
+          ) : (
+            <>
+              ⚠️ <b>Déficit limité à 25 % de ta dépense.</b> Ton objectif de {signed(t.targetRateKg, 2)} kg/sem. (0,75 % de ton poids) demanderait un déficit de{' '}
+              {fmtNum((Math.abs(t.targetRateKg) * 7700) / 7, 0)} kcal/jour. Au-delà de 25 %, la faim, la fatigue et la perte de muscle augmentent nettement, et on tient moins
+              longtemps.
+            </>
+          )}{' '}
+          Avec {fmtNum(t.calories, 0)} kcal, le rythme réaliste est donc d’environ <b>{signed(t.expectedRateKg, 2)} kg/sem.</b> au lieu de {signed(t.targetRateKg, 2)} kg : c’est ce
+          rythme qui sert de référence à l’ajustement adaptatif ci-dessous. La perte pourra augmenter au début (eau, glycogène).
         </div>
       )}
 
@@ -80,7 +94,11 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
           semaines) à l’objectif, puis on corrige la moitié de l’écart, au plus toutes les 2 semaines.
         </p>
         <div className="tiles" style={{ marginBottom: 8 }}>
-          <Tile label="Objectif / semaine" value={`${signed(t.targetRateKg, 2)} kg`} sub={GOAL_LABELS[profile.goal]} />
+          <Tile
+            label="Objectif / semaine"
+            value={`${signed(aimRate, 2)} kg`}
+            sub={t.expectedRateKg !== undefined ? `réaliste (visé ${signed(t.targetRateKg, 2)} kg, voir plus haut)` : GOAL_LABELS[profile.goal]}
+          />
           <Tile label="Tendance / semaine" value={rate !== undefined ? `${signed(rate, 2)} kg` : '—'} sub={rate === undefined ? 'min. 3 pesées sur 1 semaine' : '3 dernières semaines'} />
         </div>
         {locked ? (
@@ -137,6 +155,14 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
               })}
             </select>
           </label>
+          {t.autoReason === 'highFat' && (
+            <p className="small callout" style={{ marginTop: 0 }}>
+              <b>Pourquoi Mifflin-St Jeor et pas une formule à masse maigre ?</b> Ton % de gras ({fmtNum(comp.bodyFatPct!)} %) dépasse {HIGH_FAT_PCT[profile.sex === 'female' ? 'female' : 'male']} %.
+              À ce niveau, les formules à masse maigre (Katch-McArdle…) sous-estiment la dépense : elles ignorent la masse grasse, qui consomme elle aussi de l’énergie
+              (≈ 4,5 kcal/kg/jour), et le % de gras d’une balance est le moins fiable quand il est élevé. Mifflin-St Jeor est la formule la plus juste chez les personnes en
+              surpoids (Frankenfield 2005). L’automatique repassera sur Katch-McArdle sous ce seuil ; tu peux aussi choisir une formule à la main.
+            </p>
+          )}
           <p className="small secondary" style={{ marginTop: 0 }}>
             {BMR_FORMULAS[t.methodId].description}{' '}
             <a href={BMR_FORMULAS[t.methodId].source.url} target="_blank" rel="noopener noreferrer">
