@@ -221,3 +221,25 @@ describe('tendance après une longue interruption', () => {
     expect(t.at(-1)!.trend).toBe(100.5);
   });
 });
+
+describe('protéines en surpoids', () => {
+  const big: Profile = { ...profile, heightCm: 178, goal: 'cut' };
+  const latest = { id: '1', date: '2026-10-02', weightKg: 117.7 };
+
+  it('calcule les g/kg sur la masse maigre ramenée à 15 % de gras', () => {
+    const t = nutritionTargets(big, latest, 33.2);
+    expect(t.refWeightKg).toBeCloseTo(92.5, 1);
+    expect(t.proteinG).toBe(204);
+  });
+
+  it('sans % de gras : poids ajusté (IMC 25 + 40 % de l’excédent)', () => {
+    const t = nutritionTargets(big, latest);
+    expect(t.refWeightKg).toBeCloseTo(94.5, 0);
+    expect(t.proteinG).toBeGreaterThan(200);
+    expect(t.proteinG).toBeLessThan(215);
+  });
+
+  it('ne change rien pour un poids normal ou un sujet sec', () => {
+    expect(nutritionTargets(profile, { id: '1', date: '2026-01-01', weightKg: 75 }, 12).refWeightKg).toBe(75);
+  });
+});
