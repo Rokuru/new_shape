@@ -19,6 +19,7 @@ const base: SyncedData = {
   friends: [],
   share: { enabled: false, body: false },
   cardio: [],
+  food: [],
 };
 
 describe('fusion de deux appareils', () => {
@@ -29,6 +30,14 @@ describe('fusion de deux appareils', () => {
     expect(m.workouts.map((x) => x.id)).toEqual(['w1', 'w2']);
     expect(m.body.map((x) => x.id)).toEqual(['b1', 'b2']);
     expect(m.nextDayIndex).toBe(1);
+  });
+
+  it('fusionne les calories mangées saisies sur deux appareils, sans ressusciter une ligne supprimée', () => {
+    const f = (id: string, kcal: number) => ({ id, date: '2026-10-03', at: '2026-10-03T12:00:00Z', kcal });
+    const phone = { ...base, food: [f('f1', 650), f('f2', 300)], deleted: ['f3'] };
+    const tablet = { ...base, food: [f('f1', 650), f('f3', 200), f('f4', 450)] };
+    const m = mergeData(phone, tablet, true);
+    expect(m.food.map((x) => x.id).sort()).toEqual(['f1', 'f2', 'f4']);
   });
 
   it('ne ressuscite pas une séance supprimée sur l’autre appareil', () => {

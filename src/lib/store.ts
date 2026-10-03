@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
 import { getExercise } from '../data/exercises';
 import { suggestStretches } from '../data/stretches';
-import type { BodyEntry, CardioEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
+import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
 import { history, suggest } from './progression';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -72,6 +72,7 @@ interface State {
   friends: string[];
   /** Marche sur tapis (pas + inclinaison). */
   cardio: CardioEntry[];
+  food: FoodEntry[];
   /** Partage public de mes progrès (gist public), pour que mes amis me trouvent. */
   share: ShareSettings;
 
@@ -91,6 +92,9 @@ interface State {
   addWorkout: (w: Workout) => void;
   addCardio: (e: CardioEntry) => void;
   deleteCardio: (id: string) => void;
+  addFood: (e: FoodEntry) => void;
+  updateFood: (e: FoodEntry) => void;
+  deleteFood: (id: string) => void;
   setKcalAdjust: (n: number) => void;
   importData: (data: unknown) => void;
   applySynced: (data: SyncedData) => void;
@@ -127,6 +131,7 @@ const initial = {
   deleted: [] as string[],
   friends: [] as string[],
   cardio: [] as CardioEntry[],
+  food: [] as FoodEntry[],
   share: { enabled: false, body: false } as ShareSettings,
 };
 
@@ -189,6 +194,9 @@ export const useStore = create<State>()(
       },
       cancelWorkout: () => set({ activeWorkout: undefined }),
       addCardio: (e) => set((s) => ({ cardio: [...s.cardio, e].sort((a, b) => a.date.localeCompare(b.date)) })),
+      addFood: (e) => set((s) => ({ food: [...s.food, e] })),
+      updateFood: (e) => set((s) => ({ food: s.food.map((f) => (f.id === e.id ? e : f)) })),
+      deleteFood: (id) => set((s) => ({ food: s.food.filter((f) => f.id !== id), deleted: [...s.deleted, id] })),
       deleteCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id), deleted: [...s.deleted, id] })),
       addWorkout: (w) => set((s) => ({ workouts: [...s.workouts, w].sort((a, b) => a.date.localeCompare(b.date)) })),
       updateWorkout: (w) => set((s) => ({ workouts: s.workouts.map((x) => (x.id === w.id ? w : x)).sort((a, b) => a.date.localeCompare(b.date)) })),
@@ -212,13 +220,14 @@ export const useStore = create<State>()(
           deleted: Array.isArray(d.deleted) ? d.deleted : [],
           friends: Array.isArray(d.friends) ? d.friends : [],
           cardio: Array.isArray(d.cardio) ? d.cardio : [],
+          food: Array.isArray(d.food) ? d.food : [],
           share: d.share ?? initial.share,
         });
       },
       addFriend: (login) => set((s) => (s.friends.some((f) => f.toLowerCase() === login.toLowerCase()) ? {} : { friends: [...s.friends, login] })),
       removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
       setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
-      applySynced: (d) => set({ ...pickSynced(d), profile: sanitizeProfile(d.profile), friends: d.friends ?? [], cardio: d.cardio ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
+      applySynced: (d) => set({ ...pickSynced(d), profile: sanitizeProfile(d.profile), friends: d.friends ?? [], cardio: d.cardio ?? [], food: d.food ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
       reset: () => set({ ...initial }),
     }),
     {
@@ -234,7 +243,7 @@ export const useStore = create<State>()(
 );
 
 /** Données synchronisées entre appareils (tout sauf la séance en cours). */
-export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share', 'cardio'] as const;
+export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share', 'cardio', 'food'] as const;
 export type SyncedData = Pick<State, (typeof SYNCED_KEYS)[number]>;
 
 export function pickSynced(s: SyncedData): SyncedData {
