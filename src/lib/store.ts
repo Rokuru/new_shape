@@ -2,10 +2,11 @@ import { localDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
-import { getExercise } from '../data/exercises';
+import { getExercise, MUSCLES as MUSCLE_IDS } from '../data/exercises';
 import { suggestStretches } from '../data/stretches';
-import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
+import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Muscle, Profile, Program, ProgramDay, Workout } from './types';
 import { history, suggest } from './progression';
+import { sanitizeCollections, sanitizeWorkout } from './sanitize';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 /** Jour local (et non UTC) au format AAAA-MM-JJ. */
@@ -31,19 +32,35 @@ export const PROFILE_LIMITS = {
   birthYear: { min: new Date().getFullYear() - 100, max: new Date().getFullYear() - 12 },
 } as const;
 
-/** Remplace toute valeur numérique absurde du profil (saisie, ancienne sauvegarde, synchro) par la valeur par défaut. */
+/**
+ * Profil fiable quelle que soit l'origine (saisie, ancienne sauvegarde, fichier importé, synchro) :
+ * seuls les champs connus sont gardés, chaque valeur absurde ou d'un mauvais type reprend sa valeur par défaut.
+ */
 export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
-  const out: Profile = { ...DEFAULT_PROFILE, ...(p ?? {}) };
+  const src = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>;
   const ok = (v: unknown, min: number, max: number) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
-  if (!ok(out.heightCm, PROFILE_LIMITS.heightCm.min, PROFILE_LIMITS.heightCm.max)) out.heightCm = DEFAULT_PROFILE.heightCm;
-  if (!ok(out.birthYear, PROFILE_LIMITS.birthYear.min, PROFILE_LIMITS.birthYear.max)) out.birthYear = DEFAULT_PROFILE.birthYear;
-  if (!ok(out.daysPerWeek, 2, 6)) out.daysPerWeek = DEFAULT_PROFILE.daysPerWeek;
-  if (!ok(out.sessionMinutes, 10, 180)) out.sessionMinutes = DEFAULT_PROFILE.sessionMinutes;
-  if (!Array.isArray(out.priorities)) out.priorities = [];
-  if (out.targetWeightKg !== undefined && !ok(out.targetWeightKg, 30, 300)) delete out.targetWeightKg;
-  if (out.targetStartKg !== undefined && !ok(out.targetStartKg, 25, 350)) delete out.targetStartKg;
-  if (out.targetBodyFatPct !== undefined && !ok(out.targetBodyFatPct, 3, 60)) delete out.targetBodyFatPct;
-  if (out.targetStartBfPct !== undefined && !ok(out.targetStartBfPct, 2, 70)) delete out.targetStartBfPct;
+  const pick = <T extends string>(v: unknown, values: readonly T[], fallback: T): T => (values.includes(v as T) ? (v as T) : fallback);
+  const D = DEFAULT_PROFILE;
+  const out: Profile = {
+    name: typeof src.name === 'string' ? src.name.slice(0, 60) : D.name,
+    sex: pick(src.sex, ['male', 'female'] as const, D.sex),
+    birthYear: ok(src.birthYear, PROFILE_LIMITS.birthYear.min, PROFILE_LIMITS.birthYear.max) ? (src.birthYear as number) : D.birthYear,
+    heightCm: ok(src.heightCm, PROFILE_LIMITS.heightCm.min, PROFILE_LIMITS.heightCm.max) ? (src.heightCm as number) : D.heightCm,
+    activity: pick(src.activity, ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const, D.activity),
+    goal: pick(src.goal, ['cut', 'recomp', 'bulk', 'strength'] as const, D.goal),
+    level: pick(src.level, ['beginner', 'intermediate', 'advanced'] as const, D.level),
+    equipment: pick(src.equipment, ['full_gym', 'home_dumbbells', 'bodyweight'] as const, D.equipment),
+    daysPerWeek: ok(src.daysPerWeek, 2, 6) ? Math.round(src.daysPerWeek as number) : D.daysPerWeek,
+    sessionMinutes: ok(src.sessionMinutes, 10, 180) ? (src.sessionMinutes as number) : D.sessionMinutes,
+    priorities: Array.isArray(src.priorities) ? (src.priorities.filter((m) => MUSCLE_IDS.includes(m as Muscle)) as Muscle[]) : [],
+  };
+  const method = pick(src.bmrMethod, ['auto', 'mifflin', 'harris', 'katch', 'cunningham', 'tinsley'] as const, 'auto');
+  if (src.bmrMethod !== undefined) out.bmrMethod = method;
+  if (ok(src.targetWeightKg, 30, 300)) out.targetWeightKg = src.targetWeightKg as number;
+  if (ok(src.targetStartKg, 25, 350)) out.targetStartKg = src.targetStartKg as number;
+  if (typeof src.targetSetAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(src.targetSetAt)) out.targetSetAt = src.targetSetAt;
+  if (ok(src.targetBodyFatPct, 3, 60)) out.targetBodyFatPct = src.targetBodyFatPct as number;
+  if (ok(src.targetStartBfPct, 2, 70)) out.targetStartBfPct = src.targetStartBfPct as number;
   return out;
 }
 
@@ -203,40 +220,34 @@ export const useStore = create<State>()(
       deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id), deleted: [...s.deleted, id] })),
       setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),
       importData: (data) => {
-        if (!data || typeof data !== 'object') throw new Error('Fichier invalide');
-        const d = data as Partial<State>;
-        if (!d.profile || !Array.isArray(d.body) || !Array.isArray(d.workouts)) throw new Error('Fichier invalide : profil, mesures ou séances manquants');
-        set({
-          ...initial,
-          onboarded: true,
-          profile: sanitizeProfile(d.profile),
-          body: d.body,
-          workouts: d.workouts,
-          customPrograms: d.customPrograms ?? [],
-          activeProgramId: d.activeProgramId,
-          nextDayIndex: d.nextDayIndex ?? 0,
-          kcalAdjust: d.kcalAdjust ?? 0,
-          kcalAdjustedAt: d.kcalAdjustedAt,
-          deleted: Array.isArray(d.deleted) ? d.deleted : [],
-          friends: Array.isArray(d.friends) ? d.friends : [],
-          cardio: Array.isArray(d.cardio) ? d.cardio : [],
-          food: Array.isArray(d.food) ? d.food : [],
-          share: d.share ?? initial.share,
-        });
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Fichier invalide');
+        const d = data as Record<string, unknown>;
+        if (!d.profile || typeof d.profile !== 'object' || !Array.isArray(d.body) || !Array.isArray(d.workouts)) throw new Error('Fichier invalide : profil, mesures ou séances manquants');
+        // Fichier venu d'ailleurs : chaque entrée est vérifiée, les invalides sont écartées (jamais de plantage).
+        // Le partage public reste tel qu'il était : un fichier ne doit jamais pouvoir activer la publication de mes données.
+        const share = get().share;
+        set({ ...initial, onboarded: true, profile: sanitizeProfile(d.profile as Partial<Profile>), ...sanitizeCollections(d), share });
       },
       addFriend: (login) => set((s) => (s.friends.some((f) => f.toLowerCase() === login.toLowerCase()) ? {} : { friends: [...s.friends, login] })),
       removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
       setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
-      applySynced: (d) => set({ ...pickSynced(d), profile: sanitizeProfile(d.profile), friends: d.friends ?? [], cardio: d.cardio ?? [], food: d.food ?? [], share: d.share ?? initial.share, deleted: d.deleted ?? [] }),
+      applySynced: (d) => set({ onboarded: d.onboarded === true, profile: sanitizeProfile(d.profile), ...sanitizeCollections(d as unknown as Record<string, unknown>) }),
       reset: () => set({ ...initial }),
     }),
     {
       name: 'new-shape-v1',
       version: 1,
       // Données déjà enregistrées avec un profil incohérent : corrigées au chargement.
+      // Données stockées par une ancienne version ou altérées : nettoyées au chargement, sans rien perdre de valide.
       merge: (persisted, current) => {
-        const s = { ...current, ...(persisted as Partial<State>) };
-        return { ...s, profile: sanitizeProfile(s.profile) };
+        const p = (persisted && typeof persisted === 'object' ? persisted : {}) as Record<string, unknown>;
+        return {
+          ...current,
+          onboarded: p.onboarded === true,
+          profile: sanitizeProfile(p.profile as Partial<Profile> | undefined),
+          ...sanitizeCollections(p),
+          activeWorkout: p.activeWorkout ? sanitizeWorkout(p.activeWorkout) : undefined,
+        };
       },
     },
   ),
