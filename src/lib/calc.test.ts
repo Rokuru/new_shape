@@ -83,7 +83,7 @@ describe('nutrition', () => {
     expect(computeBmr(profile, 80).bmr).toBeCloseTo(10 * 80 + 6.25 * 180 - 5 * age + 5, 5);
     expect(computeBmr(profile, 80).method).toBe('mifflin');
     // Auto + % de gras connu → Katch-McArdle (masse maigre 64 kg)
-    expect(computeBmr(profile, 80, 20)).toEqual({ bmr: 370 + 21.6 * 64, method: 'katch' });
+    expect(computeBmr(profile, 80, 20)).toEqual({ bmr: 370 + 21.6 * 64, method: 'katch', autoReason: 'lean' });
     expect(computeBmr({ ...profile, bmrMethod: 'cunningham' }, 80, 20).bmr).toBeCloseTo(500 + 22 * 64, 5);
     expect(computeBmr({ ...profile, bmrMethod: 'tinsley' }, 80, 20).bmr).toBeCloseTo(284 + 25.9 * 64, 5);
     expect(computeBmr({ ...profile, bmrMethod: 'harris' }, 80).bmr).toBeCloseTo(88.362 + 13.397 * 80 + 4.799 * 180 - 5.677 * age, 5);
@@ -219,6 +219,41 @@ describe('tendance après une longue interruption', () => {
       { id: 'b', date: '2026-10-03', weightKg: 102 },
     ]);
     expect(t.at(-1)!.trend).toBe(100.5);
+  });
+});
+
+describe('formule automatique et % de gras élevé', () => {
+  it('repasse sur Mifflin-St Jeor au-delà de 25 % (hommes) / 32 % (femmes)', () => {
+    expect(computeBmr(profile, 117.7, 33.2)).toMatchObject({ method: 'mifflin', autoReason: 'highFat' });
+    expect(computeBmr(profile, 80, 24.9)).toMatchObject({ method: 'katch', autoReason: 'lean' });
+    expect(computeBmr({ ...profile, sex: 'female' }, 70, 30).method).toBe('katch');
+    expect(computeBmr({ ...profile, sex: 'female' }, 70, 32).method).toBe('mifflin');
+    expect(computeBmr(profile, 80)).toMatchObject({ method: 'mifflin', autoReason: 'noFat' });
+  });
+
+  it('un choix manuel est respecté même avec un % de gras élevé', () => {
+    expect(computeBmr({ ...profile, bmrMethod: 'katch' }, 117.7, 33.2).method).toBe('katch');
+  });
+});
+
+describe('rythme réaliste quand la cible est bornée', () => {
+  it('déficit plafonné à 25 % : rythme attendu moins rapide que visé', () => {
+    const t = nutritionTargets({ ...profile, heightCm: 178, goal: 'cut', activity: 'sedentary' }, { id: '1', date: '2026-10-02', weightKg: 117.7 }, 33.2);
+    expect(t.capped).toBe(true);
+    expect(t.expectedRateKg).toBeLessThan(0);
+    expect(t.expectedRateKg!).toBeGreaterThan(t.targetRateKg);
+    expect(t.expectedRateKg!).toBeCloseTo(((t.calories - t.tdee) * 7) / 7700, 1);
+  });
+
+  it('plancher de sécurité : rythme calculé sur les calories réellement données', () => {
+    const t = nutritionTargets({ ...profile, sex: 'female', goal: 'cut', activity: 'sedentary', heightCm: 155 }, { id: '1', date: '2026-01-01', weightKg: 50 }, undefined, -400);
+    expect(t.floored).toBe(true);
+    expect(t.expectedRateKg).toBeCloseTo(((t.calories - t.tdee + 400) * 7) / 7700, 1);
+  });
+
+  it('cible atteignable : pas de rythme corrigé', () => {
+    const t = nutritionTargets({ ...profile, goal: 'bulk' }, { id: '1', date: '2026-01-01', weightKg: 80 });
+    expect(t.expectedRateKg).toBeUndefined();
   });
 });
 
