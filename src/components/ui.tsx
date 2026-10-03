@@ -39,7 +39,7 @@ export function Icon({ name, size = 22 }: { name: keyof typeof paths | string; s
   );
 }
 
-export function Tile({ label, value, sub, icon, tone = 'blue' }: { label: string; value: ReactNode; sub?: ReactNode; icon?: string; tone?: 'blue' | 'green' }) {
+export function Tile({ label, value, sub, icon, tone = 'blue' }: { label: ReactNode; value: ReactNode; sub?: ReactNode; icon?: string; tone?: 'blue' | 'green' }) {
   return (
     <div className={`tile ${icon ? `tone-${tone}` : ''}`}>
       <div className="tile-head">
