@@ -23,7 +23,7 @@ function AddForm({ day, compact }: { day: string; compact?: boolean }) {
   const [msg, setMsg] = useState('');
   const add = () => {
     if (!kcal && !prot) return setMsg('Indique des calories (et/ou des protéines).');
-    if (prot * 4 > kcal && kcal) return setMsg(`${prot} g de protéines font déjà ${prot * 4} kcal : vérifie les calories.`);
+    if (prot * 4 > kcal && kcal) return setMsg(`${fmtNum(prot, 1)} g de protéines font déjà ${fmtNum(prot * 4, 0)} kcal : vérifie les calories.`);
     // Saisie d'un jour passé : heure fixée à midi pour garder l'ordre de la journée.
     const at = day === todayKey ? new Date().toISOString() : new Date(`${day}T12:00:00`).toISOString();
     addFood({ id: uid(), date: day, at, kcal, proteinG: prot || undefined, label: label.trim() || undefined });
@@ -41,7 +41,7 @@ function AddForm({ day, compact }: { day: string; compact?: boolean }) {
         </label>
         <label className="field">
           Protéines (g)
-          <NumField value={prot} max={MAX_PROT} decimals={0} placeholder="facultatif" onChange={(v) => (setProt(v), setMsg(''))} onKeyDown={(e) => e.key === 'Enter' && add()} />
+          <NumField value={prot} max={MAX_PROT} decimals={1} placeholder="facultatif" onChange={(v) => (setProt(v), setMsg(''))} onKeyDown={(e) => e.key === 'Enter' && add()} />
         </label>
         <label className="field">
           Repas (facultatif)
@@ -66,7 +66,7 @@ function EntryRow({ e }: { e: FoodEntry }) {
     return (
       <li className="food-row editing">
         <NumField aria-label="Calories" value={kcal} max={MAX_KCAL} decimals={0} placeholder="kcal" onChange={setKcal} />
-        <NumField aria-label="Protéines" value={prot} max={MAX_PROT} decimals={0} placeholder="g prot." onChange={setProt} />
+        <NumField aria-label="Protéines" value={prot} max={MAX_PROT} decimals={1} placeholder="g prot." onChange={setProt} />
         <input aria-label="Repas" value={label} placeholder="Repas" onChange={(ev) => setLabel(ev.target.value)} />
         <button
           className="btn primary sm"
@@ -90,7 +90,7 @@ function EntryRow({ e }: { e: FoodEntry }) {
       <span className="food-label">{e.label ?? 'Sans nom'}</span>
       <span className="food-amount">
         <b>{e.kcal ? `${fmtNum(e.kcal, 0)} kcal` : '— kcal'}</b>
-        {e.proteinG ? <span className="small muted">{fmtNum(e.proteinG, 0)} g prot.</span> : null}
+        {e.proteinG ? <span className="small muted">{fmtNum(e.proteinG, 1)} g prot.</span> : null}
       </span>
       <span className="row" style={{ gap: 2, flexWrap: 'nowrap' }}>
         <button className="btn ghost sm" aria-label={`Modifier ${e.label ?? 'la ligne'}`} onClick={() => setEditing(true)}>
@@ -124,7 +124,7 @@ function FoodHistory({ target, proteinTarget, onClose }: { target: number; prote
         </button>
       </div>
       <p className="secondary" style={{ textAlign: 'center', margin: '4px 0 10px' }}>
-        <b>{fmtNum(total, 0)}</b> / {fmtNum(target, 0)} kcal · <b>{fmtNum(dayProtein(food, day), 0)}</b> / {proteinTarget} g de protéines
+        <b>{fmtNum(total, 0)}</b> / {fmtNum(target, 0)} kcal · <b>{fmtNum(dayProtein(food, day), 1)}</b> / {proteinTarget} g de protéines
       </p>
       {entries.length ? (
         <ul className="food-list">
@@ -152,7 +152,7 @@ function FoodHistory({ target, proteinTarget, onClose }: { target: number; prote
                 </span>
                 <span className="small">
                   {t ? `${fmtNum(t, 0)} kcal` : '—'}
-                  {dayProtein(food, d) ? <span className="muted"> · {fmtNum(dayProtein(food, d), 0)} g</span> : null}
+                  {dayProtein(food, d) ? <span className="muted"> · {fmtNum(dayProtein(food, d), 1)} g</span> : null}
                 </span>
               </button>
             </li>
@@ -196,9 +196,9 @@ export default function FoodLog({ target, proteinTarget }: { target: number; pro
       <div className="food-prot">
         <div className="spread small">
           <span>
-            <b>Protéines</b> {fmtNum(protein, 0)} / {proteinTarget} g
+            <b>Protéines</b> {fmtNum(protein, 1)} / {proteinTarget} g
           </span>
-          <span className={protLeft <= 0 ? 'delta-good' : 'muted'}>{protLeft > 0 ? `reste ${fmtNum(protLeft, 0)} g` : 'objectif atteint ✓'}</span>
+          <span className={protLeft <= 0 ? 'delta-good' : 'muted'}>{protLeft > 0 ? `reste ${fmtNum(protLeft, 1)} g` : 'objectif atteint ✓'}</span>
         </div>
         <div className="goal-bar thin prot" role="progressbar" aria-valuenow={protPct} aria-valuemin={0} aria-valuemax={100} aria-label="Protéines mangées par rapport à la cible">
           <span style={{ width: `${protPct}%` }} />

@@ -162,7 +162,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             value={fmtNum(nut.calories, 0)}
             sub={
               eatenToday || proteinToday
-                ? `mangé ${fmtNum(eatenToday, 0)} · reste ${fmtNum(Math.max(0, nut.calories - eatenToday), 0)} · prot. ${fmtNum(proteinToday, 0)}/${nut.proteinG} g`
+                ? `mangé ${fmtNum(eatenToday, 0)} · reste ${fmtNum(Math.max(0, nut.calories - eatenToday), 0)} · prot. ${fmtNum(proteinToday, 1)}/${nut.proteinG} g`
                 : `${nut.proteinG} g de protéines`
             }
           />
