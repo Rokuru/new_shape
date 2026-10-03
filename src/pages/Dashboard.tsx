@@ -101,10 +101,10 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 
       <div className="tiles">
         <Tile
-          label="Poids (tendance)"
+          label="Poids lissé"
           icon="scale"
           value={trend.length ? `${fmtNum(trend.at(-1)!.trend)} kg` : '—'}
-          sub={rate !== undefined ? `${signed(rate, 2)} kg / sem.` : 'Pèse-toi 3×/sem.'}
+          sub={latest ? `pesée ${fmtNum(latest.weightKg)} kg${rate !== undefined ? ` · ${signed(rate, 2)} kg/sem.` : ''}` : 'Pèse-toi 3×/sem.'}
         />
         {goal && (
           <Tile

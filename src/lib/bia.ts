@@ -1,5 +1,5 @@
 import type { BiaData, BodyEntry, Profile, Segment } from './types';
-import { ageFrom, round } from './calc';
+import { ageFrom, gapAlpha, round } from './calc';
 
 export const SEGMENTS: { key: Segment; label: string }[] = [
   { key: 'armR', label: 'Bras droit' },
@@ -58,10 +58,14 @@ export const hasBia = (e: BodyEntry) => Boolean(e.bia && (e.bodyFatPct !== undef
 export function biaTrend(entries: BodyEntry[], pick: (e: BodyEntry) => number | undefined, alpha = 0.3): Map<string, number> {
   const out = new Map<string, number>();
   let t: number | undefined;
+  let prev: string | undefined;
   for (const e of [...entries].sort((a, b) => a.date.localeCompare(b.date))) {
     const v = pick(e);
     if (v === undefined) continue;
-    t = t === undefined ? v : t + alpha * (v - t);
+    // Mesures balance hebdomadaires en général ; après 60 jours sans mesure, la tendance repart de la mesure.
+    const gap = prev ? Math.round((new Date(e.date).getTime() - new Date(prev).getTime()) / 86_400_000) : 0;
+    t = t === undefined ? v : t + gapAlpha(alpha, gap, 7, 60) * (v - t);
+    prev = e.date;
     out.set(e.date, round(t, 2));
   }
   return out;
