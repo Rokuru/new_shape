@@ -29,3 +29,25 @@ describe('balance Tanita', () => {
     expect(seg.asymmetries[0]).toContain('bras');
   });
 });
+
+describe('modification d’une mesure', () => {
+  it('entryToForm puis buildBodyEntry redonne la même mesure', async () => {
+    const { entryToForm, buildBodyEntry } = await import('./bodyForm');
+    const e = {
+      id: 'x',
+      date: '2026-10-02',
+      weightKg: 117.7,
+      bodyFatPct: 33.2,
+      armCm: 41.5,
+      bia: { muscleKg: 74.8, waterPct: 46.4, visceral: 15, segFat: { armR: 32.3 }, segMuscle: { trunk: 39.2 } },
+    };
+    const res = buildBodyEntry(entryToForm(e), { id: 'x', date: e.date, todayKey: '2026-10-03', tanita: true });
+    expect('entry' in res && res.entry).toEqual(e);
+  });
+
+  it('refuse une valeur de balance hors limites au lieu de l’effacer', async () => {
+    const { buildBodyEntry } = await import('./bodyForm');
+    const res = buildBodyEntry({ weightKg: '80', 'bia.visceral': '80' }, { id: 'x', date: '2026-10-01', todayKey: '2026-10-03', tanita: true });
+    expect('error' in res && res.error).toMatch(/viscérale/);
+  });
+});

@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts';
 import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend } from '../lib/calc';
 import { biaTrend } from '../lib/bia';
-import BiaPanel, { BiaFields, readBia } from '../components/BiaPanel';
+import BiaPanel, { BiaFields } from '../components/BiaPanel';
+import BodyHistory from '../components/BodyHistory';
+import { BODY_FIELDS as FIELDS, buildBodyEntry } from '../lib/bodyForm';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
-import type { BodyEntry } from '../lib/types';
-import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented, signed, Tile } from '../components/ui';
+import { ChartTooltip, Empty, fmtDate, fmtNum, Legend, Segmented, signed, Tile } from '../components/ui';
 
 type Metric = 'weight' | 'bf' | 'lean' | 'fat' | 'muscle' | 'water' | 'visceral' | 'waistCm' | 'armCm' | 'chestCm' | 'thighCm';
 
@@ -24,19 +25,9 @@ const METRICS: { value: Metric; label: string; unit: string }[] = [
   { value: 'thighCm', label: 'Cuisse', unit: ' cm' },
 ];
 
-const FIELDS: { key: keyof BodyEntry; label: string; hint?: string }[] = [
-  { key: 'weightKg', label: 'Poids (kg) *', hint: 'le matin, à jeun, après les toilettes' },
-  { key: 'bodyFatPct', label: '% masse grasse', hint: 'balance, pince, DEXA… (prioritaire sur le calcul)' },
-  { key: 'waistCm', label: 'Tour de taille (cm)', hint: 'au niveau du nombril, relâché' },
-  { key: 'neckCm', label: 'Tour de cou (cm)', hint: 'sous la pomme d’Adam' },
-  { key: 'hipCm', label: 'Tour de hanches (cm)', hint: 'au plus large des fessiers' },
-  { key: 'chestCm', label: 'Poitrine (cm)' },
-  { key: 'armCm', label: 'Bras contracté (cm)' },
-  { key: 'thighCm', label: 'Cuisse (cm)' },
-];
 
 export default function BodyPage() {
-  const { profile, body, upsertBody, deleteBody } = useStore();
+  const { profile, body, upsertBody } = useStore();
   const last = body.at(-1);
   const todayKey = useToday();
   const [picked, setDate] = useState<string>();
@@ -44,7 +35,6 @@ export default function BodyPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [metric, setMetric] = useState<Metric>('weight');
   const [msg, setMsg] = useState('');
-  const [showAll, setShowAll] = useState(false);
   const [tanita, setTanitaState] = useState(() => {
     try {
       return localStorage.getItem('new-shape-tanita') === '1' || body.some((e) => e.bia);
@@ -68,38 +58,12 @@ export default function BodyPage() {
   const previewBf = navyBodyFat(profile.sex, profile.heightCm, parsed('waistCm'), parsed('neckCm'), parsed('hipCm'));
 
   const save = () => {
-    // Safari iOS n'applique pas l'attribut max du sélecteur de date : on refuse ici une date future.
-    if (date > todayKey) {
-      setMsg('La date est dans le futur : choisis aujourd’hui ou un jour passé.');
+    const res = buildBodyEntry(form, { id: uid(), date, todayKey, tanita });
+    if ('error' in res) {
+      setMsg(res.error);
       return;
     }
-    const weightKg = parsed('weightKg');
-    if (!weightKg) {
-      setMsg('Le poids est obligatoire.');
-      return;
-    }
-    if (weightKg < 25 || weightKg > 350) {
-      setMsg('Poids hors limites : entre 25 et 350 kg.');
-      return;
-    }
-    const bf = parsed('bodyFatPct');
-    if (bf !== undefined && (bf < 2 || bf > 70)) {
-      setMsg('% de masse grasse hors limites : entre 2 et 70 %.');
-      return;
-    }
-    const badCm = FIELDS.find((f) => f.key.endsWith('Cm') && parsed(f.key) !== undefined && (parsed(f.key)! < 10 || parsed(f.key)! > 250));
-    if (badCm) {
-      setMsg(`${badCm.label} : valeur hors limites (10 à 250 cm).`);
-      return;
-    }
-    const entry: BodyEntry = { id: uid(), date, weightKg };
-    for (const f of FIELDS) if (f.key !== 'weightKg' && parsed(f.key)) (entry as unknown as Record<string, number>)[f.key] = parsed(f.key)!;
-    if (form.note) entry.note = form.note;
-    if (tanita) {
-      const bia = readBia(form);
-      // Le % de gras saisi en mode balance vient de la bio-impédance.
-      if (bia || entry.bodyFatPct !== undefined) entry.bia = bia ?? {};
-    }
+    const entry = res.entry;
     upsertBody(entry);
     setForm({});
     setMsg('Mesure enregistrée ✓');
@@ -269,57 +233,7 @@ export default function BodyPage() {
         )}
       </div>
 
-      <div className="card">
-        <h2>Historique</h2>
-        {body.length === 0 ? (
-          <Empty>Aucune mesure.</Empty>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th className="num">Poids</th>
-                  <th className="num">% MG</th>
-                  <th className="num">{body.some((e) => e.bia?.muscleKg) ? 'Muscle' : 'Maigre'}</th>
-                  <th className="num">Taille</th>
-                  <th className="num">Bras</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {[...data].reverse().slice(0, showAll ? undefined : 15).map((d) => (
-                  <tr key={d.date}>
-                    <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(d.date, { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
-                    <td className="num">{fmtNum(d.weight)}</td>
-                    <td className="num">{fmtNum(d.bf)}</td>
-                    <td className="num">{fmtNum(body.some((e) => e.bia?.muscleKg) ? d.muscle : d.lean)}</td>
-                    <td className="num">{fmtNum(d.waistCm)}</td>
-                    <td className="num">{fmtNum(d.armCm)}</td>
-                    <td className="num">
-                      <button
-                        className="btn ghost sm"
-                        aria-label="Supprimer"
-                        onClick={() => {
-                          const e = body.find((b) => b.date === d.date);
-                          if (e && confirm('Supprimer cette mesure ?')) deleteBody(e.id);
-                        }}
-                      >
-                        <Icon name="trash" size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {data.length > 15 && (
-              <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'Afficher moins' : `Afficher les ${data.length} mesures`}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <BodyHistory body={body} profile={profile} />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { fmtDate, fmtNum, signed, Tile } from './ui';
 type Form = Record<string, string>;
 
 /** Saisie des valeurs de la balance, dans l'ordre où la BC-545N les affiche. */
-export function BiaFields({ form, setForm, last }: { form: Form; setForm: (f: Form) => void; last?: BodyEntry }) {
+export function BiaFields({ form, setForm, last, openSegments }: { form: Form; setForm: (f: Form) => void; last?: BodyEntry; openSegments?: boolean }) {
   const input = (key: string, label: string, placeholder?: number, step?: string) => (
     <label className="field" key={key}>
       {label}
@@ -20,7 +20,7 @@ export function BiaFields({ form, setForm, last }: { form: Form; setForm: (f: Fo
   return (
     <div className="stack" style={{ marginTop: 12 }}>
       <div className="form-grid">{BIA_FIELDS.map((f) => input(`bia.${f.key}`, f.label, last?.bia?.[f.key], f.step))}</div>
-      <details>
+      <details open={openSegments}>
         <summary className="small">Analyse segmentaire (bras, jambes, tronc)</summary>
         <p className="small muted" style={{ margin: '6px 0' }}>
           Sur la balance, fais défiler les résultats segmentaires : % de gras puis masse musculaire de chaque segment.
