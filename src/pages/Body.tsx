@@ -5,6 +5,7 @@ import { biaTrend } from '../lib/bia';
 import BiaPanel, { BiaFields } from '../components/BiaPanel';
 import BodyHistory from '../components/BodyHistory';
 import GoalCard from '../components/GoalCard';
+import { FfmiInfoButton, ffmiLabel } from '../components/FfmiInfo';
 import { BODY_FIELDS as FIELDS, buildBodyEntry } from '../lib/bodyForm';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
@@ -131,7 +132,15 @@ export default function BodyPage() {
             sub={comp.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg · ${body.find((e) => e.date === comp.bfDate)?.bia ? 'balance' : 'mesuré'} le ${fmtDate(comp.bfDate!)}` : 'Mesure taille + cou'}
           />
           <Tile label="Masse maigre" value={comp.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'} sub="muscles, os, eau, organes" />
-          <Tile label="FFMI" value={fmtNum(comp.ffmi)} sub={ffmiLabel(comp.ffmi, profile.sex)} />
+          <Tile
+            label={
+              <>
+                FFMI <FfmiInfoButton profile={profile} leanKg={comp.leanKg} ffmi={comp.ffmi} bodyFatPct={comp.bodyFatPct} />
+              </>
+            }
+            value={fmtNum(comp.ffmi)}
+            sub={ffmiLabel(comp.ffmi, profile.sex, comp.bodyFatPct)}
+          />
         </div>
       )}
 
@@ -249,15 +258,4 @@ export default function BodyPage() {
       <BodyHistory body={body} profile={profile} />
     </div>
   );
-}
-
-function ffmiLabel(raw: number | undefined, sex: 'male' | 'female') {
-  if (raw === undefined) return 'Nécessite le % de gras';
-  // Les repères féminins sont environ 3 points plus bas.
-  const ffmi = sex === 'female' ? raw + 3 : raw;
-  if (ffmi < 18) return 'Sous la moyenne';
-  if (ffmi < 20) return 'Moyenne';
-  if (ffmi < 22) return 'Bien entraîné';
-  if (ffmi < 24) return 'Très musclé';
-  return sex === 'female' ? 'Exceptionnel' : 'Exceptionnel (limite naturelle ≈ 25)';
 }

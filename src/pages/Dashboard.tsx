@@ -8,6 +8,7 @@ import { dailyTotals } from '../lib/cardio';
 import { activityAverage } from '../lib/energy';
 import { useToday } from '../hooks/useToday';
 import { goalProjection } from '../lib/goal';
+import { ffmiReliable } from '../components/FfmiInfo';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -113,11 +114,11 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             tone="green"
             value={goal.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(goal.remainingKg)} kg`}
             sub={
-              goal.status === 'reached'
+              (goal.status === 'reached'
                 ? `${fmtNum(profile.targetWeightKg)} kg`
                 : goal.status === 'on_track' && goal.eta
                   ? `vers ${fmtNum(profile.targetWeightKg)} kg · ≈ ${fmtDate(goal.eta, { month: 'short', year: 'numeric' })}`
-                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`
+                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`) + (profile.targetBodyFatPct !== undefined ? ` · ${fmtNum(profile.targetBodyFatPct)} % MG` : '')
             }
           />
         )}
@@ -132,7 +133,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           icon="dumbbell"
           tone="green"
           value={comp?.leanKg !== undefined ? `${fmtNum(comp.leanKg)} kg` : '—'}
-          sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && sinceStart ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}` : undefined}
+          sub={comp?.leanKg !== undefined && firstComp?.leanKg !== undefined && sinceStart ? `${signed(comp.leanKg - firstComp.leanKg)} kg depuis le début` : comp?.ffmi ? `FFMI ${fmtNum(comp.ffmi)}${ffmiReliable(comp.bodyFatPct, profile.sex) ? '' : ' (peu fiable)'}` : undefined}
         />
         {muscle.length > 0 && (
           <Tile

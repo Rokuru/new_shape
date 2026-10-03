@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './ui';
 
 /** Panneau modal (bas d'écran sur iPhone, centré sur iPad/ordinateur) : Échap, clic dehors et focus gérés. */
@@ -21,7 +22,8 @@ export default function Sheet({ title, kicker, onClose, children }: { title: Rea
     };
   }, []);
 
-  return (
+  // Rendu au niveau du document : la fiche n'hérite pas des styles de l'endroit qui l'ouvre (libellé de tuile, tableau…).
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
@@ -35,6 +37,7 @@ export default function Sheet({ title, kicker, onClose, children }: { title: Rea
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
