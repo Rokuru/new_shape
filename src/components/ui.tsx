@@ -24,6 +24,9 @@ const paths: Record<string, ReactNode> = {
   calendar: <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 2v4M16 2v4" />,
   info: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16v-5M12 8h.01" />,
   refresh: <path d="M20 11a8 8 0 1 0-2.4 5.7M20 4v7h-7" />,
+  filter: <path d="M3 5h18l-7 8.5V19l-4 2v-7.5z" />,
+  edit: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
+  chevron: <path d="M9 6l6 6-6 6" />,
   target: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />,
 };
 
