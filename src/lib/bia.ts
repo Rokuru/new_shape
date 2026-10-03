@@ -36,14 +36,14 @@ export const PHYSIQUE_LABELS: Record<number, string> = {
 export type Level = 'ok' | 'warn' | 'bad';
 
 export function visceralStatus(v: number): { level: Level; label: string } {
-  return v <= 12 ? { level: 'ok', label: 'Niveau sain (1–12)' } : { level: 'bad', label: 'Excès (13–59) : à réduire' };
+  return v <= 12 ? { level: 'ok', label: 'Niveau sain (1–12)' } : { level: 'bad', label: 'Excès (13–59)\u00a0: à réduire' };
 }
 
 export function waterStatus(pct: number, sex: Profile['sex']): { level: Level; label: string } {
   const [lo, hi] = sex === 'male' ? [50, 65] : [45, 60];
-  if (pct < lo) return { level: 'warn', label: `Bas (repère ${lo}–${hi} %)` };
-  if (pct > hi) return { level: 'warn', label: `Élevé (repère ${lo}–${hi} %)` };
-  return { level: 'ok', label: `Dans la norme (${lo}–${hi} %)` };
+  if (pct < lo) return { level: 'warn', label: `Bas (repère ${lo}–${hi}\u00a0%)` };
+  if (pct > hi) return { level: 'warn', label: `Élevé (repère ${lo}–${hi}\u00a0%)` };
+  return { level: 'ok', label: `Dans la norme (${lo}–${hi}\u00a0%)` };
 }
 
 export function metabolicAgeStatus(metabolicAge: number, profile: Profile): { level: Level; label: string } {

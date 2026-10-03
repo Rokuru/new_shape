@@ -575,8 +575,10 @@ img {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 2.15rem;
-  line-height: 1.05;
-  margin-top: 6px;
+  /* Assez de hauteur pour les jambages (g de « kg ») malgré overflow: hidden. */
+  line-height: 1.2;
+  margin-top: 4px;
+  padding-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1206,8 +1208,13 @@ details[open] > summary::before {
   font-size: 0.78rem;
   font-weight: 700;
   padding: 3px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
+  border-radius: 12px;
+  /* Les libellés longs (« Excès (13–59) : à réduire ») passent à la ligne au lieu d'être coupés. */
+  max-width: 100%;
+  line-height: 1.3;
+}
+.status svg {
+  flex-shrink: 0;
 }
 .status.ok {
   color: var(--good);
