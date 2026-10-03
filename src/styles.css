@@ -2164,3 +2164,100 @@ table.compare tr.group th {
 .pe-row select {
   background: var(--surface);
 }
+
+/* ---------- Nutrition : calories mangées ---------- */
+.food-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.goal-bar > span.over {
+  background: var(--critical);
+}
+.food-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+@media (max-width: 520px) {
+  .food-add:not(.compact) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .food-add:not(.compact) > .btn {
+    grid-column: 1 / -1;
+  }
+}
+.food-add.compact {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+}
+.food-add.compact > .btn {
+  grid-column: 1 / -1;
+}
+.food-list,
+.food-week {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.food-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.food-row.editing {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto auto;
+}
+.food-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.day-nav b::first-letter {
+  text-transform: uppercase;
+}
+.food-week-row {
+  display: grid;
+  grid-template-columns: 7.5em minmax(0, 1fr) 6em;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.food-week-row.on {
+  background: var(--accent-soft);
+}
+.food-week-row > span:last-child {
+  text-align: right;
+}
+.food-week-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.food-week-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand-gradient);
+}
+.food-week-bar > span.over {
+  background: var(--critical);
+}

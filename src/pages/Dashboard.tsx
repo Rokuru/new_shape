@@ -12,7 +12,7 @@ import { ffmiReliable } from '../components/FfmiInfo';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
-  const { profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
+  const { food, profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
   const todayKey = useToday(); // re-rendu au changement de jour (app restée ouverte après minuit)
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
   const latest = body.at(-1);
@@ -29,6 +29,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
     comp && profile.targetWeightKg !== undefined
       ? goalProjection({ currentKg: comp.weightKg, targetKg: profile.targetWeightKg, startKg: profile.targetStartKg ?? comp.weightKg, ratePerWeek: rate, today: todayKey })
       : undefined;
+  const eatenToday = food.filter((f) => f.date === todayKey).reduce((s, f) => s + f.kcal, 0);
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
   const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
@@ -153,7 +154,14 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             sub={cardioToday.minutes ? `${fmtNum(cardioToday.steps, 0)} pas · ${fmtNum(cardioToday.distanceKm, 1)} km` : 'pas encore de marche'}
           />
         )}
-        {nut && <Tile label="Calories / jour" icon="flame" value={fmtNum(nut.calories, 0)} sub={`${nut.proteinG} g de protéines`} />}
+        {nut && (
+          <Tile
+            label="Calories / jour"
+            icon="flame"
+            value={fmtNum(nut.calories, 0)}
+            sub={eatenToday ? `mangé ${fmtNum(eatenToday, 0)} · reste ${fmtNum(Math.max(0, nut.calories - eatenToday), 0)}` : `${nut.proteinG} g de protéines`}
+          />
+        )}
       </div>
 
       <div className="grid grid-2">

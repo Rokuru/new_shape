@@ -93,6 +93,16 @@ export interface CardioEntry {
   steps?: number;
 }
 
+/** Calories mangées : une ligne par prise (repas, collation), saisie libre. */
+export interface FoodEntry {
+  id: string;
+  date: string; // YYYY-MM-DD (jour local)
+  /** Heure de saisie (ISO), pour l'ordre et l'affichage. */
+  at: string;
+  kcal: number;
+  label?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;

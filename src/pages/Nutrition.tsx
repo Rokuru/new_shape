@@ -4,6 +4,7 @@ import { adaptiveAdjustment, ACTIVITY_LABELS, BMR_FORMULAS, computeBmr, currentC
 import { useStore } from '../lib/store';
 import type { BmrMethod } from '../lib/types';
 import { activityAverage } from '../lib/energy';
+import FoodLog from '../components/FoodLog';
 import { Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
 const ADVICE: Record<string, string[]> = {
@@ -62,6 +63,8 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
         <Tile label="Lipides" value={`${t.fatG} g`} sub={`${Math.round(((t.fatG * 9) / t.calories) * 100)} % des calories`} />
         <Tile label="Glucides" value={`${t.carbsG} g`} sub="le reste des calories" />
       </div>
+
+      <FoodLog target={t.calories} />
 
       {t.floored && (
         <div className="callout" style={{ borderColor: 'var(--warning)' }}>
