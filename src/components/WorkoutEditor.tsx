@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { EXERCISES, getExercise, MUSCLE_LABELS, MUSCLES } from '../data/exercises';
 import { localDate } from '../lib/dates';
-import { useStore } from '../lib/store';
+import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import NumField from './NumField';
@@ -9,7 +9,7 @@ import Sheet from './Sheet';
 import { fmtDate, Icon } from './ui';
 
 /** Remplace le jour d'une date ISO en gardant l'heure locale de la séance. */
-function withDay(iso: string, day: string): string {
+export function withDay(iso: string, day: string): string {
   const d = new Date(iso);
   const [y, m, dd] = day.split('-').map(Number);
   d.setFullYear(y, m - 1, dd);
@@ -147,6 +147,61 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
       <p className="small muted" style={{ marginBottom: 0 }}>
         Séance du {fmtDate(workout.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}. Les records et suggestions de charge se recalculent automatiquement.
       </p>
+    </Sheet>
+  );
+}
+
+/** Copie d'une séance terminée à une autre date (ou le même jour), ouverte ensuite pour ajustement. */
+export function DuplicateWorkout({ workout, onClose, onCopied }: { workout: Workout; onClose: () => void; onCopied: (id: string) => void }) {
+  const addWorkout = useStore((s) => s.addWorkout);
+  const todayKey = useToday();
+  const [day, setDay] = useState(todayKey);
+  const [edit, setEdit] = useState(true);
+  const [err, setErr] = useState('');
+  const source = localDate(new Date(workout.date));
+
+  const copy = () => {
+    if (!day) return setErr('Choisis une date.');
+    if (day > todayKey) return setErr('La date est dans le futur : choisis aujourd’hui ou un jour passé.');
+    const id = uid();
+    addWorkout({
+      ...workout,
+      id,
+      date: withDay(workout.date, day),
+      finished: true,
+      exercises: workout.exercises.map((e) => ({ ...e, sets: e.sets.filter((s) => s.done).map((s) => ({ ...s })) })).filter((e) => e.sets.length),
+    });
+    onClose();
+    if (edit) onCopied(id);
+  };
+
+  return (
+    <Sheet title={workout.dayName} kicker="Dupliquer la séance" onClose={onClose}>
+      <p className="small secondary" style={{ marginTop: 0 }}>
+        Copie de la séance du {fmtDate(workout.date, { weekday: 'long', day: 'numeric', month: 'long' })} : mêmes exercices, charges et répétitions. L’original n’est pas modifié.
+      </p>
+      <label className="field">
+        Date de la copie
+        <input type="date" value={day} max={todayKey} onChange={(e) => setDay(e.target.value)} />
+        {day === source && <span className="small muted">même jour que l’original</span>}
+      </label>
+      <label className="small" style={{ marginTop: 12, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <input type="checkbox" checked={edit} onChange={(e) => setEdit(e.target.checked)} style={{ width: 20, height: 20, minHeight: 0, flexShrink: 0 }} />
+        <span>Ouvrir la copie pour ajuster charges et répétitions</span>
+      </label>
+      {err && (
+        <p className="field-error" role="alert">
+          {err}
+        </p>
+      )}
+      <div className="row" style={{ marginTop: 14, gap: 8 }}>
+        <button className="btn primary" onClick={copy}>
+          <Icon name="copy" size={16} /> Dupliquer
+        </button>
+        <button className="btn ghost" onClick={onClose}>
+          Annuler
+        </button>
+      </div>
     </Sheet>
   );
 }

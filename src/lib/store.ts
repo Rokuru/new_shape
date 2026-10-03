@@ -2,6 +2,8 @@ import { localDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
+import { getExercise } from '../data/exercises';
+import { suggestStretches } from '../data/stretches';
 import type { BodyEntry, CardioEntry, LoggedExercise, Profile, Program, ProgramDay, Workout } from './types';
 import { history, suggest } from './progression';
 
@@ -86,6 +88,7 @@ interface State {
   cancelWorkout: () => void;
   deleteWorkout: (id: string) => void;
   updateWorkout: (w: Workout) => void;
+  addWorkout: (w: Workout) => void;
   addCardio: (e: CardioEntry) => void;
   deleteCardio: (id: string) => void;
   setKcalAdjust: (n: number) => void;
@@ -160,6 +163,7 @@ export const useStore = create<State>()(
             programId: program?.id,
             dayName: day?.name ?? 'Séance libre',
             exercises: day ? buildExercises(day, workouts) : [],
+            stretches: day ? (day.stretches ?? suggestStretches(day.exercises, getExercise)).map((id) => ({ id, done: false })) : undefined,
             finished: false,
           },
         });
@@ -186,6 +190,7 @@ export const useStore = create<State>()(
       cancelWorkout: () => set({ activeWorkout: undefined }),
       addCardio: (e) => set((s) => ({ cardio: [...s.cardio, e].sort((a, b) => a.date.localeCompare(b.date)) })),
       deleteCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id), deleted: [...s.deleted, id] })),
+      addWorkout: (w) => set((s) => ({ workouts: [...s.workouts, w].sort((a, b) => a.date.localeCompare(b.date)) })),
       updateWorkout: (w) => set((s) => ({ workouts: s.workouts.map((x) => (x.id === w.id ? w : x)).sort((a, b) => a.date.localeCompare(b.date)) })),
       deleteWorkout: (id) => set((s) => ({ workouts: s.workouts.filter((w) => w.id !== id), deleted: [...s.deleted, id] })),
       setKcalAdjust: (n) => set({ kcalAdjust: n, kcalAdjustedAt: today() }),

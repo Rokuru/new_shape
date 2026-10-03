@@ -27,6 +27,7 @@ const paths: Record<string, ReactNode> = {
   filter: <path d="M3 5h18l-7 8.5V19l-4 2v-7.5z" />,
   edit: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
   compare: <path d="M8 3v18M16 3v18M3 8l5-5 5 5M11 16l5 5 5-5" />,
+  copy: <path d="M9 9h11v11H9zM5 15H4V4h11v1" />,
   chevron: <path d="M9 6l6 6-6 6" />,
   target: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01" />,
 };

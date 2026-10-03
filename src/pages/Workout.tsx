@@ -9,7 +9,9 @@ import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
 import CardioCard from '../components/CardioCard';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import NumField from '../components/NumField';
-import WorkoutEditor from '../components/WorkoutEditor';
+import StretchCard from '../components/StretchCard';
+import { getStretch, suggestStretches } from '../data/stretches';
+import WorkoutEditor, { DuplicateWorkout } from '../components/WorkoutEditor';
 import { loadPrefs, loadRestEnd, notifySupported, requestNotify, restDone, savePrefs, saveRestEnd, unlockAudio, type RestAlertPrefs } from '../lib/restAlert';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
@@ -17,8 +19,10 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
 
   const [editId, setEditId] = useState<string>();
+  const [dupId, setDupId] = useState<string>();
   if (activeWorkout) return <ActiveWorkout workout={activeWorkout} go={go} />;
   const editing = workouts.find((w) => w.id === editId);
+  const duplicating = workouts.find((w) => w.id === dupId);
 
   const recent = [...workouts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
   return (
@@ -75,6 +79,11 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
               </span>
             </summary>
             <div className="small" style={{ marginTop: 8 }}>
+              {w.stretches?.some((s) => s.done) && (
+                <div style={{ marginBottom: 4 }}>
+                  <b>Étirements</b> : {w.stretches.filter((s) => s.done).map((s) => getStretch(s.id)?.name ?? s.id).join(', ')}
+                </div>
+              )}
               {w.exercises.map((e, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>
                   <b>{getExercise(e.exerciseId).name}</b> :{' '}
@@ -87,6 +96,9 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
                 <button className="btn sm" onClick={() => setEditId(w.id)}>
                   <Icon name="edit" size={16} /> Modifier
+                </button>
+                <button className="btn sm" onClick={() => setDupId(w.id)}>
+                  <Icon name="copy" size={16} /> Dupliquer
                 </button>
                 <button
                   className="btn danger ghost sm"
@@ -102,6 +114,7 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
         ))}
       </div>
       {editing && <WorkoutEditor key={editing.id} workout={editing} onClose={() => setEditId(undefined)} />}
+      {duplicating && <DuplicateWorkout workout={duplicating} onClose={() => setDupId(undefined)} onCopied={setEditId} />}
     </div>
   );
 }
@@ -257,6 +270,12 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
           </div>
         </label>
       </div>
+
+      <StretchCard
+        // Séance libre : étirements suggérés d'après les exercices ajoutés, tant que l'utilisateur n'a rien modifié.
+        items={workout.stretches ?? suggestStretches(workout.exercises.map((e) => ({ exerciseId: e.exerciseId, sets: e.sets.length })), getExercise).map((id) => ({ id, done: false }))}
+        onChange={(stretches) => updateActive((w) => ({ ...w, stretches }))}
+      />
 
       <label className="field" style={{ marginBottom: 16 }}>
         Notes (sommeil, énergie, douleurs…)

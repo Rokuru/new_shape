@@ -13,10 +13,14 @@ import { LEVEL_LABELS } from '../components/ProfileForm';
 import { fmtNum, Icon } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
 import { ExerciseLink } from '../components/ExerciseInfo';
+import ProgramEditor, { blankProgram, toEditable } from '../components/ProgramEditor';
+import { getExercise } from '../data/exercises';
+import { getStretch, suggestStretches } from '../data/stretches';
 
 export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
   const { profile, customPrograms, activeProgramId, activateProgram, saveCustomProgram, deleteCustomProgram } = useStore();
   const [seed, setSeed] = useState(0);
+  const [editing, setEditing] = useState<{ program: Program; isNew: boolean }>();
   const generated = useMemo(() => generateProgram(profile), [profile, seed]);
 
   const [style, setStyle] = useState<ProgramStyle | 'all'>('all');
@@ -56,14 +60,28 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
         </div>
       </div>
 
-      {customPrograms.length > 0 && (
-        <>
-          <h2>Mes programmes</h2>
-          {customPrograms.map((p) => (
-            <ProgramCard key={p.id} program={p} active={p.id === activeProgramId} onActivate={() => activateProgram(p.id)} onDelete={() => confirm('Supprimer ce programme ?') && deleteCustomProgram(p.id)} />
-          ))}
-        </>
+      <div className="spread" style={{ marginTop: 24 }}>
+        <h2 style={{ margin: 0 }}>Mes programmes</h2>
+        <button className="btn sm primary" onClick={() => setEditing({ program: blankProgram(profile.level, profile.goal), isNew: true })}>
+          <Icon name="plus" size={16} /> Créer un programme
+        </button>
+      </div>
+      {customPrograms.length === 0 && (
+        <p className="small secondary">
+          Crée ta séance perso de zéro, ou touche « Personnaliser » sur un programme de la bibliothèque pour en faire une copie modifiable (exercices, séries, répétitions,
+          repos, étirements).
+        </p>
       )}
+      {customPrograms.map((p) => (
+        <ProgramCard
+          key={p.id}
+          program={p}
+          active={p.id === activeProgramId}
+          onActivate={() => activateProgram(p.id)}
+          onEdit={() => setEditing({ program: toEditable(p, false), isNew: false })}
+          onDelete={() => confirm('Supprimer ce programme ?') && deleteCustomProgram(p.id)}
+        />
+      ))}
 
       <h2>Bibliothèque</h2>
       <p className="small secondary">
@@ -79,8 +97,17 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
       </div>
       <CompareTable programs={library} />
       {library.map((p) => (
-        <ProgramCard key={p.id} program={p} active={p.id === activeProgramId} recommended={score(p) >= 5} missingEquipment={!canDo(p, profile.equipment)} onActivate={() => activateProgram(p.id)} />
+        <ProgramCard
+          key={p.id}
+          program={p}
+          active={p.id === activeProgramId}
+          recommended={score(p) >= 5}
+          missingEquipment={!canDo(p, profile.equipment)}
+          onActivate={() => activateProgram(p.id)}
+          onCopy={() => setEditing({ program: toEditable(p, true), isNew: true })}
+        />
       ))}
+      {editing && <ProgramEditor key={editing.program.id} initial={editing.program} isNew={editing.isNew} onClose={() => setEditing(undefined)} />}
     </div>
   );
 }
@@ -143,6 +170,8 @@ function ProgramCard({
   missingEquipment,
   onActivate,
   onDelete,
+  onEdit,
+  onCopy,
 }: {
   program: Program;
   active: boolean;
@@ -150,6 +179,8 @@ function ProgramCard({
   missingEquipment?: boolean;
   onActivate: () => void;
   onDelete?: () => void;
+  onEdit?: () => void;
+  onCopy?: () => void;
 }) {
   const st = programStats(program);
   return (
@@ -167,6 +198,16 @@ function ProgramCard({
           ) : (
             <button className="btn sm primary" onClick={onActivate}>
               Activer
+            </button>
+          )}
+          {onEdit && (
+            <button className="btn sm" onClick={onEdit}>
+              <Icon name="edit" size={16} /> Modifier
+            </button>
+          )}
+          {onCopy && (
+            <button className="btn sm" onClick={onCopy}>
+              <Icon name="copy" size={16} /> Personnaliser
             </button>
           )}
           {onDelete && (
@@ -244,6 +285,7 @@ function ProgramDetail({ program, open }: { program: Program; open?: boolean }) 
                 ))}
               </tbody>
             </table>
+            <StretchLine day={d} />
           </div>
         ))}
       </div>
@@ -254,3 +296,13 @@ function ProgramDetail({ program, open }: { program: Program; open?: boolean }) 
   );
 }
 
+
+function StretchLine({ day }: { day: Program['days'][number] }) {
+  const ids = day.stretches ?? suggestStretches(day.exercises, getExercise);
+  if (!ids.length) return null;
+  return (
+    <div className="small muted" style={{ marginTop: 6 }}>
+      🧘 Étirements{day.stretches ? '' : ' conseillés'} : {ids.map((id) => getStretch(id)?.name ?? id).join(', ')}
+    </div>
+  );
+}

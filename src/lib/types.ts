@@ -121,6 +121,8 @@ export interface PlannedExercise {
 export interface ProgramDay {
   name: string;
   exercises: PlannedExercise[];
+  /** Étirements de fin de séance (identifiants de data/stretches) ; absent = suggestion automatique. */
+  stretches?: string[];
 }
 
 export interface Program {
@@ -173,4 +175,6 @@ export interface Workout {
   durationMin?: number;
   note?: string;
   finished: boolean;
+  /** Étirements prévus pour la séance et ceux effectués. */
+  stretches?: { id: string; done: boolean }[];
 }
