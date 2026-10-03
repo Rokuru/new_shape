@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Tab } from '../App';
 import { EXERCISES, getExercise, MUSCLE_LABELS, MUSCLES } from '../data/exercises';
 import { tonnage } from '../lib/calc';
@@ -8,12 +8,17 @@ import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
 import CardioCard from '../components/CardioCard';
 import { ExerciseLink } from '../components/ExerciseInfo';
+import NumField from '../components/NumField';
+import WorkoutEditor from '../components/WorkoutEditor';
+import { loadPrefs, loadRestEnd, notifySupported, requestNotify, restDone, savePrefs, saveRestEnd, unlockAudio, type RestAlertPrefs } from '../lib/restAlert';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout } = useStore();
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
 
+  const [editId, setEditId] = useState<string>();
   if (activeWorkout) return <ActiveWorkout workout={activeWorkout} go={go} />;
+  const editing = workouts.find((w) => w.id === editId);
 
   const recent = [...workouts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
   return (
@@ -79,18 +84,24 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
                     .join(', ')}
                 </div>
               ))}
-              <button
-                className="btn danger sm"
-                onClick={() => {
-                  if (confirm('Supprimer cette séance ?')) deleteWorkout(w.id);
-                }}
-              >
-                <Icon name="trash" size={16} /> Supprimer
-              </button>
+              <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                <button className="btn sm" onClick={() => setEditId(w.id)}>
+                  <Icon name="edit" size={16} /> Modifier
+                </button>
+                <button
+                  className="btn danger ghost sm"
+                  onClick={() => {
+                    if (confirm('Supprimer cette séance ?')) deleteWorkout(w.id);
+                  }}
+                >
+                  <Icon name="trash" size={16} /> Supprimer
+                </button>
+              </div>
             </div>
           </details>
         ))}
       </div>
+      {editing && <WorkoutEditor key={editing.id} workout={editing} onClose={() => setEditId(undefined)} />}
     </div>
   );
 }
@@ -109,16 +120,47 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.flo
 function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void }) {
   const { updateActive, finishWorkout, cancelWorkout, workouts } = useStore();
   const now = useNow();
-  const [restEnd, setRestEnd] = useState<number | undefined>();
+  // Fin du repos conservée si l'appli est rechargée ou mise en arrière-plan ; un repos déjà fini est ignoré.
+  const [restEnd, setRestEndState] = useState<number | undefined>(() => {
+    const end = loadRestEnd();
+    return end && end > Date.now() ? end : undefined;
+  });
+  const setRestEnd = (v: number | undefined | ((r: number | undefined) => number | undefined)) =>
+    setRestEndState((r) => {
+      const next = typeof v === 'function' ? v(r) : v;
+      saveRestEnd(next);
+      return next;
+    });
+  const [prefs, setPrefsState] = useState<RestAlertPrefs>(loadPrefs);
+  const setPrefs = (p: RestAlertPrefs) => {
+    setPrefsState(p);
+    savePrefs(p);
+  };
   const [adding, setAdding] = useState('');
 
-  const remaining = restEnd ? Math.round((restEnd - now) / 1000) : undefined;
-  useEffect(() => {
-    if (remaining !== undefined && remaining <= 0) {
-      navigator.vibrate?.([200, 100, 200]);
-      setRestEnd(undefined);
+  // Prochaine série à faire, pour le texte de la notification.
+  const nextSet = (() => {
+    for (const e of workout.exercises) {
+      const s = e.sets.find((x) => !x.done);
+      if (s) return `${getExercise(e.exerciseId).name}${s.weight ? ` · ${fmtNum(s.weight)} kg` : ''} × ${s.reps}`;
     }
-  }, [remaining]);
+    return undefined;
+  })();
+
+  const remaining = restEnd ? Math.round((restEnd - now) / 1000) : undefined;
+  // Minuteur dédié : plus précis que le rafraîchissement à la seconde, et il tourne encore onglet masqué (Android, ordinateur).
+  // Réglages et prochaine série lus au moment de l'alerte (ils peuvent changer pendant le repos).
+  const alertRef = useRef({ prefs, nextSet });
+  alertRef.current = { prefs, nextSet };
+  useEffect(() => {
+    if (!restEnd) return;
+    const t = setTimeout(() => {
+      void restDone(alertRef.current.prefs, alertRef.current.nextSet);
+      setRestEndState(undefined);
+      saveRestEnd(undefined);
+    }, Math.max(0, restEnd - Date.now()));
+    return () => clearTimeout(t);
+  }, [restEnd]);
 
   const setEx = (i: number, fn: (e: LoggedExercise) => LoggedExercise) =>
     updateActive((w) => ({ ...w, exercises: w.exercises.map((e, j) => (j === i ? fn(e) : e)) }));
@@ -134,7 +176,10 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
       // Propage la charge validée aux séries suivantes encore vides.
       sets: e.sets.map((x, j) => (j === k ? { ...x, done } : j > k && !x.done && done && x.weight === 0 ? { ...x, weight: s.weight } : x)),
     }));
-    if (done) setRestEnd(Date.now() + (ex.target?.restSec ?? 90) * 1000);
+    if (done) {
+      unlockAudio();
+      setRestEnd(Date.now() + (ex.target?.restSec ?? 90) * 1000);
+    }
   };
 
   const elapsed = Math.round((now - new Date(workout.date).getTime()) / 1000);
@@ -161,6 +206,8 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
           <Icon name="check" size={18} /> Terminer
         </button>
       </div>
+
+      <RestAlertSettings prefs={prefs} onChange={setPrefs} />
 
       {workout.exercises.map((ex, i) => (
         <ExerciseCard
@@ -236,6 +283,46 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
   );
 }
 
+function RestAlertSettings({ prefs, onChange }: { prefs: RestAlertPrefs; onChange: (p: RestAlertPrefs) => void }) {
+  // Affiché seulement après un refus réel : Notification.permission n'est pas fiable partout (navigateurs headless, PWA).
+  const [denied, setDenied] = useState(false);
+  const supported = notifySupported();
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return (
+    <div className="rest-alert">
+      <span className="small secondary">Fin de repos :</span>
+      <button
+        type="button"
+        className={`chip ${prefs.sound ? 'on' : ''}`}
+        aria-pressed={prefs.sound}
+        onClick={() => {
+          unlockAudio();
+          onChange({ ...prefs, sound: !prefs.sound });
+        }}
+      >
+        🔔 Son
+      </button>
+      {supported && (
+        <button
+          type="button"
+          className={`chip ${prefs.notify && !denied ? 'on' : ''}`}
+          aria-pressed={prefs.notify && !denied}
+          onClick={async () => {
+            if (prefs.notify) return onChange({ ...prefs, notify: false });
+            const ok = await requestNotify();
+            setDenied(!ok);
+            onChange({ ...prefs, notify: ok });
+          }}
+        >
+          📲 Notification
+        </button>
+      )}
+      {denied && <span className="small muted">Notifications bloquées : autorise-les dans les réglages du navigateur.</span>}
+      {!supported && ios && <span className="small muted">Pour les notifications sur iPhone : Partager → « Sur l’écran d’accueil », puis ouvre l’appli depuis l’icône.</span>}
+    </div>
+  );
+}
+
 function ExerciseCard({
   ex,
   workouts,
@@ -260,13 +347,6 @@ function ExerciseCard({
   const last = past[0];
   const sug = ex.target ? suggest(ex.target, past) : undefined;
   const t = ex.target;
-  // Charge 0–999 kg (2 décimales), répétitions entières 0–999 : jamais de valeur négative ou absurde.
-  const num = (v: string, max: number, decimals: number) => {
-    const n = Number(v.replace(',', '.'));
-    if (!Number.isFinite(n) || n <= 0) return 0;
-    const f = 10 ** decimals;
-    return Math.min(max, Math.round(n * f) / f);
-  };
 
   return (
     <div className="card">
@@ -318,8 +398,9 @@ function ExerciseCard({
       {ex.sets.map((s, k) => (
         <div className={`set-row ${s.done ? 'done' : ''}`} key={k}>
           <span className="muted small">{k + 1}</span>
-          <input inputMode="decimal" aria-label={`Charge série ${k + 1}`} value={s.weight || ''} placeholder="0" onChange={(e) => onSet(k, { weight: num(e.target.value, 999, 2) })} />
-          <input inputMode="numeric" aria-label={`Répétitions série ${k + 1}`} value={s.reps || ''} placeholder="0" onChange={(e) => onSet(k, { reps: num(e.target.value, 999, 0) })} />
+          {/* Charge 0–999 kg (2 décimales), répétitions entières 0–999 : jamais de valeur négative ou absurde. */}
+          <NumField aria-label={`Charge série ${k + 1}`} value={s.weight} max={999} decimals={2} onChange={(weight) => onSet(k, { weight })} />
+          <NumField aria-label={`Répétitions série ${k + 1}`} value={s.reps} max={999} decimals={0} onChange={(reps) => onSet(k, { reps })} />
           <select aria-label={`RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => onSet(k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
             <option value="">–</option>
             {[0, 1, 2, 3, 4].map((r) => (

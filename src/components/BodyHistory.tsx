@@ -7,7 +7,7 @@ import { useToday } from '../hooks/useToday';
 import type { BodyEntry, Profile } from '../lib/types';
 import { BiaFields } from './BiaPanel';
 import Sheet from './Sheet';
-import { Empty, fmtDate, fmtNum, Icon } from './ui';
+import { Empty, fmtDate, fmtNum, Icon, signed } from './ui';
 
 type ColKey =
   | 'weight'
@@ -64,6 +64,8 @@ export default function BodyHistory({ body, profile }: { body: BodyEntry[]; prof
   const [filterOpen, setFilterOpen] = useState(false);
   const [openId, setOpenId] = useState<string>();
   const [saved, setSavedState] = useState<ColKey[] | undefined>(loadCols);
+  const [compare, setCompare] = useState<string[] | undefined>();
+  const [comparing, setComparing] = useState(false);
 
   const rows = [...body].reverse().map((e) => ({ e, c: composition(e, profile) }));
   const count = (k: ColKey) => rows.filter(({ e, c }) => COLUMNS.find((x) => x.key === k)!.get(e, c) !== undefined).length;
@@ -91,17 +93,45 @@ export default function BodyHistory({ body, profile }: { body: BodyEntry[]; prof
   };
 
   const opened = body.find((e) => e.id === openId);
+  const onRow = (id: string) => {
+    if (!compare) return setOpenId(id);
+    setCompare(compare.includes(id) ? compare.filter((x) => x !== id) : [...compare, id].slice(-2));
+  };
+  const pair = compare?.length === 2 ? (compare.map((id) => body.find((e) => e.id === id)).filter(Boolean) as BodyEntry[]).sort((a, b) => a.date.localeCompare(b.date)) : undefined;
 
   return (
     <div className="card">
       <div className="card-header">
         <h2>Historique</h2>
         {body.length > 0 && (
+          <div className="row" style={{ gap: 4 }}>
+          {body.length > 1 && (
+            <button className={`btn sm ${compare ? 'primary' : 'ghost'}`} onClick={() => setCompare(compare ? undefined : [])} aria-pressed={!!compare}>
+              <Icon name="compare" size={16} /> Comparer
+            </button>
+          )}
           <button className={`btn sm ${filterOpen ? 'primary' : 'ghost'}`} onClick={() => setFilterOpen(!filterOpen)} aria-expanded={filterOpen}>
             <Icon name="filter" size={16} /> Colonnes
           </button>
+          </div>
         )}
       </div>
+
+      {compare && (
+        <div className="compare-bar" role="status">
+          <span className="small">
+            {compare.length < 2 ? `Touche ${compare.length ? 'une 2e mesure' : 'deux mesures'} à comparer (${compare.length}/2)` : '2 mesures sélectionnées'}
+          </span>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn primary sm" disabled={!pair} onClick={() => setComparing(true)}>
+              Voir l’évolution
+            </button>
+            <button className="btn ghost sm" onClick={() => setCompare(undefined)}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
 
       {filterOpen && (
         <div className="col-filter">
@@ -148,18 +178,20 @@ export default function BodyHistory({ body, profile }: { body: BodyEntry[]; prof
               {rows.slice(0, showAll ? undefined : PAGE).map(({ e, c }) => (
                 <tr
                   key={e.id}
-                  className="clickable"
+                  className={`clickable ${compare?.includes(e.id) ? 'selected' : ''}`}
                   tabIndex={0}
-                  aria-label={`Voir la mesure du ${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })}`}
-                  onClick={() => setOpenId(e.id)}
+                  aria-label={`${compare ? 'Sélectionner' : 'Voir'} la mesure du ${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })}`}
+                  aria-selected={compare ? compare.includes(e.id) : undefined}
+                  onClick={() => onRow(e.id)}
                   onKeyDown={(ev) => {
                     if (ev.key === 'Enter' || ev.key === ' ') {
                       ev.preventDefault();
-                      setOpenId(e.id);
+                      onRow(e.id);
                     }
                   }}
                 >
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    {compare && <span className={`pick ${compare.includes(e.id) ? 'on' : ''}`}>{compare.includes(e.id) ? <Icon name="check" size={12} /> : null}</span>}
                     {fmtDate(e.date, { day: '2-digit', month: '2-digit', year: '2-digit' })}
                     {e.bia && <span className="dot-bia" title="Mesure balance" />}
                   </td>
@@ -183,7 +215,22 @@ export default function BodyHistory({ body, profile }: { body: BodyEntry[]; prof
         </div>
       )}
 
-      {opened && <EntrySheet key={opened.id} entry={opened} body={body} profile={profile} onClose={() => setOpenId(undefined)} onDelete={() => remove(opened)} onMoved={setOpenId} />}
+      {opened && (
+        <EntrySheet
+          key={opened.id}
+          entry={opened}
+          body={body}
+          profile={profile}
+          onClose={() => setOpenId(undefined)}
+          onDelete={() => remove(opened)}
+          onMoved={setOpenId}
+          onCompare={() => {
+            setOpenId(undefined);
+            setCompare([opened.id]);
+          }}
+        />
+      )}
+      {comparing && pair && <CompareSheet a={pair[0]} b={pair[1]} profile={profile} onClose={() => setComparing(false)} />}
     </div>
   );
 }
@@ -195,6 +242,7 @@ function EntrySheet({
   onClose,
   onDelete,
   onMoved,
+  onCompare,
 }: {
   entry: BodyEntry;
   body: BodyEntry[];
@@ -202,6 +250,7 @@ function EntrySheet({
   onClose: () => void;
   onDelete: () => void;
   onMoved: (id: string) => void;
+  onCompare: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const title = fmtDate(entry.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -216,6 +265,11 @@ function EntrySheet({
             <button className="btn primary" onClick={() => setEditing(true)}>
               <Icon name="edit" size={16} /> Modifier
             </button>
+            {body.length > 1 && (
+              <button className="btn ghost" onClick={onCompare}>
+                <Icon name="compare" size={16} /> Comparer avec…
+              </button>
+            )}
             <button className="btn ghost danger" onClick={onDelete}>
               <Icon name="trash" size={16} /> Supprimer
             </button>
@@ -374,5 +428,85 @@ function EntryEditor({ entry, body, profile, onDone, onCancel }: { entry: BodyEn
         </button>
       </div>
     </div>
+  );
+}
+
+type Better = 'down' | 'up' | 'neutral';
+
+/** Lignes du comparatif : valeur, unité et sens « favorable » de l'évolution. */
+function compareRows(e: BodyEntry, c: Composition, weightBetter: Better): { group: string; label: string; v: number | undefined; unit: string; better: Better }[] {
+  const b = e.bia;
+  return [
+    { group: 'Composition', label: 'Poids', v: e.weightKg, unit: ' kg', better: weightBetter },
+    { group: 'Composition', label: '% de gras', v: c.bodyFatPct, unit: ' %', better: 'down' },
+    { group: 'Composition', label: 'Masse grasse', v: c.fatKg, unit: ' kg', better: 'down' },
+    { group: 'Composition', label: 'Masse maigre', v: c.leanKg, unit: ' kg', better: 'up' },
+    { group: 'Composition', label: 'FFMI', v: c.ffmi, unit: '', better: 'up' },
+    { group: 'Balance', label: 'Masse musculaire', v: b?.muscleKg, unit: ' kg', better: 'up' },
+    { group: 'Balance', label: 'Eau', v: b?.waterPct, unit: ' %', better: 'up' },
+    { group: 'Balance', label: 'Graisse viscérale', v: b?.visceral, unit: '', better: 'down' },
+    { group: 'Balance', label: 'Âge métabolique', v: b?.metabolicAge, unit: ' ans', better: 'down' },
+    { group: 'Balance', label: 'Masse osseuse', v: b?.boneKg, unit: ' kg', better: 'neutral' },
+    { group: 'Mensurations', label: 'Tour de taille', v: e.waistCm, unit: ' cm', better: 'down' },
+    { group: 'Mensurations', label: 'Tour de cou', v: e.neckCm, unit: ' cm', better: 'neutral' },
+    { group: 'Mensurations', label: 'Hanches', v: e.hipCm, unit: ' cm', better: 'neutral' },
+    { group: 'Mensurations', label: 'Poitrine', v: e.chestCm, unit: ' cm', better: 'neutral' },
+    { group: 'Mensurations', label: 'Bras', v: e.armCm, unit: ' cm', better: 'up' },
+    { group: 'Mensurations', label: 'Cuisse', v: e.thighCm, unit: ' cm', better: 'neutral' },
+    ...SEGMENTS.flatMap((s) => [
+      { group: 'Segments', label: `${s.label} · % gras`, v: b?.segFat?.[s.key], unit: ' %', better: 'down' as Better },
+      { group: 'Segments', label: `${s.label} · muscle`, v: b?.segMuscle?.[s.key], unit: ' kg', better: 'up' as Better },
+    ]),
+  ];
+}
+
+function CompareSheet({ a, b, profile, onClose }: { a: BodyEntry; b: BodyEntry; profile: Profile; onClose: () => void }) {
+  const weightBetter: Better = profile.goal === 'cut' ? 'down' : profile.goal === 'bulk' ? 'up' : 'neutral';
+  const ra = compareRows(a, composition(a, profile), weightBetter);
+  const rb = compareRows(b, composition(b, profile), weightBetter);
+  const rows = ra.map((r, i) => ({ ...r, after: rb[i].v })).filter((r) => r.v !== undefined || r.after !== undefined);
+  const groups = [...new Set(rows.map((r) => r.group))];
+  const days = Math.round((new Date(b.date).getTime() - new Date(a.date).getTime()) / 86_400_000);
+  const short = (d: string) => fmtDate(d, { day: 'numeric', month: 'short', year: '2-digit' });
+  const tone = (delta: number, better: Better) => (better === 'neutral' || Math.abs(delta) < 0.05 ? '' : (delta < 0) === (better === 'down') ? 'delta-good' : 'delta-bad');
+
+  return (
+    <Sheet title={`${short(a.date)} → ${short(b.date)}`} kicker={`Évolution sur ${days >= 60 ? `${fmtNum(days / 30.4, 0)} mois` : `${days} jours`}`} onClose={onClose}>
+      <div className="table-wrap">
+        <table className="compare">
+          <thead>
+            <tr>
+              <th />
+              <th className="num">{short(a.date)}</th>
+              <th className="num">{short(b.date)}</th>
+              <th className="num">Écart</th>
+            </tr>
+          </thead>
+          {groups.map((g) => (
+            <tbody key={g}>
+              <tr className="group">
+                <th colSpan={4}>{g}</th>
+              </tr>
+              {rows
+                .filter((r) => r.group === g)
+                .map((r) => {
+                  const delta = r.v !== undefined && r.after !== undefined ? r.after - r.v : undefined;
+                  return (
+                    <tr key={r.label}>
+                      <td>{r.label}</td>
+                      <td className="num">{r.v !== undefined ? `${fmtNum(r.v)}${r.unit}` : '—'}</td>
+                      <td className="num">{r.after !== undefined ? `${fmtNum(r.after)}${r.unit}` : '—'}</td>
+                      <td className={`num ${delta !== undefined ? tone(delta, r.better) : ''}`}>{delta !== undefined ? `${signed(delta)}${r.unit}` : ''}</td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          ))}
+        </table>
+      </div>
+      <p className="small muted" style={{ marginBottom: 0 }}>
+        En vert : évolution favorable{weightBetter === 'neutral' ? '' : ` (poids jugé selon ton objectif : ${weightBetter === 'down' ? 'sèche' : 'prise de masse'})`}. « — » : valeur non mesurée ce jour-là.
+      </p>
+    </Sheet>
   );
 }

@@ -1888,3 +1888,137 @@ table.history tr.clickable:focus-visible td:first-child {
   font-weight: 700;
   font-size: 1.25rem;
 }
+
+/* ---------- Poids objectif ---------- */
+.goal-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 24px;
+  margin-bottom: 12px;
+}
+.goal-big {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1.15;
+}
+.goal-eta {
+  text-align: right;
+  max-width: 320px;
+}
+.goal-eta b {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+@media (max-width: 520px) {
+  .goal-eta {
+    text-align: left;
+  }
+}
+.goal-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.goal-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-gradient);
+  transition: width 0.4s ease-out;
+}
+.milestones {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.milestones li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.milestones li.done {
+  background: var(--green-soft);
+  border-color: transparent;
+}
+.ms-dot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  color: #fff;
+  flex-shrink: 0;
+}
+.milestones li.done .ms-dot {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+}
+
+/* ---------- Corps : comparaison de deux mesures ---------- */
+.compare-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+table.history tr.selected {
+  background: var(--accent-soft);
+}
+.pick {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  vertical-align: -3px;
+  border-radius: 6px;
+  border: 2px solid var(--border-strong);
+  color: #fff;
+}
+.pick.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+table.compare tr.group th {
+  padding-top: 14px;
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green-text);
+}
+
+/* ---------- Séance : modification d'une séance passée ---------- */
+.edit-ex {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Séance : alerte de fin de repos ---------- */
+.rest-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
