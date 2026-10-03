@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { currentComposition, weeklyRate } from '../lib/calc';
 import { goalProjection } from '../lib/goal';
 import { useStore } from '../lib/store';
@@ -15,17 +15,32 @@ export default function GoalCard() {
   const rate = weeklyRate(body);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
+  const [startText, setStartText] = useState('');
   const [err, setErr] = useState('');
   const target = profile.targetWeightKg;
+  const sorted = [...body].sort((a, b) => a.date.localeCompare(b.date));
+  const lastWeighing = sorted.at(-1);
 
-  if (!comp) return null;
+  // Réparation : un objectif fixé avec l'ancien calcul de tendance a pu prendre un départ faux
+  // (pesées d'il y a des années mélangées à celle du jour). On reprend la pesée réelle de ce jour-là.
+  const setAt = profile.targetSetAt;
+  const weighingAtSet = setAt ? [...sorted].reverse().find((e) => e.date <= setAt) : undefined;
+  const badStart = target !== undefined && profile.targetStartKg !== undefined && weighingAtSet && Math.abs(profile.targetStartKg - weighingAtSet.weightKg) > 3;
+  useEffect(() => {
+    if (badStart && weighingAtSet) setProfile({ targetStartKg: weighingAtSet.weightKg });
+  }, [badStart, weighingAtSet, setProfile]);
+
+  if (!comp || !lastWeighing) return null;
   const current = comp.weightKg;
 
+  const parse = (t: string) => Number(t.replace(',', '.'));
   const save = () => {
-    const n = Number(text.replace(',', '.'));
-    if (!Number.isFinite(n) || n < 30 || n > 300) return setErr('Entre 30 et 300 kg.');
-    if (Math.abs(n - current) < 0.5) return setErr('C’est déjà ton poids actuel.');
-    setProfile({ targetWeightKg: Math.round(n * 10) / 10, targetStartKg: Math.round(current * 10) / 10, targetSetAt: today });
+    const n = parse(text);
+    const start = startText.trim() ? parse(startText) : lastWeighing.weightKg;
+    if (!Number.isFinite(start) || start < 30 || start > 350) return setErr('Poids de départ : entre 30 et 350 kg.');
+    if (!Number.isFinite(n) || n < 30 || n > 300) return setErr('Poids visé : entre 30 et 300 kg.');
+    if (Math.abs(n - start) < 0.5) return setErr('Le poids visé est égal au poids de départ.');
+    setProfile({ targetWeightKg: Math.round(n * 10) / 10, targetStartKg: Math.round(start * 10) / 10, targetSetAt: target === undefined ? today : (profile.targetSetAt ?? today) });
     setEditing(false);
     setErr('');
   };
@@ -33,10 +48,15 @@ export default function GoalCard() {
   const form = (
     <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
       <label className="field" style={{ flex: '1 1 160px' }}>
-        Poids visé (kg)
-        <input inputMode="decimal" value={text} autoFocus placeholder={fmtNum(Math.round(current - 10))} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} aria-invalid={!!err} />
-        {err && <span className="field-error">{err}</span>}
+        Poids de départ (kg)
+        <input inputMode="decimal" value={startText} onChange={(e) => setStartText(e.target.value)} placeholder={fmtNum(lastWeighing.weightKg)} />
+        <span className="small muted">par défaut : ta dernière pesée ({fmtDate(lastWeighing.date)})</span>
       </label>
+      <label className="field" style={{ flex: '1 1 160px' }}>
+        Poids visé (kg)
+        <input inputMode="decimal" value={text} autoFocus placeholder={fmtNum(Math.round(lastWeighing.weightKg - 10))} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} aria-invalid={!!err} />
+      </label>
+      {err && <span className="field-error" style={{ flexBasis: '100%' }}>{err}</span>}
       <div className="row" style={{ gap: 8, alignSelf: 'flex-end' }}>
         <button className="btn primary" onClick={save}>
           Valider
@@ -54,14 +74,20 @@ export default function GoalCard() {
     return (
       <div className="card">
         <h2>Mon objectif</h2>
-        {target === undefined && <p className="small secondary" style={{ marginTop: 0 }}>Fixe un poids cible : l’appli estime ta date d’arrivée d’après ta tendance réelle et découpe le chemin en paliers de 5 kg.</p>}
+        {target === undefined && (
+          <p className="small secondary" style={{ marginTop: 0 }}>
+            Fixe un poids cible : l’appli estime ta date d’arrivée d’après ta tendance réelle et découpe le chemin en paliers de 5 kg. Le restant est calculé sur ton poids lissé, moins sensible
+            aux variations d’eau qu’une pesée isolée.
+          </p>
+        )}
         {form}
       </div>
     );
   }
 
-  const p = goalProjection({ currentKg: current, targetKg: target, startKg: profile.targetStartKg ?? current, ratePerWeek: rate, today });
-  const losing = target < (profile.targetStartKg ?? current);
+  const startKg = badStart && weighingAtSet ? weighingAtSet.weightKg : (profile.targetStartKg ?? lastWeighing.weightKg);
+  const p = goalProjection({ currentKg: current, targetKg: target, startKg, ratePerWeek: rate, today });
+  const losing = target < startKg;
 
   return (
     <div className="card goal-card">
@@ -71,6 +97,7 @@ export default function GoalCard() {
           className="btn ghost sm"
           onClick={() => {
             setText(String(target).replace('.', ','));
+            setStartText(String(profile.targetStartKg ?? lastWeighing.weightKg).replace('.', ','));
             setEditing(true);
           }}
         >
@@ -82,7 +109,10 @@ export default function GoalCard() {
         <div>
           <div className="goal-big">{p.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(p.remainingKg)} kg`}</div>
           <div className="small secondary">
-            {p.status === 'reached' ? `objectif de ${fmtNum(target)} kg` : `restants pour atteindre ${fmtNum(target)} kg`} · actuel {fmtNum(current)} kg
+            {p.status === 'reached' ? `objectif de ${fmtNum(target)} kg` : `restants pour atteindre ${fmtNum(target)} kg`}
+          </div>
+          <div className="small muted">
+            poids lissé {fmtNum(current)} kg · dernière pesée {fmtNum(lastWeighing.weightKg)} kg
           </div>
         </div>
         <div className="goal-eta">
@@ -109,7 +139,7 @@ export default function GoalCard() {
         <span style={{ width: `${p.progressPct}%` }} />
       </div>
       <div className="spread small muted" style={{ marginTop: 4 }}>
-        <span>départ {fmtNum(profile.targetStartKg ?? current)} kg{profile.targetSetAt ? ` (${fmtDate(profile.targetSetAt)})` : ''}</span>
+        <span>départ {fmtNum(startKg)} kg{profile.targetSetAt ? ` (${fmtDate(profile.targetSetAt)})` : ''}</span>
         <span>{p.progressPct} %</span>
       </div>
 

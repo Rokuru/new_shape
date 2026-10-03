@@ -50,12 +50,29 @@ export function composition(entry: BodyEntry, profile: Profile): Composition {
   return { bodyFatPct: bf, fatKg: round(fatKg), leanKg: round(leanKg), ffmi: round(ffmi), bmi };
 }
 
+/**
+ * Poids d'une nouvelle mesure dans une moyenne lissée, selon le temps écoulé depuis la précédente.
+ * Jusqu'à `refDays` d'écart : `alpha` tel quel. Au-delà, la mesure pèse davantage (l'ancienne tendance
+ * vieillit), et après `resetDays` sans mesure la tendance repart de la mesure : on ne mélange pas
+ * une pesée d'aujourd'hui avec celles d'il y a des mois.
+ */
+export function gapAlpha(alpha: number, gapDays: number, refDays: number, resetDays: number): number {
+  if (gapDays > resetDays) return 1;
+  if (gapDays <= refDays) return alpha;
+  return 1 - (1 - alpha) ** (gapDays / refDays);
+}
+
+const daysApart = (a: string, b: string) => Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000);
+
 /** Moyenne mobile exponentielle (comme Happy Scale / MacroFactor) pour lisser les variations d'eau. */
 export function weightTrend(entries: BodyEntry[], alpha = 0.25): { date: string; weight: number; trend: number }[] {
   const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   let t: number | undefined;
+  let prev: string | undefined;
   return sorted.map((e) => {
-    t = t === undefined ? e.weightKg : t + alpha * (e.weightKg - t);
+    // Pesées tous les 1 à 3 jours : lissage normal ; après 30 jours sans pesée, la tendance repart de zéro.
+    t = t === undefined || prev === undefined ? e.weightKg : t + gapAlpha(alpha, daysApart(prev, e.date), 3, 30) * (e.weightKg - t);
+    prev = e.date;
     return { date: e.date, weight: e.weightKg, trend: round(t, 2) };
   });
 }

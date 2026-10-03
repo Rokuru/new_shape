@@ -121,9 +121,9 @@ export default function BodyPage() {
       {comp && last && (
         <div className="tiles">
           <Tile
-            label="Poids (tendance)"
+            label="Poids lissé"
             value={`${fmtNum(comp.weightKg)} kg`}
-            sub={`${rate !== undefined ? `${signed(rate, 2)} kg / sem. · ` : ''}pesée : ${fmtNum(last.weightKg)} kg`}
+            sub={`dernière pesée ${fmtNum(last.weightKg)} kg${rate !== undefined ? ` · ${signed(rate, 2)} kg/sem.` : ''}`}
           />
           <Tile
             label="Masse grasse"

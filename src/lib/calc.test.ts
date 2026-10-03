@@ -204,3 +204,20 @@ describe('garde-fous (test de singe)', () => {
     expect(sanitizeProfile({ ...profile, heightCm: 182, birthYear: 1990 }).heightCm).toBe(182);
   });
 });
+
+describe('tendance après une longue interruption', () => {
+  it('repart de la pesée du jour au lieu de la mélanger avec des pesées anciennes', () => {
+    const old = [128, 124, 118.5, 113.5, 110, 107, 104, 101, 98, 96].map((w, i) => ({ id: `o${i}`, date: `2019-${String(i + 2).padStart(2, '0')}-10`, weightKg: w }));
+    const t = weightTrend([...old, { id: 'n', date: '2026-10-02', weightKg: 117.7 }]);
+    expect(t.at(-1)!.trend).toBe(117.7);
+    expect(currentComposition([...old, { id: 'n', date: '2026-10-02', weightKg: 117.7 }], profile)!.weightKg).toBe(117.7);
+  });
+
+  it('un écart de quelques jours reste lissé normalement', () => {
+    const t = weightTrend([
+      { id: 'a', date: '2026-10-01', weightKg: 100 },
+      { id: 'b', date: '2026-10-03', weightKg: 102 },
+    ]);
+    expect(t.at(-1)!.trend).toBe(100.5);
+  });
+});
