@@ -45,7 +45,7 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   const evalRate = locked ? undefined : weeklyRate(body, Math.min(28, daysSince));
   const proposal = adaptiveAdjustment(evalRate, t.targetRateKg);
   const nextEval = kcalAdjustedAt ? addDays(kcalAdjustedAt, 14) : undefined;
-  const perMeal = Math.round(latest.weightKg * 0.4);
+  const perMeal = Math.round(t.refWeightKg * 0.4);
   const fiber = Math.round((t.calories / 1000) * 14);
   const water = fmtNum((latest.weightKg * 35) / 1000 + 0.5);
 
@@ -54,7 +54,11 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
       <h1>Nutrition</h1>
       <div className="tiles">
         <Tile label="Calories / jour" value={fmtNum(t.calories, 0)} sub={kcalAdjust ? `dont ajustement ${signed(kcalAdjust, 0)} kcal` : `maintenance ≈ ${fmtNum(t.tdee, 0)}`} />
-        <Tile label="Protéines" value={`${t.proteinG} g`} sub={`${fmtNum(t.proteinG / latest.weightKg)} g/kg`} />
+        <Tile
+          label="Protéines"
+          value={`${t.proteinG} g`}
+          sub={t.refWeightKg < latest.weightKg - 0.5 ? `${fmtNum(t.proteinG / t.refWeightKg)} g/kg de poids de référence (${fmtNum(t.refWeightKg, 0)} kg)` : `${fmtNum(t.proteinG / t.refWeightKg)} g/kg`}
+        />
         <Tile label="Lipides" value={`${t.fatG} g`} sub={`${Math.round(((t.fatG * 9) / t.calories) * 100)} % des calories`} />
         <Tile label="Glucides" value={`${t.carbsG} g`} sub="le reste des calories" />
       </div>

@@ -226,6 +226,23 @@ export function computeBmr(profile: Profile, weightKg: number, bodyFatPct?: numb
   return { bmr: BMR_FORMULAS[method].compute(ctx)!, method };
 }
 
+/**
+ * Poids de référence pour les protéines et lipides en g/kg. Les recommandations (1,6–2,2 g/kg) sont établies
+ * sur des sujets plutôt minces : en surpoids, les appliquer au poids total surestime fortement les besoins.
+ * - % de gras connu : masse maigre ramenée à un taux de gras « sain » (15 % homme, 25 % femme) ;
+ * - sinon, au-delà d'un IMC de 25 : poids ajusté = poids à IMC 25 + 40 % de l'excédent.
+ * Jamais au-dessus du poids réel.
+ */
+export function referenceWeight(profile: Profile, weightKg: number, bodyFatPct?: number): number {
+  if (bodyFatPct !== undefined) {
+    const lean = weightKg * (1 - bodyFatPct / 100);
+    return round(Math.min(weightKg, lean / (1 - (profile.sex === 'female' ? 0.25 : 0.15))));
+  }
+  const h = profile.heightCm / 100;
+  const healthy = 25 * h * h;
+  return round(weightKg <= healthy ? weightKg : healthy + 0.4 * (weightKg - healthy));
+}
+
 export interface NutritionTargets {
   bmr: number;
   tdee: number;
@@ -238,6 +255,8 @@ export interface NutritionTargets {
   method: string;
   methodId: Exclude<BmrMethod, 'auto'>;
   targetRateKg: number;
+  /** Poids sur lequel sont calculés protéines et lipides (voir referenceWeight). */
+  refWeightKg: number;
 }
 
 /**
@@ -258,11 +277,13 @@ export function nutritionTargets(profile: Profile, latest: BodyEntry, bodyFatPct
   const raw = r10(tdee) + r10(delta) + r10(kcalAdjust);
   const calories = Math.max(raw, floor);
   // Protéines : 2,2 g/kg en sèche (Helms 2014), 1,8 g/kg sinon (Morton 2018 : plateau ≈ 1,6 g/kg).
-  const proteinG = Math.round(w * (profile.goal === 'cut' ? 2.2 : 1.8));
+  // Calculées sur le poids de référence : en surpoids, 2,2 g/kg du poids total donnerait des quantités irréalistes.
+  const ref = referenceWeight(profile, w, bodyFatPct);
+  const proteinG = Math.round(ref * (profile.goal === 'cut' ? 2.2 : 1.8));
   // Lipides : ~25 % des calories, minimum 0,6 g/kg pour la santé hormonale.
-  const fatG = Math.round(Math.max((calories * 0.25) / 9, w * 0.6));
+  const fatG = Math.round(Math.max((calories * 0.25) / 9, ref * 0.6));
   const carbsG = Math.max(0, Math.round((calories - proteinG * 4 - fatG * 9) / 4));
-  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, floored: raw < floor, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2) };
+  return { bmr: Math.round(bmr), tdee: r10(tdee), calories, floored: raw < floor, proteinG, fatG, carbsG, method, methodId, targetRateKg: round(targetRateKg, 2), refWeightKg: ref };
 }
 
 /**
