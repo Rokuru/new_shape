@@ -2177,7 +2177,7 @@ table.compare tr.group th {
 }
 .food-add {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
   gap: 8px;
   align-items: end;
 }
@@ -2185,12 +2185,18 @@ table.compare tr.group th {
   .food-add:not(.compact) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  .food-add:not(.compact) > .field:nth-child(3) {
+    grid-column: 1 / -1;
+  }
   .food-add:not(.compact) > .btn {
     grid-column: 1 / -1;
   }
 }
 .food-add.compact {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.food-add.compact > .field:nth-child(3) {
+  grid-column: 1 / -1;
 }
 .food-add.compact > .btn {
   grid-column: 1 / -1;
@@ -2210,7 +2216,28 @@ table.compare tr.group th {
   border-top: 1px solid var(--border);
 }
 .food-row.editing {
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) auto auto;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1.2fr) auto auto;
+}
+@media (max-width: 520px) {
+  .food-row.editing {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.food-amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+.food-prot {
+  margin: 0 0 14px;
+}
+.goal-bar.thin {
+  height: 8px;
+  margin-top: 4px;
+}
+.goal-bar.prot > span {
+  background: var(--brand-green);
 }
 .food-label {
   overflow: hidden;
@@ -2228,7 +2255,7 @@ table.compare tr.group th {
 }
 .food-week-row {
   display: grid;
-  grid-template-columns: 7.5em minmax(0, 1fr) 6em;
+  grid-template-columns: 7.5em minmax(0, 1fr) 8.5em;
   align-items: center;
   gap: 10px;
   width: 100%;

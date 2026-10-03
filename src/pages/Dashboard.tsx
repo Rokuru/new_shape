@@ -30,6 +30,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
       ? goalProjection({ currentKg: comp.weightKg, targetKg: profile.targetWeightKg, startKg: profile.targetStartKg ?? comp.weightKg, ratePerWeek: rate, today: todayKey })
       : undefined;
   const eatenToday = food.filter((f) => f.date === todayKey).reduce((s, f) => s + f.kcal, 0);
+  const proteinToday = food.filter((f) => f.date === todayKey).reduce((s, f) => s + (f.proteinG ?? 0), 0);
   const prs = recentPRs(workouts, body).slice(0, 4);
   const muscle = [...biaTrend(body, (e) => e.bia?.muscleKg).values()];
   const cardioToday = dailyTotals(cardio, profile, body.at(-1)?.weightKg ?? 75, 1)[0];
@@ -159,7 +160,11 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             label="Calories / jour"
             icon="flame"
             value={fmtNum(nut.calories, 0)}
-            sub={eatenToday ? `mangé ${fmtNum(eatenToday, 0)} · reste ${fmtNum(Math.max(0, nut.calories - eatenToday), 0)}` : `${nut.proteinG} g de protéines`}
+            sub={
+              eatenToday || proteinToday
+                ? `mangé ${fmtNum(eatenToday, 0)} · reste ${fmtNum(Math.max(0, nut.calories - eatenToday), 0)} · prot. ${fmtNum(proteinToday, 0)}/${nut.proteinG} g`
+                : `${nut.proteinG} g de protéines`
+            }
           />
         )}
       </div>
