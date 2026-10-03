@@ -114,11 +114,11 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             tone="green"
             value={goal.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(goal.remainingKg)} kg`}
             sub={
-              goal.status === 'reached'
+              (goal.status === 'reached'
                 ? `${fmtNum(profile.targetWeightKg)} kg`
                 : goal.status === 'on_track' && goal.eta
                   ? `vers ${fmtNum(profile.targetWeightKg)} kg · ≈ ${fmtDate(goal.eta, { month: 'short', year: 'numeric' })}`
-                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`
+                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`) + (profile.targetBodyFatPct !== undefined ? ` · ${fmtNum(profile.targetBodyFatPct)} % MG` : '')
             }
           />
         )}

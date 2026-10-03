@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goalProjection } from './goal';
+import { bodyFatGoal, goalProjection } from './goal';
 
 const base = { today: '2026-10-03', startKg: 117.7, targetKg: 100 };
 
@@ -35,5 +35,27 @@ describe('goalProjection', () => {
   it('prévient au-delà de 1 % du poids perdu par semaine', () => {
     expect(goalProjection({ ...base, currentKg: 115, ratePerWeek: -1.4 }).tooFast).toBe(true);
     expect(goalProjection({ ...base, currentKg: 115, ratePerWeek: -0.9 }).tooFast).toBe(false);
+  });
+});
+
+describe('bodyFatGoal', () => {
+  const base = { currentBf: 33.2, targetBf: 20, startBf: 33.2, weightKg: 117.7, today: '2026-10-03' };
+
+  it('vérifie la cohérence avec le poids visé', () => {
+    const g = bodyFatGoal({ ...base, targetWeightKg: 90 });
+    expect(g.remainingPts).toBe(13.2);
+    expect(g.weightAtTargetKeepingLean).toBe(98.3);
+    expect(g.bfAtTargetWeightKeepingLean).toBe(12.6);
+    expect(g.leanAtBoth).toBe(72);
+    expect(g.leanDeltaAtBoth).toBe(-6.6);
+    expect(g.leanShareOfLoss).toBe(0.24);
+  });
+
+  it('estime la date au rythme mesuré, seulement si la tendance va dans le bon sens', () => {
+    const g = bodyFatGoal({ ...base, currentBf: 30, ratePerWeek: -0.4 });
+    expect(g.progressPct).toBe(24);
+    expect(g.eta).toBe('2027-03-27');
+    expect(bodyFatGoal({ ...base, ratePerWeek: 0.2 }).eta).toBeUndefined();
+    expect(bodyFatGoal({ ...base, currentBf: 19.5 }).reached).toBe(true);
   });
 });

@@ -2047,3 +2047,24 @@ table.compare tr.group th {
   display: block;
   margin-top: 2px;
 }
+.goal-bf {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.goal-bf h3 {
+  margin: 0 0 2px;
+}
+.goal-check {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+.goal-check li + li {
+  margin-top: 4px;
+}
+.goal-check li.warn {
+  color: var(--critical);
+}
+.goal-check li.ok {
+  color: var(--green-text);
+}

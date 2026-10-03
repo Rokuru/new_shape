@@ -40,6 +40,8 @@ export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
   if (!Array.isArray(out.priorities)) out.priorities = [];
   if (out.targetWeightKg !== undefined && !ok(out.targetWeightKg, 30, 300)) delete out.targetWeightKg;
   if (out.targetStartKg !== undefined && !ok(out.targetStartKg, 25, 350)) delete out.targetStartKg;
+  if (out.targetBodyFatPct !== undefined && !ok(out.targetBodyFatPct, 3, 60)) delete out.targetBodyFatPct;
+  if (out.targetStartBfPct !== undefined && !ok(out.targetStartBfPct, 2, 70)) delete out.targetStartBfPct;
   return out;
 }
 

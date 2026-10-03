@@ -35,6 +35,9 @@ export interface Profile {
   targetWeightKg?: number;
   targetStartKg?: number;
   targetSetAt?: string;
+  /** % de masse grasse visé, et % mesuré au moment où cet objectif a été fixé. */
+  targetBodyFatPct?: number;
+  targetStartBfPct?: number;
 }
 
 export type BmrMethod = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'tinsley';

@@ -383,3 +383,21 @@ export function startOfWeek(d: Date): Date {
   r.setDate(r.getDate() - day);
   return r;
 }
+
+/**
+ * Évolution du % de gras en points par semaine : régression sur les mesures des `days` derniers jours.
+ * Il faut au moins 2 mesures espacées de 14 jours (le % de gras est bruité d'une mesure à l'autre).
+ */
+export function bodyFatRate(entries: BodyEntry[], profile: Profile, days = 70, now = new Date()): number | undefined {
+  const cutoff = now.getTime() - days * DAY;
+  const pts = entries
+    .map((e) => ({ x: new Date(e.date).getTime() / DAY, y: bodyFatOf(e, profile) }))
+    .filter((p): p is { x: number; y: number } => p.y !== undefined && p.x * DAY >= cutoff);
+  if (pts.length < 2) return undefined;
+  if (Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x)) < 14) return undefined;
+  const mx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const my = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  const num = pts.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0);
+  const den = pts.reduce((s, p) => s + (p.x - mx) ** 2, 0);
+  return den === 0 ? undefined : round((num / den) * 7, 2);
+}
