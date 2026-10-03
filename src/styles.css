@@ -437,6 +437,17 @@ img {
   .main-col {
     margin-left: var(--sidebar-w);
   }
+  /* Sans barre du haut (iPad, ordinateur), la zone de la barre d'état restait transparente : le contenu défilait
+     dessous et les icônes blanches (heure, batterie) devenaient illisibles sur le fond clair. Bandeau opaque. */
+  .shell::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 35;
+    height: env(safe-area-inset-top);
+    background: var(--chrome);
+    pointer-events: none;
+  }
   .content {
     padding: calc(env(safe-area-inset-top) + 28px) max(28px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 48px) 28px;
   }
@@ -2067,4 +2078,89 @@ table.compare tr.group th {
 }
 .goal-check li.ok {
   color: var(--green-text);
+}
+
+/* ---------- Étirements ---------- */
+.stretch-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.stretch-row .pick {
+  margin: 0;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  cursor: pointer;
+  background: var(--surface);
+}
+.stretch-row .pick.on {
+  background: var(--brand-green);
+  border-color: var(--brand-green);
+}
+.stretch-row.done .stretch-name > span:first-child {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.stretch-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stretch-name > span:first-child {
+  font-weight: 600;
+  text-decoration: underline dotted var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+/* ---------- Éditeur de programme ---------- */
+.pe-row {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.pe-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 4px;
+  align-items: center;
+}
+.pe-fields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+.pe-fields .field {
+  font-size: 0.75rem;
+}
+@media (max-width: 520px) {
+  .pe-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.pe-stretch {
+  margin-top: 12px;
+}
+.pe-stretch .chip {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+.pe-row input,
+.pe-row select {
+  background: var(--surface);
 }
