@@ -39,10 +39,10 @@ const isEditing = () => {
  * avant le rechargement ; si un champ est en cours de saisie, le rechargement attend qu'il soit quitté.
  */
 export async function refreshApp(): Promise<'updated' | 'synced'> {
-  const [hasUpdate] = await Promise.all([fetchNewVersion(), useAuth.getState().token ? syncNow() : Promise.resolve()]);
+  const [hasUpdate] = await Promise.all([fetchNewVersion(), useAuth.getState().user ? syncNow() : Promise.resolve()]);
   if (!hasUpdate) return 'synced';
   // Modifications locales pas encore envoyées (envoi groupé différé) : on les pousse avant de recharger.
-  if (useAuth.getState().token && useAuth.getState().dirtyAt) await syncNow();
+  if (useAuth.getState().user && useAuth.getState().dirtyAt) await syncNow();
   if (isEditing()) document.addEventListener('focusout', () => setTimeout(() => !isEditing() && location.reload(), 0), { once: true });
   else location.reload();
   return 'updated';

@@ -36,7 +36,7 @@ const readTab = (): Tab => {
 export default function App() {
   const onboarded = useStore((s) => s.onboarded);
   const hasActive = useStore((s) => !!s.activeWorkout);
-  const user = useAuth((s) => (s.token ? s.user : undefined));
+  const user = useAuth((s) => s.user);
   const syncError = useAuth((s) => s.status === 'error');
   const [tab, setTab] = useState<Tab>(readTab);
 
@@ -55,7 +55,13 @@ export default function App() {
   if (!onboarded) return <Onboarding />;
 
   const avatar = user ? (
-    <img className="avatar" src={user.avatarUrl} alt="" width={24} height={24} style={syncError ? { outline: '2px solid var(--critical)' } : undefined} />
+    user.avatarUrl ? (
+      <img className="avatar" src={user.avatarUrl} alt="" width={24} height={24} style={syncError ? { outline: '2px solid var(--critical)' } : undefined} />
+    ) : (
+      <span className="avatar avatar-initial" style={{ fontSize: 12, ...(syncError ? { outline: '2px solid var(--critical)' } : {}) }} aria-hidden>
+        {user.login.slice(0, 1).toUpperCase()}
+      </span>
+    )
   ) : (
     <Icon name="user" size={20} />
   );

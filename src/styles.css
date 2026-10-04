@@ -2427,3 +2427,15 @@ table.compare tr.group th {
   align-items: center;
   gap: 4px;
 }
+
+/* Avatar sans photo (compte Face ID) : initiale du pseudo */
+.avatar-initial {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+}

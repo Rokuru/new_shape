@@ -29,27 +29,25 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - uses: actions/upload-artifact@v4
-        if: github.event_name != 'pull_request'
-        with:
-          name: dist
-          path: dist
 
+  # L'app est désormais hébergée par Cloudflare Pages (déploiement automatique depuis main, voir DEPLOIEMENT.md).
+  # L'ancienne adresse GitHub Pages ne sert plus qu'une page de déménagement : redirection + transfert des données.
   deploy:
-    name: Mise en production (GitHub Pages)
+    name: Page de déménagement (GitHub Pages)
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      NEW_APP_URL: ${{ vars.NEW_APP_URL || 'https://new-shape.pages.dev' }}
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - name: Publier dist/ sur la branche gh-pages
+      - uses: actions/checkout@v4
+      - name: Adresse de la nouvelle app
+        run: sed -i "s#__NEW_APP_URL__#${NEW_APP_URL}#" legacy/move.js && grep -q "${NEW_APP_URL}" legacy/move.js
+      - name: Publier legacy/ sur la branche gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          publish_dir: ./legacy
           force_orphan: true
