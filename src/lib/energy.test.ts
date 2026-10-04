@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { activityAverage, workoutKcal, workoutMinutes } from './energy';
-import { nutritionTargets } from './calc';
+import { computeBmr, nutritionTargets } from './calc';
 import { DEFAULT_PROFILE } from './store';
 import type { Workout } from './types';
 
@@ -15,8 +15,18 @@ const w = (date: string, durationMin?: number, sets = 18): Workout => ({
 });
 
 describe('dépense liée au sport', () => {
-  it('une séance d’1 h à 82 kg ≈ 290 kcal nettes', () => {
-    expect(workoutKcal(w('2026-10-01', 60), 82)).toBe(287);
+  it('forte masse grasse : dépense de séance plus faible qu’avec la formule par kg', () => {
+    const big = { ...profile, heightCm: 178, birthYear: 1993 };
+    const bmr = computeBmr(big, 117.7, 33.2).bmr; // Mifflin-St Jeor (% de gras élevé)
+    const kcal = workoutKcal(w('2026-10-01', 75), bmr);
+    expect(kcal).toBeLessThan(Math.round((3.5 * 117.7 * 75) / 60)); // ancienne formule : 515 kcal
+    expect(kcal).toBeGreaterThan(200);
+    expect(kcal).toBeLessThan(320);
+  });
+
+  it('une séance d’1 h : (3,5 − 1) MET × métabolisme de base horaire', () => {
+    // Métabolisme de base de 1 800 kcal/j : 75 kcal/h, soit 2,5 × 75 ≈ 188 kcal nettes.
+    expect(workoutKcal(w('2026-10-01', 60), 1800)).toBe(188);
     // Sans durée mesurée : ~3,5 min par série ; séance oubliée : plafonnée à 3 h.
     expect(workoutMinutes(w('2026-10-01', undefined, 20))).toBe(70);
     expect(workoutMinutes(w('2026-10-01', 600))).toBe(180);
@@ -25,7 +35,8 @@ describe('dépense liée au sport', () => {
   it('utilise le plan du profil tant qu’il n’y a pas une semaine d’historique', () => {
     const a = activityAverage({ workouts: [], cardio: [], profile }, 80, new Date('2026-10-01T12:00:00Z'));
     expect(a.source).toBe('plan');
-    expect(a.perDay).toBe(160); // 4 × 1 h × 3,5 × 80 / 7
+    const bmr = computeBmr(profile, 80).bmr;
+    expect(a.perDay).toBe(Math.round((4 * 2.5 * (bmr / 24)) / 7)); // 4 séances d'1 h / semaine
   });
 
   it('fait la moyenne réelle sur 14 jours, marche comprise', () => {
@@ -34,7 +45,8 @@ describe('dépense liée au sport', () => {
     const a = activityAverage({ workouts, cardio, profile }, 80, new Date('2026-10-01T12:00:00Z'));
     expect(a.source).toBe('history');
     expect(a.days).toBe(14);
-    expect(a.training).toBe(Math.round((5 * 280) / 14)); // la séance du 15 sort de la fenêtre (18/09 → 01/10)
+    const perSession = Math.round(2.5 * (computeBmr(profile, 80).bmr / 24));
+    expect(a.training).toBe(Math.round((5 * perSession) / 14)); // la séance du 15 sort de la fenêtre (18/09 → 01/10)
     expect(a.walking).toBe(40); // 560 kcal / 14 j
   });
 
