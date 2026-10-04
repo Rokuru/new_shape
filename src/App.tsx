@@ -3,6 +3,7 @@ import { Icon } from './components/ui';
 import Logo from './components/Logo';
 import PullToRefresh from './components/PullToRefresh';
 import { ExerciseInfoProvider } from './components/ExerciseInfo';
+import { StreakButton } from './components/StreakCalendar';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useStore } from './lib/store';
 import { useAuth } from './lib/sync';
@@ -86,6 +87,7 @@ export default function App() {
           ))}
         </nav>
         <div className="side-nav side-foot">
+          <StreakButton className="side-link" withLabel />
           <button className={`side-link ${tab === 'friends' ? 'active' : ''}`} onClick={() => go('friends')} aria-current={tab === 'friends' ? 'page' : undefined}>
             <span className="side-icon">
               <Icon name="users" />
@@ -106,6 +108,7 @@ export default function App() {
             <Logo size={30} />
           </button>
           <div className="topbar-actions">
+            <StreakButton />
             <button className={`icon-btn ${tab === 'friends' ? 'active' : ''}`} onClick={() => go('friends')} aria-label="Amis">
               <Icon name="users" size={20} />
             </button>
