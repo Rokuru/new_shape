@@ -7,9 +7,11 @@ import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
 import { activityAverage } from '../lib/energy';
 import { useToday } from '../hooks/useToday';
+import { useChartRange } from '../hooks/useChartRange';
+import { breakGaps, inRange, RANGE_OPTIONS, timeAxis } from '../lib/timeAxis';
 import { goalProjection } from '../lib/goal';
 import { ffmiReliable } from '../components/FfmiInfo';
-import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
+import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const { food, profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
@@ -20,7 +22,10 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const firstComp = initialComposition(body, profile);
   const sinceStart = firstComp && comp && firstComp.bfDate !== comp.bfDate;
   const rate = weeklyRate(body);
-  const trend = weightTrend(body).slice(-60);
+  const trend = weightTrend(body);
+  const [range, setRange] = useChartRange('dashboard-weight');
+  const shown = inRange(trend, range, todayKey);
+  const axis = shown.length >= 2 ? timeAxis(shown.map((d) => d.t)) : undefined;
   const weekStart = startOfWeek(new Date()).getTime();
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
   const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay) : undefined;
@@ -114,19 +119,42 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             label="Objectif"
             icon="target"
             tone="green"
-            value={goal.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(goal.remainingKg)} kg`}
+            value={goal.status === 'reached' ? 'Atteint 🎉' : `${goal.direction < 0 ? '−' : '+'}${fmtNum(goal.remainingKg)} kg`}
             sub={
-              (goal.status === 'reached'
-                ? `${fmtNum(profile.targetWeightKg)} kg`
-                : goal.status === 'on_track' && goal.eta
-                  ? `vers ${fmtNum(profile.targetWeightKg)} kg · ≈ ${fmtDate(goal.eta, { month: 'short', year: 'numeric' })}`
-                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`) + (profile.targetBodyFatPct !== undefined ? ` · ${fmtNum(profile.targetBodyFatPct)} % MG` : '')
+              <>
+                <div>
+                  {goal.status === 'reached' ? 'Poids visé :' : goal.direction < 0 ? 'à perdre pour atteindre' : 'à prendre pour atteindre'} <b className="nowrap">{fmtNum(profile.targetWeightKg)} kg</b>
+                </div>
+                {goal.status === 'on_track' && goal.eta && (
+                  <div>
+                    Arrivée ≈ <span className="nowrap">{fmtDate(goal.eta, { month: 'long', year: 'numeric' })}</span>
+                  </div>
+                )}
+                {profile.targetBodyFatPct !== undefined && (
+                  <div>
+                    {comp?.bodyFatPct === undefined ? (
+                      <>
+                        Masse grasse visée : <span className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</span>
+                      </>
+                    ) : Math.abs(profile.targetBodyFatPct - comp.bodyFatPct) < 0.1 ? (
+                      <>
+                        Masse grasse : <span className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</span> atteinte 🎉
+                      </>
+                    ) : (
+                      <>
+                        <span className="nowrap">{signed(profile.targetBodyFatPct - comp.bodyFatPct)} %</span> de gras pour atteindre{' '}
+                        <b className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</b>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
             }
           />
         )}
         <Tile
           label="Masse grasse"
-          icon="drop"
+          icon="waist"
           value={comp?.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
           sub={comp?.fatKg !== undefined && firstComp?.fatKg !== undefined && sinceStart ? `${signed(comp.fatKg - firstComp.fatKg)} kg depuis le début` : comp?.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Ajoute tes mensurations'}
         />
@@ -177,25 +205,30 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
               <Icon name="plus" size={16} /> Pesée
             </button>
           </div>
-          {trend.length >= 2 ? (
+          {trend.length >= 2 && (
+            <div style={{ marginBottom: 8 }}>
+              <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} />
+            </div>
+          )}
+          {axis ? (
             <div className="chart sm">
               <ResponsiveContainer>
-                <AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                <AreaChart data={breakGaps(shown)} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
                   <defs>
                     <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0" stopColor="var(--series-1)" stopOpacity={0.22} />
                       <stop offset="1" stopColor="var(--series-1)" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
+                  <XAxis dataKey="t" type="number" domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={16} />
                   <YAxis domain={['dataMin - 1', 'dataMax + 1']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 0)} />
                   <Tooltip content={<ChartTooltip unit=" kg" />} />
-                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="url(#weightFill)" dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="url(#weightFill)" connectNulls={false} dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <Empty>Ajoute au moins 2 pesées pour voir ta courbe.</Empty>
+            <Empty>{trend.length >= 2 ? 'Pas assez de pesées sur cette période : choisis une période plus longue.' : 'Ajoute au moins 2 pesées pour voir ta courbe.'}</Empty>
           )}
         </div>
 

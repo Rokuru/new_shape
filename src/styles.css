@@ -2288,3 +2288,7 @@ table.compare tr.group th {
 .food-week-bar > span.over {
   background: var(--critical);
 }
+
+.nowrap {
+  white-space: nowrap;
+}

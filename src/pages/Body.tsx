@@ -9,6 +9,8 @@ import { FfmiInfoButton, ffmiLabel } from '../components/FfmiInfo';
 import { BODY_FIELDS as FIELDS, buildBodyEntry } from '../lib/bodyForm';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
+import { useChartRange } from '../hooks/useChartRange';
+import { breakGaps, inRange, RANGE_OPTIONS, timeAxis } from '../lib/timeAxis';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Legend, Segmented, signed, Tile } from '../components/ui';
 
 type Metric = 'weight' | 'bf' | 'lean' | 'fat' | 'muscle' | 'water' | 'visceral' | 'waistCm' | 'armCm' | 'chestCm' | 'thighCm';
@@ -36,6 +38,7 @@ export default function BodyPage() {
   const date = picked ?? todayKey;
   const [form, setForm] = useState<Record<string, string>>({});
   const [metric, setMetric] = useState<Metric>('weight');
+  const [range, setRange] = useChartRange('body-evolution');
   const [msg, setMsg] = useState('');
   const [tanita, setTanitaState] = useState(() => {
     try {
@@ -102,7 +105,13 @@ export default function BodyPage() {
     };
   });
   const m = METRICS.find((x) => x.value === metric)!;
-  const series = data.filter((d) => d[metric] !== undefined || (metric === 'bf' && (d.bfBia !== undefined || d.bfOther !== undefined)));
+  const allSeries = data.filter((d) => d[metric] !== undefined || (metric === 'bf' && (d.bfBia !== undefined || d.bfOther !== undefined)));
+  // Les tendances sont calculées sur tout l'historique, puis on n'affiche que la période choisie.
+  const series = inRange(allSeries, range, todayKey);
+  const axis = series.length >= 2 ? timeAxis(series.map((d) => d.t)) : undefined;
+  // Point de mesure ; rien pour les lignes sans valeur (coupures de la courbe).
+  const dot = (key: string) => (p: { cx?: number; cy?: number; payload?: Record<string, unknown> }) =>
+    typeof p.payload?.[key] === 'number' ? <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" /> : <g />;
   const hasBiaBf = data.some((d) => d.bfBia !== undefined);
   const hasOtherBf = data.some((d) => d.bfOther !== undefined);
   // Mesures bruitées : points bruts + tendance lissée.
@@ -197,7 +206,12 @@ export default function BodyPage() {
         <div style={{ marginBottom: 10, overflowX: 'auto' }}>
           <Segmented value={metric} options={METRICS.map(({ value, label }) => ({ value, label }))} onChange={setMetric} />
         </div>
-        {series.length >= 2 ? (
+        {allSeries.length >= 2 && (
+          <div style={{ marginBottom: 10 }}>
+            <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} />
+          </div>
+        )}
+        {axis ? (
           <>
             {nz && (
               <Legend
@@ -218,9 +232,9 @@ export default function BodyPage() {
             )}
             <div className="chart">
               <ResponsiveContainer>
-                <ComposedChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+                <ComposedChart data={breakGaps(series)} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                   <CartesianGrid vertical={false} />
-                  <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
+                  <XAxis dataKey="t" type="number" domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={16} />
                   <YAxis domain={['auto', 'auto']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 1)} />
                   <Tooltip content={<ChartTooltip unit={m.unit} />} />
                   {metric === 'weight' && profile.targetWeightKg !== undefined && (
@@ -234,24 +248,26 @@ export default function BodyPage() {
                   )}
                   {nz ? (
                     <>
-                      <Scatter dataKey={nz.raw} name="Mesure" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />
-                      <Line type="monotone" dataKey={nz.trend} name="Tendance" stroke="var(--series-1)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+                      <Scatter dataKey={nz.raw} name="Mesure" fill="var(--muted)" shape={dot(nz.raw)} />
+                      <Line type="monotone" dataKey={nz.trend} name="Tendance" stroke="var(--series-1)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                     </>
                   ) : metric === 'bf' && hasBiaBf ? (
                     <>
-                      <Scatter dataKey="bfBia" name="Balance" fill="var(--muted)" shape={(p: { cx?: number; cy?: number }) => <circle cx={p.cx} cy={p.cy} r={3} fill="var(--muted)" />} />
+                      <Scatter dataKey="bfBia" name="Balance" fill="var(--muted)" shape={dot('bfBia')} />
                       <Line type="monotone" dataKey="bfBiaTrend" name="Balance (tendance)" stroke="var(--series-1)" strokeWidth={2} dot={false} connectNulls />
                       {hasOtherBf && <Line type="monotone" dataKey="bfOther" name="Mètre ruban" stroke="var(--series-2)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-2)' }} connectNulls />}
                     </>
                   ) : (
-                    <Line type="monotone" dataKey={metric} name={m.label} stroke="var(--series-1)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-1)' }} activeDot={{ r: 5 }} connectNulls />
+                    <Line type="monotone" dataKey={metric} name={m.label} stroke="var(--series-1)" strokeWidth={2} dot={{ r: 3, fill: 'var(--series-1)' }} activeDot={{ r: 5 }} />
                   )}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </>
         ) : (
-          <Empty>Il faut au moins 2 mesures de « {m.label} » pour tracer la courbe.</Empty>
+          <Empty>
+            {allSeries.length >= 2 ? `Pas assez de mesures de « ${m.label} » sur cette période : choisis une période plus longue.` : `Il faut au moins 2 mesures de « ${m.label} » pour tracer la courbe.`}
+          </Empty>
         )}
       </div>
 

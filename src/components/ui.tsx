@@ -15,6 +15,8 @@ const paths: Record<string, ReactNode> = {
   x: <path d="M6 6l12 12M18 6L6 18" />,
   scale: <path d="M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM8 10a4 4 0 0 1 8 0M12 10l2-2.5" />,
   drop: <path d="M12 3l5.4 6a7.2 7.2 0 1 1-10.8 0z" />,
+  // Buste avec un mètre ruban à la taille : masse grasse.
+  waist: <path d="M8.5 2.5C8.5 6 5 8 5 12.5S7.5 19 8.5 21.5M15.5 2.5C15.5 6 19 8 19 12.5S16.5 19 15.5 21.5M5 11h14v3H5zM9 11v1.5M12 11v1.5M15 11v1.5" />,
   flame: <path d="M12 22c3.9 0 7-2.8 7-6.6 0-3.1-1.9-5.2-3.5-7-.5 1.6-1.4 2.6-2.6 3.1.4-3.4-1.4-6.3-4-8.5-.2 3.5-1.9 5.5-3.3 7.2C4.6 11.4 5 12.9 5 15.4 5 19.2 8.1 22 12 22z" />,
   bolt: <path d="M13 2L4 14h7l-1 8 9-12h-7z" />,
   walk: <path d="M13 4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM9 21l2.5-6.5L14 17v4M7.5 11l2.5-3.5 4 1 2.5 3.5M10 7.5l1.5 7" />,
@@ -88,14 +90,18 @@ export function ChartTooltip({
   unit = '',
 }: {
   active?: boolean;
-  payload?: { name?: string; value?: number; color?: string }[];
+  payload?: { name?: string; dataKey?: unknown; value?: number; color?: string; payload?: { date?: unknown } }[];
   label?: string | number;
   unit?: string;
 }) {
+  // L'abscisse numérique (`t`) d'un nuage de points n'est pas une valeur à afficher.
+  payload = payload?.filter((p) => p.dataKey !== 't' && p.value !== undefined && p.value !== null);
   if (!active || !payload?.length) return null;
+  // Axe de temps numérique : la date lisible est dans le point lui-même.
+  const date = typeof label === 'string' ? label : typeof payload[0].payload?.date === 'string' ? payload[0].payload.date : undefined;
   return (
     <div className="tooltip">
-      <div className="t">{typeof label === 'string' ? fmtDate(label, { day: 'numeric', month: 'long', year: 'numeric' }) : label}</div>
+      <div className="t">{date !== undefined ? fmtDate(date, { day: 'numeric', month: 'long', year: 'numeric' }) : label}</div>
       {payload.map((p) => (
         <div key={p.name}>
           <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: p.color, marginRight: 6 }} />

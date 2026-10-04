@@ -13,6 +13,8 @@ export interface GoalProjection {
   status: GoalStatus;
   /** Kilos restants (toujours positif). */
   remainingKg: number;
+  /** Sens de l'objectif : -1 perte de poids, 1 prise de poids. */
+  direction: -1 | 1;
   /** Avancement entre le poids de départ et l'objectif, 0 à 100. */
   progressPct: number;
   weeks?: number;
@@ -58,7 +60,7 @@ export function goalProjection(opts: { currentKg: number; targetKg: number; star
   milestones.push({ kg: targetKg, reached, eta: reached ? undefined : etaFor(targetKg) });
 
   const weeks = status === 'on_track' && rate ? r1(remainingKg / Math.abs(rate)) : undefined;
-  return { status, remainingKg, progressPct, weeks, eta: etaFor(targetKg), milestones, tooFast };
+  return { status, remainingKg, direction: dir < 0 ? -1 : 1, progressPct, weeks, eta: etaFor(targetKg), milestones, tooFast };
 }
 
 export interface BodyFatGoal {
