@@ -2292,3 +2292,138 @@ table.compare tr.group th {
 .nowrap {
   white-space: nowrap;
 }
+
+/* Calendrier d'activité (flammes) */
+.streak-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.streak-count {
+  position: absolute;
+  right: -9px;
+  bottom: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #f97316;
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 17px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.flame path {
+  stroke: none;
+}
+.flame.lvl0 path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+.flame.lvl1 path {
+  fill: #fdba74;
+}
+.flame.lvl2 path {
+  fill: #f97316;
+}
+.flame.lvl3 path {
+  fill: #dc2626;
+}
+.flame .flame-core {
+  fill: #fde68a !important;
+}
+.flame.lvl3 {
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
+}
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.cal-month {
+  text-transform: capitalize;
+  font-size: 1.05rem;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-wd {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 2px;
+}
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1px;
+  min-height: 52px;
+  padding: 5px 0 3px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+.cal-day:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.cal-day.today {
+  border-color: var(--accent);
+}
+.cal-day.sel {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.cal-num {
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.cal-flame {
+  display: grid;
+  place-items: center;
+  height: 24px;
+}
+.cal-detail {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 4px;
+  color: var(--text-2);
+}
+.cal-detail li.ok {
+  color: var(--text);
+  font-weight: 600;
+}
+.cal-detail .muted {
+  font-weight: 400;
+}
+.cal-flame {
+  height: 28px;
+}
+.cal-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 0 6px;
+}
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
