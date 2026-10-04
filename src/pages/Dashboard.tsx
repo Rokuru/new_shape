@@ -125,16 +125,27 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
                 <div>
                   {goal.status === 'reached' ? 'Poids visé :' : goal.direction < 0 ? 'à perdre pour atteindre' : 'à prendre pour atteindre'} <b className="nowrap">{fmtNum(profile.targetWeightKg)} kg</b>
                 </div>
-                {goal.status !== 'reached' && (
-                  <div>{goal.status === 'on_track' && goal.eta ? <>Arrivée ≈ <span className="nowrap">{fmtDate(goal.eta, { month: 'long', year: 'numeric' })}</span></> : <>Chemin parcouru : <span className="nowrap">{goal.progressPct} %</span></>}</div>
+                {goal.status === 'on_track' && goal.eta && (
+                  <div>
+                    Arrivée ≈ <span className="nowrap">{fmtDate(goal.eta, { month: 'long', year: 'numeric' })}</span>
+                  </div>
                 )}
                 {profile.targetBodyFatPct !== undefined && (
                   <div>
-                    Masse grasse {comp?.bodyFatPct === undefined && 'visée '}:{' '}
-                    <span className="nowrap">
-                      {comp?.bodyFatPct !== undefined && `${fmtNum(comp.bodyFatPct)} % → `}
-                      {fmtNum(profile.targetBodyFatPct)} %
-                    </span>
+                    {comp?.bodyFatPct === undefined ? (
+                      <>
+                        Masse grasse visée : <span className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</span>
+                      </>
+                    ) : Math.abs(profile.targetBodyFatPct - comp.bodyFatPct) < 0.1 ? (
+                      <>
+                        Masse grasse : <span className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</span> atteinte 🎉
+                      </>
+                    ) : (
+                      <>
+                        <span className="nowrap">{signed(profile.targetBodyFatPct - comp.bodyFatPct)} %</span> de gras pour atteindre{' '}
+                        <b className="nowrap">{fmtNum(profile.targetBodyFatPct)} %</b>
+                      </>
+                    )}
                   </div>
                 )}
               </>
