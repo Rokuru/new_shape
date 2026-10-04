@@ -119,13 +119,25 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
             label="Objectif"
             icon="target"
             tone="green"
-            value={goal.status === 'reached' ? 'Atteint 🎉' : `${fmtNum(goal.remainingKg)} kg`}
+            value={goal.status === 'reached' ? 'Atteint 🎉' : `${goal.direction < 0 ? '−' : '+'}${fmtNum(goal.remainingKg)} kg`}
             sub={
-              (goal.status === 'reached'
-                ? `${fmtNum(profile.targetWeightKg)} kg`
-                : goal.status === 'on_track' && goal.eta
-                  ? `vers ${fmtNum(profile.targetWeightKg)} kg · ≈ ${fmtDate(goal.eta, { month: 'short', year: 'numeric' })}`
-                  : `vers ${fmtNum(profile.targetWeightKg)} kg · ${goal.progressPct} %`) + (profile.targetBodyFatPct !== undefined ? ` · ${fmtNum(profile.targetBodyFatPct)} % MG` : '')
+              <>
+                <div>
+                  {goal.status === 'reached' ? 'Poids visé :' : goal.direction < 0 ? 'à perdre pour atteindre' : 'à prendre pour atteindre'} <b className="nowrap">{fmtNum(profile.targetWeightKg)} kg</b>
+                </div>
+                {goal.status !== 'reached' && (
+                  <div>{goal.status === 'on_track' && goal.eta ? <>Arrivée ≈ <span className="nowrap">{fmtDate(goal.eta, { month: 'long', year: 'numeric' })}</span></> : <>Chemin parcouru : <span className="nowrap">{goal.progressPct} %</span></>}</div>
+                )}
+                {profile.targetBodyFatPct !== undefined && (
+                  <div>
+                    Masse grasse {comp?.bodyFatPct === undefined && 'visée '}:{' '}
+                    <span className="nowrap">
+                      {comp?.bodyFatPct !== undefined && `${fmtNum(comp.bodyFatPct)} % → `}
+                      {fmtNum(profile.targetBodyFatPct)} %
+                    </span>
+                  </div>
+                )}
+              </>
             }
           />
         )}
