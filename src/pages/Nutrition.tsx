@@ -36,7 +36,7 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   if (!latest) return <Empty>Ajoute une pesée dans l’onglet Corps pour calculer tes besoins.</Empty>;
 
   const comp = currentComposition(body, profile)!;
-  const act = activityAverage({ workouts, cardio, profile }, comp.weightKg);
+  const act = activityAverage({ workouts, cardio, profile, bodyFatPct: comp.bodyFatPct }, comp.weightKg);
   const t = nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, act.perDay);
   const rate = weeklyRate(body);
   // Après un changement, on attend 14 jours et on n'évalue que les pesées postérieures,
@@ -50,7 +50,8 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   const nextEval = kcalAdjustedAt ? addDays(kcalAdjustedAt, 14) : undefined;
   const perMeal = Math.round(t.refWeightKg * 0.4);
   const fiber = Math.round((t.calories / 1000) * 14);
-  const water = fmtNum((latest.weightKg * 35) / 1000 + 0.5);
+  // 35 ml/kg + 0,5 L, calculé sur le poids de référence (la masse grasse contient peu d'eau), plafonné à 4 L.
+  const water = fmtNum(Math.min(4, (t.refWeightKg * 35) / 1000 + 0.5));
 
   return (
     <div>

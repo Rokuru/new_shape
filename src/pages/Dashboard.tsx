@@ -28,7 +28,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const axis = shown.length >= 2 ? timeAxis(shown.map((d) => d.t)) : undefined;
   const weekStart = startOfWeek(new Date()).getTime();
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
-  const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay) : undefined;
+  const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile, bodyFatPct: comp.bodyFatPct }, comp.weightKg).perDay) : undefined;
 
   const goal =
     comp && profile.targetWeightKg !== undefined

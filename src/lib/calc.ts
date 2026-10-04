@@ -334,7 +334,7 @@ export function adaptiveAdjustment(actualRateKg: number | undefined, targetRateK
 
 // ---------- Performance ----------
 
-/** 1RM estimé (Epley ≤ 10 reps, Brzycki au-delà serait trop optimiste, on borne à 12). */
+/** 1RM estimé (formule d'Epley) ; au-delà de 12 répétitions l'estimation devient peu fiable, on la borne à 12. */
 export function e1rm(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0;
   if (reps === 1) return weight;

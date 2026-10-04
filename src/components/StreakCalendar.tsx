@@ -26,7 +26,7 @@ function useActivity() {
     const latest = body.at(-1);
     const comp = currentComposition(body, profile);
     const target =
-      latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay).calories : undefined;
+      latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile, bodyFatPct: comp.bodyFatPct }, comp.weightKg).perDay).calories : undefined;
     const days = activityByDay({ workouts, cardio, food, sex: profile.sex, kcalTarget: target });
     return { days, target, min: kcalMin(profile.sex), streak: currentStreak(days, today), today };
   }, [workouts, cardio, food, body, profile, kcalAdjust, today]);

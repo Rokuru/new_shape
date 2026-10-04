@@ -1,12 +1,13 @@
 import { addDays, dayKey, daysBetween, localDate } from './dates';
 import { cardioStats, isValidCardio } from './cardio';
+import { computeBmr } from './calc';
 import type { CardioEntry, Profile, Workout } from './types';
 
 /**
- * Dépense nette d'une séance de musculation (au-delà du repos) : ~4,5 MET sur toute la séance,
- * temps de repos compris (Compendium of Physical Activities), soit 3,5 kcal/kg/h nets.
+ * Intensité moyenne d'une séance de musculation, temps de repos compris : 3,5 MET
+ * (Compendium of Physical Activities 2024, « plusieurs exercices, 8 à 15 répétitions »).
  */
-export const RESISTANCE_NET_KCAL_PER_KG_H = 3.5;
+export const RESISTANCE_MET = 3.5;
 
 /** Durée d'une séance : celle mesurée, sinon ~3,5 min par série validée ; plafonnée à 3 h (séance non clôturée). */
 export function workoutMinutes(w: Workout): number {
@@ -14,8 +15,14 @@ export function workoutMinutes(w: Workout): number {
   return Math.min(180, w.durationMin && w.durationMin > 0 ? w.durationMin : sets * 3.5);
 }
 
-export function workoutKcal(w: Workout, weightKg: number): number {
-  return Math.round((RESISTANCE_NET_KCAL_PER_KG_H * weightKg * workoutMinutes(w)) / 60);
+/**
+ * Dépense nette d'une séance (au-delà du repos) : (MET − 1) × métabolisme de base horaire.
+ * Le MET est rapporté au métabolisme de base de la personne et non au repos « standard » de 3,5 ml/kg/min
+ * (MET corrigé, Kozey et al. 2010) : avec une forte masse grasse, la dépense de repos par kg est plus faible
+ * et la formule par kg de poids surestimait nettement la dépense.
+ */
+export function workoutKcal(w: Workout, bmrKcal: number): number {
+  return Math.round(((RESISTANCE_MET - 1) * (bmrKcal / 24) * workoutMinutes(w)) / 60);
 }
 
 export interface ActivityAverage {
@@ -33,13 +40,14 @@ export interface ActivityAverage {
  * Moyenne lissée : la cible calorique reste identique chaque jour, mais suit le volume réel d'entraînement.
  */
 export function activityAverage(
-  s: { workouts: Workout[]; cardio: CardioEntry[]; profile: Profile },
+  s: { workouts: Workout[]; cardio: CardioEntry[]; profile: Profile; bodyFatPct?: number },
   weightKg: number,
   now = new Date(),
   windowDays = 14,
 ): ActivityAverage {
   // Jours locaux : la fenêtre = aujourd'hui et les `days - 1` jours précédents.
   const todayKey = localDate(now);
+  const bmr = computeBmr(s.profile, weightKg, s.bodyFatPct).bmr;
   const firstDates = [...s.workouts.filter((w) => w.finished).map((w) => dayKey(w.date)), ...s.cardio.map((c) => c.date)].sort();
   const sinceFirst = firstDates.length ? daysBetween(firstDates[0], todayKey) + 1 : 0;
   const days = Math.max(1, Math.min(windowDays, sinceFirst));
@@ -52,10 +60,10 @@ export function activityAverage(
   let source: ActivityAverage['source'];
   if (sinceFirst < 7) {
     // Pas encore une semaine d'historique : on se base sur le plan du profil.
-    training = (s.profile.daysPerWeek * RESISTANCE_NET_KCAL_PER_KG_H * weightKg * (s.profile.sessionMinutes / 60)) / 7;
+    training = (s.profile.daysPerWeek * (RESISTANCE_MET - 1) * (bmr / 24) * (s.profile.sessionMinutes / 60)) / 7;
     source = 'plan';
   } else {
-    training = s.workouts.filter((w) => w.finished && dayKey(w.date) > fromDate && dayKey(w.date) <= todayKey).reduce((sum, w) => sum + workoutKcal(w, weightKg), 0) / days;
+    training = s.workouts.filter((w) => w.finished && dayKey(w.date) > fromDate && dayKey(w.date) <= todayKey).reduce((sum, w) => sum + workoutKcal(w, bmr), 0) / days;
     source = 'history';
   }
   return { perDay: Math.round(training + walking), training: Math.round(training), walking: Math.round(walking), source, days };
