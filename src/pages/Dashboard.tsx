@@ -7,9 +7,11 @@ import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
 import { activityAverage } from '../lib/energy';
 import { useToday } from '../hooks/useToday';
+import { useChartRange } from '../hooks/useChartRange';
+import { breakGaps, inRange, RANGE_OPTIONS, timeAxis } from '../lib/timeAxis';
 import { goalProjection } from '../lib/goal';
 import { ffmiReliable } from '../components/FfmiInfo';
-import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, signed, Tile } from '../components/ui';
+import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const { food, profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
@@ -20,7 +22,10 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
   const firstComp = initialComposition(body, profile);
   const sinceStart = firstComp && comp && firstComp.bfDate !== comp.bfDate;
   const rate = weeklyRate(body);
-  const trend = weightTrend(body).slice(-60);
+  const trend = weightTrend(body);
+  const [range, setRange] = useChartRange('dashboard-weight');
+  const shown = inRange(trend, range, todayKey);
+  const axis = shown.length >= 2 ? timeAxis(shown.map((d) => d.t)) : undefined;
   const weekStart = startOfWeek(new Date()).getTime();
   const thisWeek = workouts.filter((w) => new Date(w.date).getTime() >= weekStart).length;
   const nut = latest && comp ? nutritionTargets(profile, { ...latest, weightKg: comp.weightKg }, comp.bodyFatPct, kcalAdjust, activityAverage({ workouts, cardio, profile }, comp.weightKg).perDay) : undefined;
@@ -177,25 +182,30 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
               <Icon name="plus" size={16} /> Pesée
             </button>
           </div>
-          {trend.length >= 2 ? (
+          {trend.length >= 2 && (
+            <div style={{ marginBottom: 8 }}>
+              <Segmented value={range} options={RANGE_OPTIONS} onChange={setRange} />
+            </div>
+          )}
+          {axis ? (
             <div className="chart sm">
               <ResponsiveContainer>
-                <AreaChart data={trend} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+                <AreaChart data={breakGaps(shown)} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
                   <defs>
                     <linearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0" stopColor="var(--series-1)" stopOpacity={0.22} />
                       <stop offset="1" stopColor="var(--series-1)" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d)} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={24} />
+                  <XAxis dataKey="t" type="number" domain={axis.domain} ticks={axis.ticks} tickFormatter={axis.format} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} minTickGap={16} />
                   <YAxis domain={['dataMin - 1', 'dataMax + 1']} tickLine={false} axisLine={false} tickFormatter={(v) => fmtNum(v, 0)} />
                   <Tooltip content={<ChartTooltip unit=" kg" />} />
-                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="url(#weightFill)" dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="trend" name="Tendance" stroke="var(--series-1)" strokeWidth={2} fill="url(#weightFill)" connectNulls={false} dot={false} activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <Empty>Ajoute au moins 2 pesées pour voir ta courbe.</Empty>
+            <Empty>{trend.length >= 2 ? 'Pas assez de pesées sur cette période : choisis une période plus longue.' : 'Ajoute au moins 2 pesées pour voir ta courbe.'}</Empty>
           )}
         </div>
 
