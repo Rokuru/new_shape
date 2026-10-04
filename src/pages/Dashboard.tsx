@@ -143,7 +143,7 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         )}
         <Tile
           label="Masse grasse"
-          icon="drop"
+          icon="waist"
           value={comp?.bodyFatPct !== undefined ? `${fmtNum(comp.bodyFatPct)} %` : '—'}
           sub={comp?.fatKg !== undefined && firstComp?.fatKg !== undefined && sinceStart ? `${signed(comp.fatKg - firstComp.fatKg)} kg depuis le début` : comp?.fatKg !== undefined ? `${fmtNum(comp.fatKg)} kg` : 'Ajoute tes mensurations'}
         />
