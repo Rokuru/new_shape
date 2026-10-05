@@ -35,6 +35,22 @@ const FRONT: Pose = { front: true, head: [60, 14], neck: [60, 25], hip: [60, 60]
 const BENCH: Gear = { t: 'line', from: [18, 88], to: [92, 88], w: 6 };
 const FLOOR_LYING = { neck: [80, 104] as P, head: [90, 103] as P, hip: [52, 106] as P };
 
+// Machines guidées : assis de profil (siège + dossier), ou de face.
+const SEAT: Gear = { t: 'line', from: [34, 82], to: [70, 82], w: 6 };
+const BACKREST: Gear = { t: 'line', from: [37, 36], to: [37, 82], w: 6 };
+const SIT = { head: [47, 30] as P, neck: [46, 41] as P, hip: [48, 76] as P, knee: [72, 76] as P, ankle: [73, 106] as P };
+// De face et assis : cuisses vues en raccourci (genoux juste sous les hanches), dossier large derrière le buste.
+const SIT_FRONT = { front: true, head: [60, 26] as P, neck: [60, 37] as P, hip: [60, 68] as P, knee: [55, 76] as P, ankle: [55, 104] as P, knee2: [65, 76] as P, ankle2: [65, 104] as P };
+const SEAT_FRONT: Gear[] = [
+  { t: 'line', from: [60, 22], to: [60, 66], w: 26 },
+  { t: 'line', from: [40, 72], to: [80, 72], w: 6 },
+];
+const handle = (h: P, vertical = true): Gear => ({ t: 'line', from: vertical ? [h[0], h[1] - 6] : [h[0] - 6, h[1]], to: vertical ? [h[0], h[1] + 6] : [h[0] + 6, h[1]], w: 4 });
+const RAILS: Gear[] = [
+  { t: 'line', from: [40, -12], to: [40, 112], w: 2 },
+  { t: 'line', from: [80, -12], to: [80, 112], w: 2 },
+];
+
 const hingeBottom = (gear: Gear[], hand: P = [74, 98], elbow: P = [75, 84]): Pose => ({ head: [86, 68], neck: [76, 70], hip: [44, 80], knee: [63, 88], ankle: [60, 110], elbow, hand, gear });
 
 const POSES: Record<MovePattern, Pose[]> = {
@@ -135,6 +151,77 @@ const POSES: Record<MovePattern, Pose[]> = {
   superman: [
     { head: [92, 103], neck: [82, 106], hip: [50, 108], knee: [32, 108], ankle: [14, 108], elbow: [95, 106], hand: [108, 106] },
     { head: [90, 95], neck: [80, 100], hip: [50, 107], knee: [32, 104], ankle: [15, 98], elbow: [93, 95], hand: [106, 90] },
+  ],
+
+  // ---------- Machines guidées ----------
+  machine_press: [
+    { ...SIT, elbow: [38, 56], hand: [58, 54], gear: [SEAT, BACKREST, handle([58, 54])] },
+    { ...SIT, elbow: [65, 52], hand: [86, 51], gear: [SEAT, BACKREST, handle([86, 51])] },
+  ],
+  seated_press: [
+    { ...SIT, elbow: [58, 56], hand: [59, 40], gear: [SEAT, BACKREST, handle([59, 40], false)] },
+    { ...SIT, elbow: [52, 24], hand: [55, 8], gear: [SEAT, BACKREST, handle([55, 8], false)] },
+  ],
+  pulldown: [
+    { ...SIT, elbow: [55, 19], hand: [60, 3], gear: [SEAT, { t: 'line', from: [64, 70], to: [82, 70], w: 5 }, { t: 'cable', from: [60, -14], to: [60, 3] }, { t: 'line', from: [36, 3], to: [84, 3], w: 4 }] },
+    { ...SIT, head: [45, 31], neck: [44, 42], elbow: [38, 58], hand: [56, 41], gear: [SEAT, { t: 'line', from: [64, 70], to: [82, 70], w: 5 }, { t: 'cable', from: [60, -14], to: [56, 41] }, { t: 'line', from: [32, 41], to: [80, 41], w: 4 }] },
+  ],
+  seated_row: [
+    { ...SIT, head: [52, 31], neck: [50, 42], elbow: [72, 48], hand: [92, 50], gear: [SEAT, { t: 'line', from: [74, 40], to: [74, 66], w: 5 }, handle([92, 50])] },
+    { ...SIT, head: [50, 30], neck: [48, 41], elbow: [30, 50], hand: [52, 52], gear: [SEAT, { t: 'line', from: [74, 40], to: [74, 66], w: 5 }, handle([52, 52])] },
+  ],
+  machine_curl: [
+    { ...SIT, head: [53, 30], neck: [51, 41], elbow: [74, 62], hand: [94, 73], gear: [SEAT, { t: 'line', from: [56, 46], to: [78, 66], w: 5 }, { t: 'db', at: [96, 74] }] },
+    { ...SIT, head: [53, 30], neck: [51, 41], elbow: [74, 62], hand: [66, 41], gear: [SEAT, { t: 'line', from: [56, 46], to: [78, 66], w: 5 }, { t: 'db', at: [65, 39] }] },
+  ],
+  seated_dip: [
+    { ...SIT, elbow: [32, 52], hand: [52, 58], gear: [SEAT, BACKREST, handle([52, 58], false)] },
+    { ...SIT, elbow: [48, 60], hand: [53, 79], gear: [SEAT, BACKREST, handle([53, 79], false)] },
+  ],
+  // De profil, assis face à la machine, poitrine contre l'appui : les bras partent devant et s'ouvrent vers l'arrière.
+  rear_fly: [
+    { ...SIT, head: [50, 30], neck: [49, 41], elbow: [68, 44], hand: [88, 45], gear: [SEAT, { t: 'line', from: [58, 40], to: [58, 70], w: 5 }, handle([88, 45])] },
+    { ...SIT, head: [50, 30], neck: [49, 41], elbow: [36, 43], hand: [24, 45], elbow2: [62, 43], hand2: [70, 45], gear: [SEAT, { t: 'line', from: [58, 40], to: [58, 70], w: 5 }, handle([24, 45])] },
+  ],
+  abduct: [
+    { ...SIT_FRONT, knee: [57, 76], ankle: [57, 104], knee2: [63, 76], ankle2: [63, 104], elbow: [48, 54], hand: [43, 68], elbow2: [72, 54], hand2: [77, 68], gear: SEAT_FRONT },
+    { ...SIT_FRONT, knee: [41, 74], ankle: [39, 104], knee2: [79, 74], ankle2: [81, 104], elbow: [48, 54], hand: [43, 68], elbow2: [72, 54], hand2: [77, 68], gear: SEAT_FRONT },
+  ],
+  adduct: [
+    { ...SIT_FRONT, knee: [41, 74], ankle: [39, 104], knee2: [79, 74], ankle2: [81, 104], elbow: [48, 54], hand: [43, 68], elbow2: [72, 54], hand2: [77, 68], gear: SEAT_FRONT },
+    { ...SIT_FRONT, knee: [57, 76], ankle: [57, 104], knee2: [63, 76], ankle2: [63, 104], elbow: [48, 54], hand: [43, 68], elbow2: [72, 54], hand2: [77, 68], gear: SEAT_FRONT },
+  ],
+  kickback: [
+    { head: [82, 38], neck: [73, 44], hip: [52, 64], knee: [64, 80], ankle: [57, 98], knee2: [54, 88], ankle2: [53, 110], elbow: [80, 56], hand: [90, 62], gear: [{ t: 'line', from: [66, 52], to: [84, 46], w: 5 }, handle([90, 62])] },
+    { head: [82, 38], neck: [73, 44], hip: [52, 64], knee: [34, 66], ankle: [14, 64], knee2: [54, 88], ankle2: [53, 110], elbow: [80, 56], hand: [90, 62], gear: [{ t: 'line', from: [66, 52], to: [84, 46], w: 5 }, handle([90, 62])] },
+  ],
+  leg_press: [
+    { head: [31, 46], neck: [36, 56], hip: [52, 86], knee: [64, 60], ankle: [84, 72], elbow: [44, 76], hand: [54, 86], gear: [{ t: 'line', from: [24, 46], to: [48, 92], w: 6 }, { t: 'line', from: [79, 62], to: [89, 82], w: 5 }] },
+    { head: [31, 46], neck: [36, 56], hip: [52, 86], knee: [74, 70], ankle: [96, 56], elbow: [44, 76], hand: [54, 86], gear: [{ t: 'line', from: [24, 46], to: [48, 92], w: 6 }, { t: 'line', from: [91, 46], to: [101, 66], w: 5 }] },
+  ],
+  vleg_press: [
+    { head: [20, 98], neck: [30, 100], hip: [58, 100], knee: [74, 80], ankle: [64, 62], toe: [64, 54], elbow: [44, 96], hand: [54, 104], gear: [{ t: 'line', from: [10, 106], to: [64, 106], w: 6 }, { t: 'line', from: [50, 54], to: [78, 54], w: 5 }] },
+    { head: [20, 98], neck: [30, 100], hip: [58, 100], knee: [62, 74], ankle: [63, 48], toe: [63, 40], elbow: [44, 96], hand: [54, 104], gear: [{ t: 'line', from: [10, 106], to: [64, 106], w: 6 }, { t: 'line', from: [49, 40], to: [77, 40], w: 5 }] },
+  ],
+  lying_leg_curl: [
+    { head: [92, 80], neck: [82, 83], hip: [50, 85], knee: [28, 85], ankle: [8, 85], toe: [6, 93], elbow: [90, 92], hand: [100, 92], gear: [{ t: 'line', from: [16, 91], to: [96, 91], w: 6 }] },
+    { head: [92, 80], neck: [82, 83], hip: [50, 85], knee: [28, 85], ankle: [20, 63], toe: [12, 60], elbow: [90, 92], hand: [100, 92], gear: [{ t: 'line', from: [16, 91], to: [96, 91], w: 6 }] },
+  ],
+  machine_crunch: [
+    { ...SIT, elbow: [57, 40], hand: [53, 29], gear: [SEAT, BACKREST, handle([53, 29], false)] },
+    { ...SIT, head: [71, 62], neck: [63, 56], elbow: [75, 66], hand: [72, 55], gear: [SEAT, BACKREST, handle([72, 55], false)] },
+  ],
+  seated_ext: [
+    { ...SIT, head: [73, 45], neck: [64, 51], elbow: [70, 64], hand: [62, 58], gear: [SEAT, { t: 'line', from: [56, 44], to: [62, 40], w: 6 }] },
+    { ...SIT, head: [38, 31], neck: [42, 42], elbow: [53, 54], hand: [48, 46], gear: [SEAT, { t: 'line', from: [32, 44], to: [38, 38], w: 6 }] },
+  ],
+  rotary: [
+    { ...SIT_FRONT, elbow: [48, 48], hand: [54, 40], elbow2: [72, 48], hand2: [66, 40], gear: SEAT_FRONT },
+    { ...SIT_FRONT, neck: [62, 33], head: [62, 22], elbow: [60, 50], hand: [68, 42], elbow2: [80, 46], hand2: [76, 37], gear: SEAT_FRONT },
+  ],
+  smith_squat: [
+    { ...STAND, elbow: [50, 36], hand: [57, 28], gear: [...RAILS, { t: 'bar', at: [57, 27] }] },
+    { head: [61, 42], neck: [56, 52], hip: [43, 84], knee: [66, 88], ankle: [62, 110], elbow: [46, 60], hand: [53, 52], gear: [...RAILS, { t: 'bar', at: [53, 51] }] },
   ],
 };
 

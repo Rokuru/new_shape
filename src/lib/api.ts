@@ -50,6 +50,9 @@ const MESSAGES: Record<string, string> = {
   github_profile: 'Profil GitHub illisible.',
   too_large: 'Données trop volumineuses.',
   bad_origin: 'Requête refusée.',
+  invalid_image: 'Image refusée : utilise une photo JPEG, PNG ou WebP.',
+  invalid_preset: 'Avatar inconnu.',
+  no_github_avatar: 'Pas de photo GitHub sur ce compte.',
 };
 export const explainError = (code: string) => MESSAGES[code] ?? `Erreur du serveur (${code}).`;
 
@@ -148,3 +151,36 @@ export function consumeAuthReturn(): { mode?: string; error?: string; imported?:
   window.history.replaceState(null, '', window.location.pathname + window.location.hash);
   return { mode, error: code ? explainError(code) : undefined, imported: params.get('import') ?? undefined };
 }
+
+// ---------- Photo de profil ----------
+
+export const AVATAR_PRESETS = Array.from({ length: 16 }, (_, i) => `a${String(i + 1).padStart(2, '0')}`);
+
+/**
+ * Prépare une photo : recadrage carré au centre, 256 px, réencodage JPEG.
+ * Le réencodage retire aussi les métadonnées de la photo (position GPS, appareil, date).
+ */
+export async function prepareAvatar(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Choisis une image (photo).');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode().catch(() => {
+      throw new Error('Image illisible : essaie une autre photo.');
+    });
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !side) throw new Error('Image illisible.');
+    ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+export type AvatarChoice = { kind: 'upload'; image: string } | { kind: 'preset'; preset: string } | { kind: 'github' } | { kind: 'none' };
+
+export const setAvatar = (choice: AvatarChoice) => api<{ user: AppUser }>('/avatar', { method: 'PUT', body: choice });

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { deletePasskey, loginWithPasskey, passkeySupported, registerPasskey, startGithub } from '../lib/api';
+import { useEffect, useRef, useState } from 'react';
+import { AVATAR_PRESETS, deletePasskey, loginWithPasskey, passkeySupported, prepareAvatar, registerPasskey, setAvatar, startGithub, type AvatarChoice } from '../lib/api';
 import { afterSignIn, deleteAccount, logout, refreshSession, syncNow, useAuth } from '../lib/sync';
 import { Icon } from './ui';
 
@@ -31,7 +31,7 @@ export function SyncBadge() {
 
 export function UserAvatar({ url, login, size = 40 }: { url?: string; login: string; size?: number }) {
   return url ? (
-    <img src={url} alt="" width={size} height={size} style={{ borderRadius: '50%', flexShrink: 0 }} />
+    <img src={url} alt="" width={size} height={size} style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
   ) : (
     <span className="avatar-initial" style={{ width: size, height: size, fontSize: size * 0.45 }} aria-hidden>
       {login.slice(0, 1).toUpperCase()}
@@ -153,6 +153,8 @@ function SignedIn() {
         </button>
       </div>
 
+      <AvatarPicker />
+
       <h3 style={{ marginTop: 18 }}>Moyens de connexion</h3>
       <div className="list">
         {passkeys.map((k) => (
@@ -220,6 +222,74 @@ function SignedIn() {
         </button>
       </details>
     </div>
+  );
+}
+
+/** Choix de la photo de profil : photo personnelle, avatar de l'app, photo GitHub ou initiale. */
+function AvatarPicker() {
+  const { user } = useAuth();
+  const { busy, msg, run } = useAction();
+  const [open, setOpen] = useState(false);
+  const file = useRef<HTMLInputElement>(null);
+  if (!user) return null;
+  const choose = (c: AvatarChoice) =>
+    run(async () => {
+      const r = await setAvatar(c);
+      useAuth.setState({ user: r.user });
+    }, 'Photo de profil mise à jour ✓');
+
+  return (
+    <>
+      <h3 style={{ marginTop: 18 }}>Photo de profil</h3>
+      <div className="row" style={{ flexWrap: 'nowrap' }}>
+        <UserAvatar url={user.avatarUrl} login={user.login} size={64} />
+        <div className="stack" style={{ gap: 6 }}>
+          <button className="btn sm" disabled={busy} onClick={() => file.current?.click()}>
+            {busy ? 'Envoi…' : 'Choisir une photo'}
+          </button>
+          <button className="btn sm ghost" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+            {open ? 'Masquer les avatars' : 'Choisir un avatar'}
+          </button>
+        </div>
+      </div>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          if (f) void run(async () => {
+            const image = await prepareAvatar(f);
+            const r = await setAvatar({ kind: 'upload', image });
+            useAuth.setState({ user: r.user });
+          }, 'Photo de profil mise à jour ✓');
+        }}
+      />
+      {msg && <p className="small secondary" role="status">{msg}</p>}
+      <p className="small muted" style={{ margin: '6px 0 0' }}>
+        Visible par les personnes connectées qui te cherchent ou te suivent. La photo est recadrée et réduite sur ton appareil, et ses informations cachées (position GPS…)
+        sont retirées avant l’envoi.
+      </p>
+      {open && (
+        <div className="avatar-grid">
+          {AVATAR_PRESETS.map((id) => (
+            <button key={id} className="avatar-choice" disabled={busy} aria-label={`Avatar ${id}`} onClick={() => choose({ kind: 'preset', preset: id })}>
+              <img src={`/avatars/${id}.svg`} alt="" width={44} height={44} />
+            </button>
+          ))}
+          {user.github && (
+            <button className="avatar-choice text" disabled={busy} onClick={() => choose({ kind: 'github' })}>
+              <GitHubMark /> Photo GitHub
+            </button>
+          )}
+          <button className="avatar-choice text" disabled={busy} onClick={() => choose({ kind: 'none' })}>
+            Initiale
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
