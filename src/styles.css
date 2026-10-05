@@ -2439,3 +2439,43 @@ table.compare tr.group th {
   font-weight: 700;
   line-height: 1;
 }
+
+/* Choix de la photo de profil */
+.avatar-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.avatar-choice {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+.avatar-choice img {
+  border-radius: 50%;
+}
+.avatar-choice:hover,
+.avatar-choice:focus-visible {
+  border-color: var(--accent);
+}
+.avatar-choice.text {
+  border-radius: 999px;
+  border: 1px solid var(--border, #94a3b855);
+  padding: 0 12px;
+  min-height: 44px;
+  line-height: 1;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+img.avatar,
+.avatar-choice img {
+  object-fit: cover;
+}

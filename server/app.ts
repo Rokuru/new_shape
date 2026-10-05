@@ -1,4 +1,4 @@
-import { ensureSchema, GITHUB_LOGIN_RE, HANDLE_RE, nowIso, publicUser, userByHandle } from './db';
+import { AVATAR_PRESETS, avatarOf, ensureSchema, GITHUB_LOGIN_RE, HANDLE_RE, nowIso, publicUser, userByHandle } from './db';
 import { githubCallback, startGithub } from './github';
 import { assertSameOrigin, clearSessionCookie, destroySession, HttpError, json, readJson, requireUser } from './http';
 import { loginOptions, loginVerify, registerOptions, registerVerify } from './passkey';
@@ -8,6 +8,31 @@ import type { Env } from './types';
 const MAX_DATA = 1_900_000;
 const MAX_SHARE = 512 * 1024;
 const MAX_FRIENDS = 200;
+
+/** Photo de profil : 200 Ko maximum (l'app envoie une image de 256 px, ~20–40 Ko). */
+const MAX_AVATAR = 200 * 1024;
+const MAX_AVATAR_JSON = Math.ceil((MAX_AVATAR * 4) / 3) + 1024;
+
+/** Vérifie une image envoyée en data URL : type autorisé ET contenu réel conforme (signature du fichier), taille limitée. */
+function parseImage(v: unknown): { mime: string; data: string } {
+  const m = typeof v === 'string' ? v.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+=*)$/) : null;
+  if (!m) throw new HttpError(400, 'invalid_image');
+  const [, mime, data] = m;
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+  } catch {
+    throw new HttpError(400, 'invalid_image');
+  }
+  if (bytes.length > MAX_AVATAR) throw new HttpError(413, 'too_large');
+  const sig = (...b: number[]) => b.every((x, i) => bytes[i] === x);
+  const ok =
+    (mime === 'image/jpeg' && sig(0xff, 0xd8, 0xff)) ||
+    (mime === 'image/png' && sig(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) ||
+    (mime === 'image/webp' && sig(0x52, 0x49, 0x46, 0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50);
+  if (!ok) throw new HttpError(400, 'invalid_image');
+  return { mime, data };
+}
 
 const isLogin = (s: unknown): s is string => typeof s === 'string' && (HANDLE_RE.test(s) || GITHUB_LOGIN_RE.test(s));
 
@@ -45,7 +70,7 @@ async function route(env: Env, request: Request, path: string): Promise<Response
   if (path === '/me' && method === 'GET') {
     const keys = await db.prepare('SELECT id, label, created_at, last_used_at FROM passkeys WHERE user_id = ? ORDER BY created_at').bind(user.id).all<{ id: string; label: string | null; created_at: string; last_used_at: string | null }>();
     return json({
-      user: publicUser(user),
+      user: publicUser(user, await avatarOf(db, user.id)),
       passkeys: keys.results.map((k) => ({ id: k.id, label: k.label, createdAt: k.created_at, lastUsedAt: k.last_used_at })),
       githubConfigured: Boolean(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
     });
@@ -58,6 +83,42 @@ async function route(env: Env, request: Request, path: string): Promise<Response
     if (user.github_id === null && (count?.n ?? 0) <= 1) throw new HttpError(409, 'last_method');
     await db.prepare('DELETE FROM passkeys WHERE id = ? AND user_id = ?').bind(passkeyMatch[1], user.id).run();
     return json({ ok: true });
+  }
+
+  // ---------- Photo de profil ----------
+  if (path === '/avatar' && method === 'PUT') {
+    const body = await readJson<{ kind?: unknown; preset?: unknown; image?: unknown }>(request, MAX_AVATAR_JSON);
+    if (body.kind === 'upload') {
+      const { mime, data } = parseImage(body.image);
+      await db.prepare('INSERT INTO avatars (user_id, kind, preset, mime, data, updated_at) VALUES (?, ?, NULL, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET kind = excluded.kind, preset = NULL, mime = excluded.mime, data = excluded.data, updated_at = excluded.updated_at')
+        .bind(user.id, 'upload', mime, data, nowIso())
+        .run();
+    } else if (body.kind === 'preset' || body.kind === 'github' || body.kind === 'none') {
+      const preset = body.kind === 'preset' ? String(body.preset) : null;
+      if (preset !== null && !AVATAR_PRESETS.includes(preset)) throw new HttpError(400, 'invalid_preset');
+      if (body.kind === 'github' && !user.avatar_url) throw new HttpError(400, 'no_github_avatar');
+      await db.prepare('INSERT INTO avatars (user_id, kind, preset, mime, data, updated_at) VALUES (?, ?, ?, NULL, NULL, ?) ON CONFLICT(user_id) DO UPDATE SET kind = excluded.kind, preset = excluded.preset, mime = NULL, data = NULL, updated_at = excluded.updated_at')
+        .bind(user.id, body.kind, preset, nowIso())
+        .run();
+    } else throw new HttpError(400, 'invalid_kind');
+    return json({ user: publicUser(user, await avatarOf(db, user.id)) });
+  }
+
+  const avatarMatch = path.match(/^\/avatar\/([\w-]{1,64})$/);
+  if (avatarMatch && method === 'GET') {
+    const row = await db.prepare("SELECT mime, data FROM avatars WHERE user_id = ? AND kind = 'upload'").bind(avatarMatch[1]).first<{ mime: string; data: string }>();
+    if (!row) throw new HttpError(404, 'not_found');
+    const bytes = Uint8Array.from(atob(row.data), (c) => c.charCodeAt(0));
+    return new Response(bytes, {
+      headers: {
+        'Content-Type': row.mime,
+        // Adresse versionnée (?v=) : l'image peut rester en cache ; « private » car réservée aux utilisateurs connectés.
+        'Cache-Control': 'private, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
+        'Content-Disposition': 'inline',
+      },
+    });
   }
 
   if (path === '/account' && method === 'DELETE') {
@@ -117,7 +178,7 @@ async function route(env: Env, request: Request, path: string): Promise<Response
     if (!isLogin(handle)) return json({ status: 'not_found' });
     const target = await userByHandle(db, handle);
     if (!target) return json({ status: 'not_found' });
-    const info = publicUser(target);
+    const info = publicUser(target, await avatarOf(db, target.id));
     // Le partage n'est visible qu'entre amis mutuels (chacun a ajouté l'autre) : personne ne peut lire les progrès d'un inconnu.
     const follows = (from: string, handle: string) => db.prepare('SELECT 1 FROM follows WHERE user_id = ? AND friend_handle = ?').bind(from, handle).first();
     const mutual = target.id === user.id || Boolean((await follows(target.id, user.handle)) && (await follows(user.id, target.handle)));

@@ -228,7 +228,8 @@ export interface FriendEntry {
 interface FriendsState {
   data: Record<string, FriendEntry | undefined>;
 }
-const AVATAR = /^https:\/\/avatars\.githubusercontent\.com\//;
+/** Avatars acceptés : photo GitHub, photo envoyée (servie par l'app) ou avatar prédéfini de l'app. */
+const AVATAR = /^(https:\/\/avatars\.githubusercontent\.com\/|\/api\/avatar\/[\w-]{1,64}\?v=[\w.:%-]{1,40}$|\/avatars\/a\d{2}\.svg$)/;
 const STATUSES: FriendEntry['status'][] = ['ok', 'not_found', 'not_mutual', 'not_shared', 'error'];
 function cleanUser(u: unknown): AppUser | undefined {
   if (!isO(u) || typeof u.login !== 'string' || !LOGIN.test(u.login)) return undefined;

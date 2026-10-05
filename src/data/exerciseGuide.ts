@@ -32,7 +32,25 @@ export type MovePattern =
   | 'wall_sit'
   | 'getup'
   | 'clean'
-  | 'superman';
+  | 'superman'
+  // Machines guidées
+  | 'machine_press'
+  | 'seated_press'
+  | 'pulldown'
+  | 'seated_row'
+  | 'machine_curl'
+  | 'seated_dip'
+  | 'rear_fly'
+  | 'abduct'
+  | 'adduct'
+  | 'kickback'
+  | 'leg_press'
+  | 'vleg_press'
+  | 'lying_leg_curl'
+  | 'machine_crunch'
+  | 'seated_ext'
+  | 'rotary'
+  | 'smith_squat';
 
 export interface ExerciseGuide {
   pattern: MovePattern;
@@ -48,7 +66,7 @@ export const GUIDES: Record<string, ExerciseGuide> = {
   goblet_squat: g('squat', 'Haltère ou kettlebell tenu contre la poitrine'),
   bw_squat: g('squat', 'Poids du corps'),
   hack_squat: g('squat', 'Machine hack squat', 'Dos plaqué contre le dossier, pieds au milieu de la plateforme.'),
-  leg_press: g('squat', 'Machine presse à cuisses', 'Bas du dos collé au dossier : ne descends pas au point de l’enrouler.'),
+  leg_press: g('leg_press', 'Machine presse à cuisses (Leg press)', 'Bas du dos collé au dossier : ne descends pas au point de l’enrouler.'),
   pistol_squat: g('squat', 'Poids du corps (appui sur un support si besoin)', 'Une seule jambe, l’autre tendue devant ; tiens un montant pour t’aider au début.'),
   deadlift: g('hinge', 'Barre + disques'),
   rdl: g('hinge', 'Barre ou haltères', 'Genoux légèrement fléchis et fixes : seules les hanches reculent, jusqu’à l’étirement des ischios.'),
@@ -81,7 +99,7 @@ export const GUIDES: Record<string, ExerciseGuide> = {
   pushup_rotation: g('pushup', 'Poids du corps', 'En haut de chaque pompe, pivote en gainage latéral en levant un bras vers le plafond.'),
   dips: g('dip', 'Barres parallèles'),
   bench_dip: g('dip', 'Chaise ou banc', 'Mains sur le bord du banc derrière toi, descends jusqu’à 90° aux coudes.'),
-  pec_deck: g('fly', 'Machine pec deck'),
+  pec_deck: g('fly', 'Machine butterfly (Pec fly)', 'Assis, dos contre le dossier, coudes à hauteur d’épaules.'),
   cable_fly: g('fly', 'Poulies hautes ou moyennes'),
   db_fly: g('fly', 'Haltères + banc', 'Allongé sur le banc, bras légèrement fléchis, ouvre jusqu’à l’étirement des pectoraux.'),
   ohp: g('press', 'Barre (debout)'),
@@ -94,10 +112,10 @@ export const GUIDES: Record<string, ExerciseGuide> = {
   skull_crusher: g('overhead_ext', 'Barre EZ ou haltères + banc', 'Allongé, descends la barre vers le front en gardant les coudes fixes, pointés vers le plafond.'),
   pullup: g('vpull', 'Barre de traction (prise en pronation)'),
   chinup: g('vpull', 'Barre de traction (prise en supination)'),
-  lat_pulldown: g('vpull', 'Machine tirage vertical'),
+  lat_pulldown: g('pulldown', 'Machine tirage vertical (Lat pulldown)'),
   barbell_row: g('row', 'Barre'),
   db_row: g('row', 'Haltère + banc', 'Main et genou en appui sur le banc, tire l’haltère vers la hanche.'),
-  cable_row: g('row', 'Poulie basse (assis)'),
+  cable_row: g('seated_row', 'Poulie basse (assis)'),
   inverted_row: g('row', 'Barre basse ou table solide', 'Allongé sous la barre, corps gainé : tire la poitrine vers la barre.'),
   barbell_curl: g('curl', 'Barre droite ou EZ'),
   db_curl: g('curl', 'Haltères + banc incliné', 'Allongé sur un banc incliné, bras pendants derrière le buste : étirement maximal du biceps.'),
@@ -111,6 +129,25 @@ export const GUIDES: Record<string, ExerciseGuide> = {
   superman: g('superman', 'Au sol'),
   jumping_jacks: g('jacks', 'Poids du corps'),
   high_knees: g('run', 'Poids du corps'),
+
+  // Machines guidées (Basic-Fit)
+  m_chest_press: g('machine_press', 'Machine presse pectoraux (Chest press)'),
+  m_shoulder_press: g('seated_press', 'Machine développé épaules (Shoulder press)'),
+  m_seated_row: g('seated_row', 'Machine tirage horizontal avec appui poitrine (Seated row)'),
+  m_rear_delt: g('rear_fly', 'Machine oiseau (Rear delt), souvent la même que le butterfly', 'Assis face au dossier, poignées verticales.'),
+  m_arm_curl: g('machine_curl', 'Machine curl biceps à pupitre (Arm curl)'),
+  m_triceps_press: g('seated_dip', 'Machine dips assis (Triceps press / Seated dip)'),
+  m_ab_crunch: g('machine_crunch', 'Machine crunch (Abdominal crunch)'),
+  m_back_ext: g('seated_ext', 'Machine extension du dos (Back extension)'),
+  m_rotary_torso: g('rotary', 'Machine rotation du buste (Rotary torso)'),
+  m_vertical_leg_press: g('vleg_press', 'Presse verticale (Vertical leg press)', 'Allongé, bas du dos plaqué, pieds largeur d’épaules au milieu de la plateforme.'),
+  m_lying_leg_curl: g('lying_leg_curl', 'Machine leg curl allongé (Lying leg curl)'),
+  m_hip_thrust: g('bridge', 'Machine hip thrust (Hip thrust)'),
+  m_abductor: g('abduct', 'Machine abducteurs (Abductor)'),
+  m_adductor: g('adduct', 'Machine adducteurs (Adductor)'),
+  m_glute: g('kickback', 'Machine fessiers (Glute)'),
+  m_standing_calf: g('calf', 'Machine mollets debout (Standing calf)', 'Épaules sous les coussins, avant des pieds sur la marche.'),
+  m_smith_squat: g('smith_squat', 'Smith machine (barre guidée)'),
 };
 
 export const PATTERN_LABELS: Record<MovePattern, string> = {
@@ -143,6 +180,23 @@ export const PATTERN_LABELS: Record<MovePattern, string> = {
   getup: 'Relevé complet',
   clean: 'Épaulé',
   superman: 'Extension du dos',
+  machine_press: 'Développé assis (machine)',
+  seated_press: 'Développé vertical assis (machine)',
+  pulldown: 'Tirage vertical (machine)',
+  seated_row: 'Tirage horizontal assis',
+  machine_curl: 'Flexion du coude (machine)',
+  seated_dip: 'Dips assis (machine)',
+  rear_fly: 'Écarté arrière (machine)',
+  abduct: 'Abduction de hanche',
+  adduct: 'Adduction de hanche',
+  kickback: 'Extension de hanche (machine)',
+  leg_press: 'Presse à cuisses',
+  vleg_press: 'Presse verticale',
+  lying_leg_curl: 'Flexion du genou allongé',
+  machine_crunch: 'Enroulement du buste (machine)',
+  seated_ext: 'Extension du dos (machine)',
+  rotary: 'Rotation du buste',
+  smith_squat: 'Squat guidé',
 };
 
 /** Consignes de base par famille de mouvement : position, exécution, point de vigilance. */
@@ -176,6 +230,23 @@ export const PATTERN_STEPS: Record<MovePattern, string[]> = {
   getup: ['Allongé, une kettlebell tenue bras tendu à la verticale, jambe du même côté pliée.', 'Monte sur le coude puis la main, lève les hanches, passe la jambe dessous et mets-toi à genou.', 'Relève-toi, puis refais le chemin inverse ; le bras reste vertical, regard sur la charge.'],
   clean: ['Charge devant toi, dos plat, comme au départ d’un soulevé de terre.', 'Extension explosive des hanches, puis passe les coudes dessous pour recevoir la charge sur les épaules.', 'Réception jambes légèrement fléchies, coudes devant.'],
   superman: ['Allongé sur le ventre, bras tendus devant.', 'Décolle bras, buste et jambes du sol en contractant le dos et les fessiers.', 'Tiens la position, regard vers le sol.'],
+  machine_press: ['Règle le siège pour que les poignées soient à hauteur du milieu de la poitrine ; dos et omoplates contre le dossier.', 'Pousse les poignées devant toi jusqu’à bras presque tendus, sans décoller le dos.', 'Reviens lentement jusqu’à sentir l’étirement des pectoraux.'],
+  seated_press: ['Siège réglé pour que les poignées partent à hauteur des épaules, dos contre le dossier.', 'Pousse vers le haut jusqu’à bras presque tendus, sans cambrer.', 'Redescends contrôlé jusqu’aux épaules.'],
+  pulldown: ['Cuisses bloquées sous les coussins, barre saisie un peu plus large que les épaules.', 'Buste très légèrement incliné en arrière, tire la barre vers le haut de la poitrine en abaissant les coudes.', 'Remonte lentement jusqu’à bras tendus, épaules engagées.'],
+  seated_row: ['Assis, poitrine contre l’appui (ou buste droit à la poulie), bras tendus vers les poignées.', 'Tire les coudes vers l’arrière en rapprochant les omoplates.', 'Reviens lentement bras tendus, sans arrondir le dos.'],
+  machine_curl: ['Siège réglé pour que l’arrière des bras repose à plat sur le pupitre, coudes face à l’axe de la machine.', 'Fléchis les coudes en ramenant les poignées vers les épaules.', 'Redescends lentement jusqu’à bras presque tendus.'],
+  seated_dip: ['Assis dos au dossier, poignées saisies de chaque côté, coudes fléchis près du corps.', 'Pousse les poignées vers le bas jusqu’à bras tendus.', 'Remonte contrôlé sans hausser les épaules.'],
+  rear_fly: ['Assis face au dossier, poitrine contre l’appui, bras tendus devant à hauteur d’épaules.', 'Ouvre les bras en arc de cercle vers l’arrière jusqu’à l’alignement avec les épaules.', 'Reviens lentement devant, sans laisser les poids se toucher.'],
+  abduct: ['Assis, dos contre le dossier, coussins contre l’extérieur des genoux.', 'Écarte les cuisses le plus loin possible, contracte 1 s.', 'Referme lentement sans laisser les poids retomber.'],
+  adduct: ['Assis, dos contre le dossier, coussins contre l’intérieur des genoux, écartement réglé sans douleur.', 'Serre les cuisses jusqu’à ce qu’elles se rejoignent, contracte 1 s.', 'Rouvre lentement jusqu’à l’écartement de départ.'],
+  kickback: ['Buste appuyé sur le coussin, mains sur les poignées, une jambe sur la plateforme.', 'Pousse l’autre jambe vers l’arrière avec le talon, jusqu’à l’alignement avec le buste.', 'Reviens lentement ; garde le bas du dos neutre, sans cambrer.'],
+  leg_press: ['Dos et bassin collés au dossier, pieds largeur d’épaules au milieu de la plateforme.', 'Déverrouille et descends jusqu’à environ 90° aux genoux, sans décoller le bas du dos.', 'Pousse avec les talons jusqu’à jambes presque tendues, sans verrouiller les genoux.'],
+  vleg_press: ['Allongé sous la plateforme, bas du dos plaqué, pieds largeur d’épaules.', 'Déverrouille et laisse descendre la plateforme en fléchissant les genoux vers la poitrine.', 'Pousse vers le haut avec les talons sans verrouiller les genoux.'],
+  lying_leg_curl: ['Allongé sur le ventre, genoux juste au bord du coussin, rouleau au-dessus des talons.', 'Ramène les talons vers les fessiers en gardant les hanches plaquées.', 'Redescends lentement jusqu’à l’extension.'],
+  machine_crunch: ['Assis, dos contre le dossier, poignées en main ou coussins sur la poitrine.', 'Enroule le buste vers l’avant en rapprochant les côtes du bassin.', 'Reviens lentement, sans tirer avec les bras.'],
+  seated_ext: ['Assis, pieds calés, rouleau en haut du dos, bras croisés sur la poitrine.', 'Pousse le rouleau vers l’arrière en redressant le buste jusqu’à l’alignement.', 'Reviens lentement vers l’avant, sans à-coup.'],
+  rotary: ['Assis, jambes bloquées, bras contre les coussins devant la poitrine.', 'Tourne le buste d’un côté en gardant le bassin fixe.', 'Reviens lentement au centre ; fais le même nombre de répétitions de l’autre côté.'],
+  smith_squat: ['Barre guidée sur le haut du dos, pieds légèrement en avant de la barre.', 'Descends en poussant les hanches en arrière jusqu’à la parallèle.', 'Remonte en poussant le sol, puis verrouille la barre en la tournant.'],
 };
 
 export const guideFor = (id: string): ExerciseGuide => GUIDES[id] ?? { pattern: 'plank', gear: '—' };

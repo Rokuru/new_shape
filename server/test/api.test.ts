@@ -254,3 +254,49 @@ describe('clés d’accès', () => {
     expect((await a.send('/api/passkey/login/verify', { method: 'POST', body: { response: { id: 'inconnue' } } })).status).toBe(400);
   });
 });
+
+describe('photo de profil', () => {
+  // Plus petit JPEG valable (signature FF D8 FF) et un « PNG » qui est en fait du HTML.
+  const jpeg = 'data:image/jpeg;base64,' + btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, ...Array(60).fill(0)));
+  const fakePng = 'data:image/png;base64,' + btoa('<html><script>alert(1)</script></html>');
+
+  it('photo envoyée : vérifiée, servie aux seuls connectés avec des en-têtes protecteurs', async () => {
+    const a = browser(env);
+    await githubLogin(a);
+    const r = await a.json('/api/avatar', { method: 'PUT', body: { kind: 'upload', image: jpeg } });
+    const url = String((r.user as { avatarUrl: string }).avatarUrl);
+    expect(url).toMatch(/^\/api\/avatar\/[\w-]+\?v=/);
+    expect(((await a.json('/api/me')).user as { avatarUrl: string }).avatarUrl).toBe(url);
+    const img = await a.send(url);
+    expect(img.status).toBe(200);
+    expect(img.headers.get('Content-Type')).toBe('image/jpeg');
+    expect(img.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(img.headers.get('Content-Security-Policy')).toContain('sandbox');
+    expect(new Uint8Array(await img.arrayBuffer()).slice(0, 3)).toEqual(new Uint8Array([0xff, 0xd8, 0xff]));
+    // Sans session : refusé.
+    expect((await browser(env).send(url)).status).toBe(401);
+  });
+
+  it('refuse un faux fichier image, un format non autorisé et une image trop lourde', async () => {
+    const a = browser(env);
+    await githubLogin(a);
+    expect((await a.send('/api/avatar', { method: 'PUT', body: { kind: 'upload', image: fakePng } })).status).toBe(400);
+    expect((await a.send('/api/avatar', { method: 'PUT', body: { kind: 'upload', image: 'data:image/svg+xml;base64,' + btoa('<svg/>') } })).status).toBe(400);
+    const big = 'data:image/jpeg;base64,' + btoa(String.fromCharCode(0xff, 0xd8, 0xff) + 'x'.repeat(210 * 1024));
+    expect((await a.send('/api/avatar', { method: 'PUT', body: { kind: 'upload', image: big } })).status).toBe(413);
+  });
+
+  it('avatar prédéfini, photo GitHub ou initiale ; avatar visible par un ami', async () => {
+    const a = browser(env);
+    await githubLogin(a);
+    expect(((await a.json('/api/avatar', { method: 'PUT', body: { kind: 'preset', preset: 'a05' } })).user as { avatarUrl: string }).avatarUrl).toBe('/avatars/a05.svg');
+    expect((await a.send('/api/avatar', { method: 'PUT', body: { kind: 'preset', preset: '../../etc' } })).status).toBe(400);
+    expect(((await a.json('/api/avatar', { method: 'PUT', body: { kind: 'none' } })).user as { avatarUrl: string }).avatarUrl).toBe('');
+    expect(((await a.json('/api/avatar', { method: 'PUT', body: { kind: 'github' } })).user as { avatarUrl: string }).avatarUrl).toBe('https://avatars.githubusercontent.com/u/42');
+    await a.send('/api/avatar', { method: 'PUT', body: { kind: 'preset', preset: 'a02' } });
+    const b = browser(env);
+    ghUser = { id: 7, login: 'pote', name: null, avatar_url: '' };
+    await githubLogin(b);
+    expect(((await b.json('/api/friends/Rokuru')).user as { avatarUrl: string }).avatarUrl).toBe('/avatars/a02.svg');
+  });
+});

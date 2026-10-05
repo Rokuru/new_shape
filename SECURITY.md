@@ -28,12 +28,13 @@ Aucune donnée de paiement n’est manipulée. Les données sensibles sont des d
 
 | Risque | Protection |
 | --- | --- |
-| Lire les données d’un autre | Chaque requête est liée au compte de la session. Aucune route ne prend d’identifiant de compte en paramètre, sauf la lecture d’un ami, qui renvoie seulement son résumé et seulement entre amis mutuels. |
+| Lire les données d’un autre | Chaque requête est liée au compte de la session. Seules deux routes visent un autre compte : la lecture d’un ami (son résumé, seulement entre amis mutuels) et sa photo de profil (réservée aux personnes connectées). |
 | Se faire passer pour quelqu’un | L’identité vient de la session. Le nom et l’avatar d’un ami viennent de son compte sur le serveur, jamais de son partage. Les pseudos sont uniques sans tenir compte de la casse, et les comptes reliés à GitHub sont marqués comme tels. |
 | Voir les progrès d’un inconnu | Un partage n’est lisible **qu’entre amis mutuels** : chacun a ajouté l’autre. Il n’y a plus de gist public. La liste d’amis n’est jamais publiée. |
 | Requête forcée depuis un autre site (CSRF) | Cookie SameSite=Lax. Toute écriture exige un en-tête `Origin` égal à l’adresse de l’app (403 sinon) et un corps `application/json`. |
 | Vol par script injecté (XSS) | React échappe tout le texte. Une CSP stricte en en-tête HTTP n’autorise que les scripts de l’app et n’autorise les connexions que vers son propre serveur. De toute façon, le cookie de session n’est pas lisible par un script. |
 | Affichage dans un cadre (clickjacking) | `frame-ancestors 'none'`, `X-Frame-Options: DENY`, et une vérification dans l’app. |
+| Photo de profil piégée | L’app recadre et réencode la photo (256 px, JPEG) : ses métadonnées, dont la position GPS, sont retirées avant l’envoi. Le serveur n’accepte que JPEG, PNG ou WebP dont le **contenu réel** correspond (signature du fichier), 200 Ko maximum, et la sert avec `nosniff` et une CSP `sandbox`. |
 | Données piégées (import, transfert, partage d’un ami) | Tout est revalidé champ par champ (`src/lib/sanitize.ts`, `parseShare`). Tailles limitées : 1,9 Mo de données, 512 Ko de partage, 200 amis. Le transfert depuis l’ancienne adresse n’accepte que les messages venant exactement de `https://rokuru.github.io`. |
 | Écrasement entre deux appareils | Écriture conditionnelle (numéro de version) : un appareil en retard reçoit un conflit et fusionne au lieu d’écraser. |
 | Données privées en cache | Le service worker ne met jamais en cache les réponses du serveur (`/api/`). Le serveur répond `Cache-Control: no-store`. |

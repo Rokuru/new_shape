@@ -37,6 +37,16 @@ function ExerciseSelect({ value, onChange, label }: { value: string; onChange: (
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label}>
       {!value && <option value="">Choisir…</option>}
+      {/* Machines guidées des clubs (Basic-Fit : Matrix / Technogym), regroupées pour les retrouver par leur nom affiché. */}
+      <optgroup label="Machines (Basic-Fit)">
+        {EXERCISES.filter((e) => e.machine)
+          .sort((x, y) => x.name.localeCompare(y.name, 'fr'))
+          .map((e) => (
+            <option key={'m-' + e.id} value={e.id}>
+              {e.name}
+            </option>
+          ))}
+      </optgroup>
       {MUSCLES.map((m) => (
         <optgroup key={m} label={MUSCLE_LABELS[m]}>
           {EXERCISES.filter((e) => e.primary[0] === m).map((e) => (

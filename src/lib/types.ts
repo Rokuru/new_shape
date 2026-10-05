@@ -117,6 +117,8 @@ export interface Exercise {
   /** Incrément de charge conseillé en kg. */
   increment: number;
   tips?: string;
+  /** Machine guidée de salle (Basic-Fit : Matrix ou Technogym). Le nom se termine par le nom anglais affiché sur la machine. */
+  machine?: boolean;
 }
 
 export interface PlannedExercise {

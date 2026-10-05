@@ -164,6 +164,53 @@ export const PROGRAMS: Program[] = [
     ],
   },
 
+  // ——— Machines guidées (Basic-Fit) ———
+  {
+    id: 'basicfit_machines_fullbody',
+    name: 'Full body machines Basic-Fit',
+    author: 'Machines guidées Matrix / Technogym des clubs Basic-Fit',
+    description:
+      '3 séances full body uniquement sur machines guidées : pas de technique de barre à apprendre, réglages simples et sûrs. Idéal pour débuter ou reprendre en club.',
+    level: ['beginner', 'intermediate'],
+    goals: ['cut', 'recomp', 'bulk'],
+    daysPerWeek: 3,
+    progression: 'Double progression : quand toutes les séries atteignent le haut de la fourchette, monte d’une plaque (≈ 2,5 à 5 kg). Note les réglages de siège de chaque machine.',
+    style: 'hypertrophie',
+    evidence:
+      'Les machines produisent une hypertrophie comparable aux poids libres à effort égal (Haugen et al. 2023), et l’hypertrophie dépend surtout de la proximité de l’échec plutôt que de la charge (Schoenfeld 2017, Refalo 2023). Moins de transfert vers les mouvements libres (squat, développé couché).',
+    sources: [
+      { label: 'Haugen et al. 2023 – poids libres vs machines (méta-analyse, BMC Sports Sci Med Rehabil)', url: 'https://doaj.org/article/a7282dba5e674176bde2a8239832d2f7' },
+      STUDY.loads,
+      STUDY.failure,
+      { label: 'Basic-Fit – guide des machines (Fitness machines 101)', url: 'https://www.basic-fit.com/en-be/blog/fitness-machines-101' },
+    ],
+    days: [
+      { name: 'Full body A', exercises: [ex('leg_press', 3, 10, 15, 1, 120), ex('m_chest_press', 3, 8, 12, 1, 90), ex('lat_pulldown', 3, 8, 12, 1, 90), ex('leg_curl', 3, 10, 15, 1, 75), ex('m_shoulder_press', 2, 10, 12, 1, 75), ex('m_ab_crunch', 2, 12, 15, 1, 60)] },
+      { name: 'Full body B', exercises: [ex('hack_squat', 3, 8, 12, 2, 120), ex('m_seated_row', 3, 8, 12, 1, 90), ex('pec_deck', 3, 12, 15, 1, 60), ex('m_hip_thrust', 3, 8, 12, 1, 90), ex('m_arm_curl', 2, 10, 15, 0, 60), ex('m_triceps_press', 2, 10, 15, 0, 60)] },
+      { name: 'Full body C', exercises: [ex('m_vertical_leg_press', 3, 10, 15, 1, 120), ex('m_chest_press', 3, 10, 12, 1, 90), ex('lat_pulldown', 3, 10, 12, 1, 90), ex('leg_ext', 2, 12, 15, 0, 60), ex('m_rear_delt', 2, 12, 20, 0, 60), ex('m_standing_calf', 3, 10, 15, 0, 60), ex('m_back_ext', 2, 12, 15, 1, 60)] },
+    ],
+  },
+  {
+    id: 'basicfit_machines_upper_lower',
+    name: 'Haut / Bas machines Basic-Fit',
+    author: 'Machines guidées Matrix / Technogym des clubs Basic-Fit',
+    description: '4 séances (haut, bas, haut, bas) sur machines guidées, avec plus de volume par muscle : pour progresser après les premiers mois.',
+    level: ['intermediate', 'advanced'],
+    goals: ['recomp', 'bulk', 'cut'],
+    daysPerWeek: 4,
+    progression: 'Double progression ; la dernière série de chaque isolation peut aller jusqu’à l’échec (machines guidées = sans risque de perte de contrôle).',
+    style: 'hypertrophie',
+    evidence:
+      'Chaque muscle est travaillé 2 fois par semaine, ce qui favorise l’hypertrophie à volume égal (Schoenfeld 2016) ; 10 à 20 séries dures par muscle et par semaine (Schoenfeld 2017).',
+    sources: [STUDY.frequency, STUDY.volume, { label: 'Haugen et al. 2023 – poids libres vs machines (méta-analyse, BMC Sports Sci Med Rehabil)', url: 'https://doaj.org/article/a7282dba5e674176bde2a8239832d2f7' }],
+    days: [
+      { name: 'Haut A', exercises: [ex('m_chest_press', 3, 8, 12, 1, 120), ex('lat_pulldown', 3, 8, 12, 1, 120), ex('m_shoulder_press', 3, 8, 12, 1, 90), ex('m_seated_row', 3, 10, 12, 1, 90), ex('m_arm_curl', 2, 10, 15, 0, 60), ex('m_triceps_press', 2, 10, 15, 0, 60)] },
+      { name: 'Bas A', exercises: [ex('leg_press', 4, 8, 12, 1, 150), ex('leg_curl', 3, 10, 12, 1, 90), ex('leg_ext', 3, 12, 15, 0, 60), ex('m_hip_thrust', 3, 8, 12, 1, 90), ex('m_standing_calf', 3, 10, 15, 0, 60), ex('m_ab_crunch', 3, 10, 15, 1, 60)] },
+      { name: 'Haut B', exercises: [ex('m_seated_row', 3, 8, 12, 1, 120), ex('m_chest_press', 3, 10, 12, 1, 90), ex('lat_pulldown', 3, 10, 12, 1, 90), ex('pec_deck', 3, 12, 15, 0, 60), ex('m_rear_delt', 3, 12, 20, 0, 60), ex('m_arm_curl', 2, 12, 15, 0, 60), ex('triceps_pushdown', 2, 12, 15, 0, 60)] },
+      { name: 'Bas B', exercises: [ex('hack_squat', 3, 8, 12, 2, 150), ex('m_lying_leg_curl', 3, 10, 12, 1, 90), ex('m_abductor', 3, 12, 20, 0, 60), ex('m_adductor', 2, 12, 20, 0, 60), ex('m_glute', 2, 12, 15, 0, 60), ex('m_back_ext', 2, 12, 15, 1, 60), ex('m_rotary_torso', 2, 12, 15, 1, 45)] },
+    ],
+  },
+
   // ——— Force ———
   {
     id: 'starting_strength',
