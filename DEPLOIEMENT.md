@@ -7,7 +7,10 @@ Une fois configuré, tout est automatique : chaque PR fusionnée dans `main` est
 
 ## 1. Créer le projet Pages relié au dépôt
 
-Tableau de bord Cloudflare → **Workers & Pages** → **Create** → onglet **Pages** → **Connect to Git**.
+Tableau de bord Cloudflare → **Workers & Pages** → **Create** → onglet **Pages** (ou lien « Looking to deploy Pages? Get started »)
+→ **Import an existing Git repository**.
+
+⚠️ Ne pas créer un **Worker** : si l’écran propose « Deploy command » ou « Build token », ce n’est pas le bon type de projet.
 
 - Dépôt : `Rokuru/new_shape` (autoriser Cloudflare à y accéder si demandé).
 - **Project name : `new-shape`**. L’adresse sera `https://new-shape.pages.dev` ; si ce nom est pris, Cloudflare en propose un autre, voir l’étape 6.
@@ -15,6 +18,7 @@ Tableau de bord Cloudflare → **Workers & Pages** → **Create** → onglet **P
 - **Framework preset** : `None`.
 - **Build command** : `npm run build`.
 - **Build output directory** : `dist`.
+- **Root directory** : laisser vide.
 - **Environment variables** : `NODE_VERSION` = `22`.
 
 Cliquer **Save and Deploy**. Le premier déploiement peut se terminer avant que la base soit reliée : c’est normal.
@@ -39,13 +43,18 @@ Faire la même chose pour l’environnement **Preview** si Cloudflare le propose
 GitHub → **Settings** → **Developer settings** → **OAuth Apps** → l’application New Shape existante (Client ID `Ov23liyZi5eEiCRHEjXB`) :
 
 - **Homepage URL** : `https://new-shape.pages.dev`
-- **Authorization callback URL** : `https://new-shape.pages.dev/api/auth/github/callback`
+- **Redirect URIs** (GitHub en accepte jusqu’à 10) :
+  - `https://new-shape.pages.dev/api/auth/github/callback` (production) ;
+  - `https://claude-muscu-tracker.new-shape.pages.dev/api/auth/github/callback` (adresse de test d’une branche, facultatif).
+  - Laisser « Allow wildcard matching » **décoché**.
 - **Generate a new client secret** et copier la valeur (elle ne s’affiche qu’une fois).
 
 Puis Cloudflare → projet `new-shape` → **Settings** → **Variables and Secrets** :
 
 - `GITHUB_CLIENT_ID` = `Ov23liyZi5eEiCRHEjXB` (type *Text*) ;
 - `GITHUB_CLIENT_SECRET` = le secret copié (type **Secret**).
+
+Les variables et la base doivent être définies pour **Production** et pour **Preview** si on veut tester une branche avant la fusion.
 
 ## 5. Redéployer
 
@@ -55,6 +64,10 @@ Projet `new-shape` → **Deployments** → sur le dernier déploiement : **⋯**
 - `https://new-shape.pages.dev/api/me` doit répondre `{"error":"not_signed_in"}` ;
 - `database_not_configured` veut dire que la base n’est pas reliée (étape 3) ;
 - `github_not_configured` (à la connexion GitHub) veut dire que les variables de l’étape 4 manquent.
+
+**Tester avant la mise en production** : chaque branche poussée sur GitHub est déployée à une adresse de test,
+par exemple `https://claude-muscu-tracker.new-shape.pages.dev` (onglet *Deployments*, ligne « Preview »).
+Tant que la PR n’est pas fusionnée, `new-shape.pages.dev` sert encore l’ancienne version : sa connexion GitHub n’y fonctionne pas, c’est normal.
 
 ## 6. Adresse différente de `new-shape.pages.dev`
 
