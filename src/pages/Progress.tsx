@@ -1,3 +1,4 @@
+import { ExerciseLink } from '../components/ExerciseInfo';
 import { addDays, dayKey, localDate } from '../lib/dates';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -146,7 +147,9 @@ export default function ProgressPage() {
             <tbody>
               {records.map((r) => (
                 <tr key={r.id}>
-                  <td>{getExercise(r.id).name}</td>
+                  <td>
+                    <ExerciseLink id={r.id} />
+                  </td>
                   <td className="num" style={{ whiteSpace: 'nowrap' }}>
                     {getExercise(r.id).bodyweight ? (r.weight ? `PDC + ${fmtNum(r.weight)}` : 'PDC') : fmtNum(r.weight)} × {r.reps}
                   </td>
