@@ -42,7 +42,7 @@ export default function Onboarding() {
         <h1>Construisons ton plan</h1>
         <p>
           Quelques infos pour générer un programme adapté (split, volume, exercices), calculer tes besoins nutritionnels et suivre ta composition corporelle.
-          Tes données restent sur ton appareil, ou dans ton compte GitHub si tu te connectes.
+          Tes données restent sur ton appareil, ou dans ton compte New Shape si tu te connectes (Face ID ou GitHub, sans mot de passe).
         </p>
         <div className="onboarding-points">
           <span>
@@ -58,7 +58,7 @@ export default function Onboarding() {
       </header>
       <div className="onboarding-body">
       <details className="card">
-        <summary>Déjà utilisateur ? Retrouve tes données avec GitHub</summary>
+        <summary>Déjà utilisateur ? Connecte-toi pour retrouver tes données</summary>
         <div style={{ marginTop: 12 }}>
           <AccountCard compact />
         </div>

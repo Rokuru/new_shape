@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+    <title>New Shape a déménagé</title>
+    <link rel="stylesheet" href="move.css" />
+  </head>
+  <body>
+    <main>
+      <h1>New Shape a <em>déménagé</em></h1>
+      <p>L’appli a une nouvelle adresse, plus sûre : connexion par Face ID ou GitHub, données sur un serveur privé.</p>
+      <p class="addr"><a id="new-link" href="#">nouvelle adresse</a></p>
+
+      <section id="with-data" hidden>
+        <p><b>Cet appareil contient des données New Shape.</b> Transfère-les vers la nouvelle adresse (elles ne sont pas visibles là-bas automatiquement) :</p>
+        <button id="transfer" class="primary">Transférer mes données et ouvrir la nouvelle adresse</button>
+        <p id="status" class="status" role="status"></p>
+        <p class="small">Si le transfert ne marche pas (appli installée sur l’écran d’accueil, par exemple), télécharge tes données puis, sur la nouvelle adresse, va dans <b>Profil → Importer</b>. Tu peux aussi te connecter là-bas avec GitHub et utiliser <b>Importer depuis mon gist</b>.</p>
+        <button id="download">Télécharger mes données</button>
+        <button id="skip" class="ghost">Continuer sans transférer</button>
+      </section>
+
+      <p class="small">Appli installée sur l’écran d’accueil ? Supprime l’ancienne icône et réinstalle New Shape depuis la nouvelle adresse (Partager → Sur l’écran d’accueil).</p>
+    </main>
+    <script src="move.js"></script>
+  </body>
+</html>

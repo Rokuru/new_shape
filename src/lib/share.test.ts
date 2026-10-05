@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShare, friendHash, mergeSeries, parseShare } from './share';
+import { buildShare, mergeSeries, parseShare } from './share';
 import { DEFAULT_PROFILE } from './store';
 import type { Workout } from './types';
 
@@ -56,7 +56,6 @@ describe('partage public', () => {
       weekly: [{ week: 1, sessions: '9' }, 'n', { week: '2026-09-01', sessions: 3, tonnage: 5000 }],
       recent: [{ date: '2026-09-01T10:00:00Z', dayName: { x: 1 }, top: 'non' }, { date: 5 }],
       friends: ['ok-login', { x: 1 }, 'mauvais login!'],
-      friendHashes: ['zz', '0123456789abcdef01234567'],
     };
     const p = parseShare(JSON.stringify(evil))!;
     expect(p.user.login).toBe('');
@@ -67,16 +66,9 @@ describe('partage public', () => {
     expect(Object.getPrototypeOf(p.lifts)).toBe(Object.prototype);
     expect(p.weekly).toEqual([{ week: '2026-09-01', sessions: 3, tonnage: 5000 }]);
     expect(p.recent).toEqual([{ date: '2026-09-01', dayName: 'Séance', durationMin: undefined, tonnage: 0, top: [] }]);
-    expect(p.friends).toEqual(['ok-login']);
-    expect(p.friendHashes).toEqual(['0123456789abcdef01234567']);
+    // La liste d'amis d'un tiers n'est jamais reprise.
+    expect(p.friends).toEqual([]);
     expect(parseShare('x'.repeat(600 * 1024))).toBeUndefined();
-  });
-
-  it('empreinte d’amitié : stable, salée par le propriétaire, insensible à la casse', async () => {
-    const h = await friendHash('Vincent', 'Alex');
-    expect(h).toMatch(/^[0-9a-f]{24}$/);
-    expect(await friendHash('vincent', 'alex')).toBe(h);
-    expect(await friendHash('alex', 'vincent')).not.toBe(h);
   });
 });
 

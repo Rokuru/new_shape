@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { createGist, fetchUser, findGist, GitHubError, readGist, revokeToken, updateGist, type GitHubUser } from './github';
+import { api, ApiError, fetchMe, type AppUser, type PasskeyInfo } from './api';
 import { pickSynced, SYNCED_KEYS, useStore, type SyncedData } from './store';
-import { publishShare, useFriends, usePublish } from './share';
+import { publishShare, refreshFriends, useFriends, usePublish } from './share';
 
-/** Contenu du gist : les données + la date de la dernière modification. */
+/** Contenu enregistré sur le serveur : les données + la date de la dernière modification. */
 export interface SyncPayload {
   app: 'new-shape';
   version: 1;
@@ -15,24 +15,29 @@ export interface SyncPayload {
 type Status = 'idle' | 'syncing' | 'ok' | 'error';
 
 interface AuthState {
-  token?: string;
-  user?: GitHubUser;
-  gistId?: string;
-  /** updatedAt de la version distante déjà intégrée localement. */
-  syncedAt?: string;
+  /** Utilisateur connecté (la session elle-même est un cookie HttpOnly, invisible ici). */
+  user?: AppUser;
+  passkeys?: PasskeyInfo[];
+  githubConfigured?: boolean;
+  /** Version serveur des données déjà intégrée localement (0 : rien sur le serveur). */
+  version?: number;
   /** Date de la dernière modification locale non encore envoyée. */
   dirtyAt?: string;
   status: Status;
   error?: string;
+  /** Message d'information ponctuel (import terminé…), non conservé. */
+  notice?: string;
   lastSyncAt?: string;
 }
 
 export const useAuth = create<AuthState>()(
   persist((): AuthState => ({ status: 'idle' }), {
-    name: 'new-shape-auth',
-    partialize: ({ token, user, gistId, syncedAt, dirtyAt, lastSyncAt }) => ({ token, user, gistId, syncedAt, dirtyAt, lastSyncAt }),
+    name: 'new-shape-session',
+    partialize: ({ user, version, dirtyAt, lastSyncAt }) => ({ user, version, dirtyAt, lastSyncAt }),
   }),
 );
+
+export const isSignedIn = () => Boolean(useAuth.getState().user);
 
 // ---------- Fusion ----------
 
@@ -98,71 +103,82 @@ function applyLocal(data: SyncedData) {
 
 const payloadOf = (data: SyncedData, updatedAt: string): string => JSON.stringify({ app: 'new-shape', version: 1, updatedAt, data } satisfies SyncPayload);
 
+interface Remote {
+  version: number;
+  payload?: string;
+}
+
+/** Session terminée côté serveur (expirée, déconnectée ailleurs, compte supprimé). */
+function signedOut() {
+  useAuth.setState({ user: undefined, passkeys: undefined, version: undefined, status: 'idle', error: 'Session expirée : reconnecte-toi.' });
+}
+
 async function syncOnce() {
-  const { token } = useAuth.getState();
-  if (!token) return;
+  if (!isSignedIn()) return;
   useAuth.setState({ status: 'syncing', error: undefined });
   try {
-    let { gistId } = useAuth.getState();
-    if (!gistId) gistId = await findGist(token);
-    const remote = gistId ? parsePayload(await readGist(token, gistId)) : undefined;
-    const { syncedAt, dirtyAt } = useAuth.getState();
-    const local = pickSynced(useStore.getState());
-    // Premier lien d'un appareil qui a déjà des données : elles sont à fusionner.
-    const localDirty = Boolean(dirtyAt) || (!syncedAt && hasLocalData());
+    let remoteRow = await api<Remote>('/data');
+    // Jusqu'à 3 essais : un autre appareil peut écrire entre notre lecture et notre écriture (conflit 409).
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const remote = parsePayload(remoteRow.payload);
+      const { version, dirtyAt } = useAuth.getState();
+      const local = pickSynced(useStore.getState());
+      // Premier lien d'un appareil qui a déjà des données : elles sont à fusionner.
+      const localDirty = Boolean(dirtyAt) || (version === undefined && hasLocalData());
 
-    let toWrite: SyncedData | undefined;
-    let updatedAt = remote?.updatedAt;
-
-    if (!remote) {
-      if (hasLocalData()) {
+      let toWrite: SyncedData | undefined;
+      let updatedAt: string | undefined;
+      if (!remote) {
+        if (hasLocalData()) {
+          toWrite = local;
+          updatedAt = dirtyAt ?? new Date().toISOString();
+        }
+      } else if (remoteRow.version !== version) {
+        // Le serveur a changé depuis notre dernière synchro.
+        if (!localDirty) applyLocal(remote.data);
+        else {
+          const merged = mergeData(local, remote.data, (dirtyAt ?? '') > remote.updatedAt);
+          applyLocal(merged);
+          toWrite = merged;
+          updatedAt = new Date().toISOString();
+        }
+      } else if (localDirty) {
         toWrite = local;
         updatedAt = dirtyAt ?? new Date().toISOString();
       }
-    } else if (remote.updatedAt !== syncedAt) {
-      // Le distant a changé depuis notre dernière synchro.
-      if (!localDirty) applyLocal(remote.data);
-      else {
-        const localIsNewer = (dirtyAt ?? '') > remote.updatedAt;
-        const merged = mergeData(local, remote.data, localIsNewer);
-        applyLocal(merged);
-        toWrite = merged;
-        updatedAt = new Date().toISOString();
-      }
-    } else if (localDirty) {
-      toWrite = local;
-      updatedAt = dirtyAt ?? new Date().toISOString();
-    }
 
-    if (toWrite && updatedAt) {
-      const content = payloadOf(toWrite, updatedAt);
-      if (gistId) await updateGist(token, gistId, content);
-      else gistId = await createGist(token, content);
+      let newVersion = remoteRow.version;
+      if (toWrite && updatedAt) {
+        try {
+          newVersion = (await api<{ version: number }>('/data', { method: 'PUT', body: { payload: payloadOf(toWrite, updatedAt), baseVersion: remoteRow.version } })).version;
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 409 && e.body) {
+            remoteRow = { version: Number(e.body.version) || 0, payload: typeof e.body.payload === 'string' ? e.body.payload : undefined };
+            continue;
+          }
+          throw e;
+        }
+      }
+      // Une modification faite pendant la synchro reste à envoyer.
+      const stillDirty = useAuth.getState().dirtyAt !== dirtyAt;
+      useAuth.setState({ version: newVersion, dirtyAt: stillDirty ? useAuth.getState().dirtyAt : undefined, status: 'ok', lastSyncAt: new Date().toISOString() });
+      if (stillDirty) scheduleSync(1500);
+      break;
     }
-    // Une modification faite pendant la synchro reste à envoyer.
-    const stillDirty = useAuth.getState().dirtyAt !== dirtyAt;
-    useAuth.setState({
-      gistId,
-      syncedAt: updatedAt,
-      dirtyAt: stillDirty ? useAuth.getState().dirtyAt : undefined,
-      status: 'ok',
-      lastSyncAt: new Date().toISOString(),
-    });
-    if (stillDirty) scheduleSync(1500);
-    // Partage public pour les amis : une erreur ici ne doit pas bloquer la sauvegarde.
+    // Partage avec les amis : une erreur ici ne doit pas bloquer la sauvegarde.
     const { user } = useAuth.getState();
-    if (user && (useStore.getState().share.enabled || usePublish.getState().gistId)) {
+    if (user) {
       try {
-        await publishShare(token, useStore.getState(), user);
+        const friendsChanged = await publishShare(useStore.getState(), user);
         usePublish.setState({ error: undefined });
+        if (friendsChanged) void refreshFriends(useStore.getState().friends, 0);
       } catch (e) {
         usePublish.setState({ error: (e as Error).message });
       }
     }
   } catch (e) {
-    const status = e instanceof GitHubError ? e.status : 0;
-    useAuth.setState({ status: 'error', error: status === 0 ? 'Hors connexion : synchronisation reportée.' : (e as Error).message });
-    if (status === 401) useAuth.setState({ token: undefined });
+    if (e instanceof ApiError && e.status === 401) return signedOut();
+    useAuth.setState({ status: 'error', error: (e as Error).message });
   }
 }
 
@@ -183,30 +199,78 @@ export function syncNow(): Promise<void> {
 }
 
 export function scheduleSync(delay = 4000) {
-  if (!useAuth.getState().token) return;
+  if (!isSignedIn()) return;
   clearTimeout(timer);
   timer = setTimeout(() => void syncNow(), delay);
 }
 
-export async function login(token: string) {
-  const user = await fetchUser(token.trim());
-  useAuth.setState({ token: token.trim(), user, gistId: undefined, syncedAt: undefined, status: 'idle', error: undefined });
+/** Recharge le compte connecté (après une connexion, ou au démarrage pour vérifier la session). */
+export async function refreshSession(): Promise<boolean> {
+  try {
+    const me = await fetchMe();
+    const changed = useAuth.getState().user?.login !== me.user.login;
+    // Autre compte que celui de la dernière fois sur cet appareil : on repart de zéro pour la version serveur.
+    useAuth.setState({ user: me.user, passkeys: me.passkeys, githubConfigured: me.githubConfigured, ...(changed ? { version: undefined } : {}), error: undefined });
+    return true;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      if (useAuth.getState().user) signedOut();
+      else useAuth.setState({ user: undefined, passkeys: undefined });
+      return false;
+    }
+    // Hors-ligne : on garde l'utilisateur connu, la synchro réessaiera.
+    return Boolean(useAuth.getState().user);
+  }
+}
+
+/** Après une connexion réussie : charge le compte, synchronise et récupère un éventuel import de l'ancien gist. */
+export async function afterSignIn() {
+  if (!(await refreshSession())) throw new Error('Connexion impossible.');
   await syncNow();
   if (useAuth.getState().status === 'error') throw new Error(useAuth.getState().error);
 }
 
-/** Déconnexion : les données restent dans le gist ; on peut aussi les effacer de cet appareil. */
-export function logout(clearLocal: boolean) {
+/** Fusionne les données importées de l'ancien gist GitHub (préparées par le serveur), puis les envoie. */
+export async function applyGistImport(): Promise<boolean> {
+  let row: { payload: string };
+  try {
+    row = await api<{ payload: string }>('/import');
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return false;
+    throw e;
+  }
+  const imported = parsePayload(row.payload);
+  if (imported) {
+    const local = pickSynced(useStore.getState());
+    // Les données locales sont « plus récentes » : en cas de doublon, ce qui est sur l'appareil l'emporte.
+    applyLocal(hasLocalData() ? mergeData(local, imported.data, true) : imported.data);
+    useAuth.setState({ dirtyAt: new Date().toISOString() });
+    await syncNow();
+  }
+  await api('/import', { method: 'DELETE' });
+  return Boolean(imported);
+}
+
+/** Déconnexion : les données restent sur le serveur ; on peut aussi les effacer de cet appareil. */
+export async function logout(clearLocal: boolean) {
   clearTimeout(timer);
-  // Le jeton est aussi invalidé chez GitHub : volé ou resté sur un appareil, il ne sert plus à rien.
-  const { token } = useAuth.getState();
-  if (token) void revokeToken(token);
-  useAuth.setState({ token: undefined, user: undefined, gistId: undefined, syncedAt: undefined, dirtyAt: undefined, status: 'idle', error: undefined, lastSyncAt: undefined });
-  usePublish.setState({ gistId: undefined, lastContent: undefined, error: undefined, publishedAt: undefined });
+  // On envoie d'abord ce qui n'est pas encore sauvegardé.
+  if (useAuth.getState().dirtyAt) await syncNow().catch(() => undefined);
+  await api('/logout', { method: 'POST' }).catch(() => undefined);
+  useAuth.setState({ user: undefined, passkeys: undefined, version: undefined, dirtyAt: undefined, status: 'idle', error: undefined, lastSyncAt: undefined });
+  usePublish.setState({ lastContent: undefined, error: undefined, publishedAt: undefined });
   if (clearLocal) {
     useStore.getState().reset();
     useFriends.setState({ data: {} });
   }
+}
+
+/** Suppression définitive du compte et de toutes ses données sur le serveur. */
+export async function deleteAccount() {
+  await api('/account', { method: 'DELETE' });
+  useAuth.setState({ user: undefined, passkeys: undefined, version: undefined, dirtyAt: undefined, status: 'idle', error: undefined, lastSyncAt: undefined });
+  usePublish.setState({ lastContent: undefined, error: undefined, publishedAt: undefined });
+  useFriends.setState({ data: {} });
 }
 
 let started = false;
@@ -218,12 +282,12 @@ export function startSync() {
   useStore.subscribe((state, prev) => {
     if (applying) return;
     if (!SYNCED_KEYS.some((k) => state[k] !== prev[k])) return;
-    if (!useAuth.getState().token) return;
+    if (!isSignedIn()) return;
     useAuth.setState({ dirtyAt: new Date().toISOString() });
     scheduleSync();
   });
   const onVisible = () => document.visibilityState === 'visible' && void syncNow();
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('online', () => void syncNow());
-  if (useAuth.getState().token) void syncNow();
+  void refreshSession().then((ok) => (ok ? syncNow() : undefined));
 }

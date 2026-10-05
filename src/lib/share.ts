@@ -2,7 +2,7 @@ import { addDays, dayKey, localDate, parseLocalDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { bodyFatOf, bodyweightAt, bestE1rm, startOfWeek, tonnage, weightTrend } from './calc';
-import { createGist, deleteGist, fetchPublicShare, fetchPublicUser, findGist, isValidLogin, SHARE_FILE, updateGist, type GitHubUser } from './github';
+import { api, ApiError, type AppUser } from './api';
 import type { useStore } from './store';
 import type { Goal, Level, Sex } from './types';
 import { day, isoDate, num, str } from './sanitize';
@@ -10,14 +10,14 @@ import { day, isoDate, num, str } from './sanitize';
 type AppState = ReturnType<typeof useStore.getState>;
 
 /**
- * Résumé public de mes progrès, publié dans un gist public de mon compte GitHub
- * pour que mes amis puissent le lire. Ne contient que ce qui sert à comparer.
+ * Résumé de mes progrès, enregistré sur le serveur et lisible uniquement par mes amis mutuels
+ * (ceux que j'ai ajoutés et qui m'ont ajouté). Ne contient que ce qui sert à comparer.
  */
 export interface SharePayload {
   app: 'new-shape-share';
   version: 1;
   updatedAt: string;
-  user: GitHubUser;
+  user: AppUser;
   profile: { goal: Goal; level: Level; sex: Sex; daysPerWeek: number };
   stats: { workouts: number; since?: string; lastWorkout?: string };
   /** 1RM estimé (meilleure série de chaque séance) par exercice. */
@@ -26,21 +26,12 @@ export interface SharePayload {
   /** Présent seulement si l'utilisateur a choisi de partager son corps. */
   body?: { date: string; weight: number; bf?: number; muscle?: number }[];
   recent: { date: string; dayName: string; durationMin?: number; tonnage: number; top: { id: string; weight: number; reps: number }[] }[];
-  /** Ancien format : pseudos des amis en clair (lu, plus publié). */
+  /** Toujours vide : la liste d'amis n'est jamais partagée (le serveur connaît les liens mutuels). */
   friends: string[];
-  /** Amis sous forme d'empreintes (SHA-256 de « moi:ami ») : permet de détecter un ami mutuel sans publier la liste. */
-  friendHashes?: string[];
-}
-
-/** Empreinte d'un lien d'amitié, salée par le pseudo du propriétaire du partage. */
-export async function friendHash(owner: string, friend: string): Promise<string> {
-  const data = new TextEncoder().encode(`new-shape:${owner.toLowerCase()}:${friend.toLowerCase()}`);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(buf)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 
-export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | 'friends' | 'share'>, user: GitHubUser, now = new Date()): SharePayload {
+export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | 'friends' | 'share'>, user: AppUser, now = new Date()): SharePayload {
   const workouts = s.workouts.filter((w) => w.finished).sort((a, b) => a.date.localeCompare(b.date));
 
   // Exercices les plus pratiqués (12 max), 60 derniers points chacun.
@@ -99,13 +90,12 @@ export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | '
     updatedAt: now.toISOString(),
     user,
     profile: { goal: s.profile.goal, level: s.profile.level, sex: s.profile.sex, daysPerWeek: s.profile.daysPerWeek },
-    // Jour seulement (pas l'heure) : le partage est public, inutile de dévoiler ses horaires d'entraînement.
+    // Jour seulement (pas l'heure) : inutile de dévoiler ses horaires d'entraînement, même à des amis.
     stats: { workouts: workouts.length, since: workouts[0] ? dayKey(workouts[0].date) : undefined, lastWorkout: workouts.at(-1) ? dayKey(workouts.at(-1)!.date) : undefined },
     lifts,
     weekly,
     body,
     recent,
-    // La liste d'amis n'est plus publiée en clair : voir friendHashes (ajouté à la publication).
     friends: [],
   };
 }
@@ -123,7 +113,7 @@ const LOGIN = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
 /**
  * Partage lu chez un tiers : données NON fiables (n'importe qui peut publier un fichier piégé).
  * Tout est revérifié champ par champ ; ce qui est invalide est écarté, rien ne doit pouvoir faire planter l'app.
- * L'identité affichée ne vient jamais du fichier mais de l'API GitHub (voir lookupFriend).
+ * L'identité affichée ne vient jamais du fichier mais du compte vérifié par le serveur (voir lookupFriend).
  */
 export function parseShare(text: string | undefined): SharePayload | undefined {
   if (!text || text.length > MAX_SHARE_BYTES) return undefined;
@@ -180,7 +170,7 @@ export function parseShare(text: string | undefined): SharePayload | undefined {
     app: 'new-shape-share',
     version: 1,
     updatedAt: isoDate(p.updatedAt) ?? '',
-    // Remplacé par l'identité vérifiée auprès de GitHub dans lookupFriend.
+    // Remplacé par l'identité vérifiée par le serveur dans lookupFriend.
     user: { login: '', name: null, avatarUrl: '' },
     profile: {
       goal: GOALS.includes(prof.goal as Goal) ? (prof.goal as Goal) : 'recomp',
@@ -193,81 +183,64 @@ export function parseShare(text: string | undefined): SharePayload | undefined {
     weekly,
     body: body?.length ? body : undefined,
     recent,
-    friends: list(p.friends, 500).filter((f): f is string => typeof f === 'string' && LOGIN.test(f)),
-    friendHashes: list(p.friendHashes, 500).filter((h): h is string => typeof h === 'string' && /^[0-9a-f]{24}$/.test(h)),
+    friends: [],
   };
 }
 
 // ---------- Publication de mon partage ----------
 
 interface PublishState {
-  gistId?: string;
-  /** Format du partage publié par cet appareil (voir SHARE_FORMAT). */
-  format?: number;
   error?: string;
   publishedAt?: string;
-  /** Contenu publié (hors date), pour ne pas republier à l'identique. */
+  /** Contenu envoyé (hors date), pour ne pas renvoyer à l'identique. */
   lastContent?: string;
 }
-export const usePublish = create<PublishState>()(persist((): PublishState => ({}), { name: 'new-shape-share' }));
-
-const withoutDate = (p: SharePayload) => JSON.stringify({ ...p, updatedAt: '' });
+export const usePublish = create<PublishState>()(persist((): PublishState => ({}), { name: 'new-shape-share-v2' }));
 
 /**
- * Version 2 : jours sans heure, liste d'amis en empreintes. Un gist public garde l'historique de ses révisions :
- * pour que les anciennes versions (amis en clair, heures) disparaissent, le gist est recréé une fois.
+ * Envoie au serveur mon partage (ou sa suppression s'il est désactivé) et la liste des amis que j'ai ajoutés.
+ * Le serveur ne montre mon partage qu'aux amis de cette liste qui m'ont eux aussi ajouté.
  */
-const SHARE_FORMAT = 2;
-
-export async function publishShare(token: string, state: AppState, user: GitHubUser): Promise<void> {
-  let { gistId } = usePublish.getState();
-  const upgrade = usePublish.getState().format !== SHARE_FORMAT;
-  if (!state.share.enabled) {
-    if (!gistId) gistId = await findGist(token, SHARE_FILE);
-    if (gistId) await deleteGist(token, gistId);
-    usePublish.setState({ gistId: undefined, lastContent: undefined });
-    return;
-  }
-  const payload = { ...buildShare(state, user), friendHashes: await Promise.all(state.friends.map((f) => friendHash(user.login, f))) };
-  const key = withoutDate(payload);
-  if (gistId && !upgrade && key === usePublish.getState().lastContent) return;
-  const content = JSON.stringify(payload);
-  if (!gistId) gistId = await findGist(token, SHARE_FILE);
-  if (gistId && upgrade) {
-    await deleteGist(token, gistId);
-    gistId = undefined;
-  }
-  if (gistId) await updateGist(token, gistId, content, SHARE_FILE);
-  else gistId = await createGist(token, content, { file: SHARE_FILE, isPublic: true, description: 'New Shape – progrès partagés avec mes amis' });
-  usePublish.setState({ gistId, lastContent: key, publishedAt: payload.updatedAt, format: SHARE_FORMAT });
+export async function publishShare(state: AppState, user: AppUser): Promise<boolean> {
+  const friends = state.friends.map((f) => f.toLowerCase());
+  const payload = state.share.enabled ? buildShare(state, user) : undefined;
+  const key = JSON.stringify({ enabled: state.share.enabled, friends, payload: payload && { ...payload, updatedAt: '' } });
+  const prev = usePublish.getState().lastContent;
+  if (key === prev) return false;
+  const res = await api<{ publishedAt?: string }>('/share', { method: 'PUT', body: { enabled: state.share.enabled, payload: payload && JSON.stringify(payload), friends } });
+  usePublish.setState({ lastContent: key, publishedAt: res.publishedAt });
+  // Liste d'amis modifiée : le statut « mutuel » a pu changer, on relit les amis sans attendre le cache.
+  return !prev || JSON.stringify((JSON.parse(prev) as { friends?: string[] }).friends) !== JSON.stringify(friends);
 }
 
 // ---------- Lecture des amis ----------
 
 export interface FriendEntry {
-  user?: GitHubUser;
+  user?: AppUser;
   share?: SharePayload;
+  /** L'ami m'a lui aussi ajouté. */
+  mutual?: boolean;
   fetchedAt: string;
-  /** 'not_found' : pas de compte GitHub ; 'not_shared' : n'a pas activé le partage. */
-  status: 'ok' | 'not_found' | 'not_shared' | 'error';
+  /** 'not_found' : pas de compte ; 'not_mutual' : ne m'a pas (encore) ajouté ; 'not_shared' : partage désactivé. */
+  status: 'ok' | 'not_found' | 'not_mutual' | 'not_shared' | 'error';
 }
 
 interface FriendsState {
   data: Record<string, FriendEntry | undefined>;
 }
 const AVATAR = /^https:\/\/avatars\.githubusercontent\.com\//;
-/** Cache local des amis : revalidé au chargement (il a pu être écrit par une version moins stricte). */
+const STATUSES: FriendEntry['status'][] = ['ok', 'not_found', 'not_mutual', 'not_shared', 'error'];
+function cleanUser(u: unknown): AppUser | undefined {
+  if (!isO(u) || typeof u.login !== 'string' || !LOGIN.test(u.login)) return undefined;
+  return { login: u.login, name: typeof u.name === 'string' ? u.name.slice(0, 100) : null, avatarUrl: typeof u.avatarUrl === 'string' && AVATAR.test(u.avatarUrl) ? u.avatarUrl : '', github: u.github === true };
+}
+/** Cache local des amis : revalidé au chargement. */
 function cleanEntry(e: unknown): FriendEntry | undefined {
-  if (!e || typeof e !== 'object') return undefined;
-  const x = e as Record<string, unknown>;
-  const u = x.user as Record<string, unknown> | undefined;
-  const user =
-    u && typeof u.login === 'string' && LOGIN.test(u.login)
-      ? { login: u.login, name: typeof u.name === 'string' ? u.name.slice(0, 100) : null, avatarUrl: typeof u.avatarUrl === 'string' && AVATAR.test(u.avatarUrl) ? u.avatarUrl : '' }
-      : undefined;
-  const parsed = x.share ? parseShare(JSON.stringify(x.share)) : undefined;
-  const status = ['ok', 'not_found', 'not_shared', 'error'].includes(x.status as string) ? (x.status as FriendEntry['status']) : 'error';
-  return { user, share: parsed && user ? { ...parsed, user } : undefined, status, fetchedAt: typeof x.fetchedAt === 'string' ? x.fetchedAt : new Date(0).toISOString() };
+  if (!isO(e)) return undefined;
+  const user = cleanUser(e.user);
+  const parsed = e.share ? parseShare(JSON.stringify(e.share)) : undefined;
+  const status = STATUSES.includes(e.status as FriendEntry['status']) ? (e.status as FriendEntry['status']) : 'error';
+  return { user, share: parsed && user ? { ...parsed, user } : undefined, mutual: e.mutual === true, status, fetchedAt: typeof e.fetchedAt === 'string' ? e.fetchedAt : new Date(0).toISOString() };
 }
 export const useFriends = create<FriendsState>()(
   persist((): FriendsState => ({ data: {} }), {
@@ -281,25 +254,26 @@ export const useFriends = create<FriendsState>()(
   }),
 );
 
-export async function lookupFriend(token: string, login: string): Promise<FriendEntry> {
+export const isValidLogin = (login: string) => LOGIN.test(login);
+
+export async function lookupFriend(login: string): Promise<FriendEntry> {
   const key = login.toLowerCase();
   let entry: FriendEntry;
   if (!isValidLogin(login)) entry = { status: 'not_found', fetchedAt: new Date().toISOString() };
   else {
     try {
-      const user = await fetchPublicUser(token, login);
-      if (!user) entry = { status: 'not_found', fetchedAt: new Date().toISOString() };
-      else {
-        const parsed = parseShare(await fetchPublicShare(token, user.login));
-        // L'identité affichée est celle vérifiée par GitHub, jamais celle écrite dans le fichier du tiers.
-        const share = parsed ? { ...parsed, user } : undefined;
-        entry = { user, share, status: share ? 'ok' : 'not_shared', fetchedAt: new Date().toISOString() };
-      }
-    } catch {
-      // Hors-ligne : on garde la dernière version connue.
+      const r = await api<{ status?: string; user?: unknown; share?: string; mutual?: boolean }>(`/friends/${encodeURIComponent(login)}`);
+      const user = cleanUser(r.user);
+      const status = STATUSES.includes(r.status as FriendEntry['status']) ? (r.status as FriendEntry['status']) : 'error';
+      const parsed = status === 'ok' ? parseShare(r.share) : undefined;
+      // L'identité affichée est celle du compte vérifié par le serveur, jamais celle écrite dans le partage.
+      const share = parsed && user ? { ...parsed, user } : undefined;
+      entry = user ? { user, share, mutual: r.mutual === true, status: status === 'ok' && !share ? 'error' : status, fetchedAt: new Date().toISOString() } : { status: 'not_found', fetchedAt: new Date().toISOString() };
+    } catch (e) {
+      // Hors-ligne (ou session expirée) : on garde la dernière version connue.
       const prev = useFriends.getState().data[key];
-      entry = prev ? { ...prev, status: prev.share ? prev.status : 'error' } : { status: 'error', fetchedAt: new Date().toISOString() };
-      return entry;
+      if (e instanceof ApiError && e.status === 401) throw e;
+      return prev ? { ...prev, status: prev.share ? prev.status : 'error' } : { status: 'error', fetchedAt: new Date().toISOString() };
     }
   }
   useFriends.setState((s) => ({ data: { ...s.data, [key]: entry } }));
@@ -307,7 +281,7 @@ export async function lookupFriend(token: string, login: string): Promise<Friend
 }
 
 /** Recharge les amis dont les données ont plus de `maxAgeMin` minutes. */
-export async function refreshFriends(token: string, logins: string[], maxAgeMin = 10) {
+export async function refreshFriends(logins: string[], maxAgeMin = 10) {
   const now = Date.now();
   await Promise.all(
     logins
@@ -315,7 +289,7 @@ export async function refreshFriends(token: string, logins: string[], maxAgeMin 
         const e = useFriends.getState().data[l.toLowerCase()];
         return !e || now - new Date(e.fetchedAt).getTime() > maxAgeMin * 60_000;
       })
-      .map((l) => lookupFriend(token, l)),
+      .map((l) => lookupFriend(l).catch(() => undefined)),
   );
 }
 

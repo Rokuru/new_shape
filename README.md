@@ -21,8 +21,8 @@ Application web (PWA, hors-ligne, en français) pour suivre ta progression en mu
 - **Marche** : au choix tapis (vitesse + durée + inclinaison) ou montre / podomètre (nombre de pas) → distance, dénivelé, pas et calories nettes (équation de marche ACSM), historique sur 14 jours.
 - **Nutrition** : métabolisme (Mifflin-St Jeor ou Katch-McArdle) × activité quotidienne hors sport, **+ moyenne sur 14 jours de la dépense des séances et de la marche** (cible stable chaque jour), calories et macros selon l’objectif, **ajustement adaptatif** à partir de la tendance réelle du poids.
 - **Progrès** : 1RM estimé par exercice, records, volume hebdomadaire par muscle, tonnage.
-- **Connexion GitHub** : les données sont sauvegardées dans un gist secret du compte de l’utilisateur et synchronisées entre ses appareils (fusion automatique si deux appareils ont été modifiés en parallèle, hors-ligne compris).
-- **Amis** : chacun peut activer le partage de ses progrès (gist **public** de son compte, résumé : 1RM estimés, régularité, dernières séances et, au choix, poids et composition). On ajoute un ami par son pseudo GitHub pour comparer les courbes (en kg ou en % de progression), la régularité et l’évolution du poids.
+- **Compte sans mot de passe** : Face ID / Touch ID (clé d’accès) ou GitHub. Les données sont enregistrées sur le serveur de l’app (Cloudflare D1) et synchronisées entre les appareils (fusion automatique si deux appareils ont été modifiés en parallèle, hors-ligne compris).
+- **Amis** : chacun peut activer le partage de ses progrès (résumé : 1RM estimés, régularité, dernières séances et, au choix, poids et composition), visible **uniquement par ses amis mutuels**. On ajoute un ami par son pseudo pour comparer les courbes (en kg ou en % de progression), la régularité et l’évolution du poids.
 - Sans connexion : données dans le navigateur, export / import JSON. Thème clair / sombre.
 
 ## Design
@@ -42,44 +42,27 @@ npm test          # tests unitaires (calculs, progression, générateur)
 npm run build     # build de production dans dist/
 ```
 
-Le dossier `dist/` est statique : il peut être hébergé sur GitHub Pages, Netlify, Vercel… Sur mobile, « Ajouter à l’écran d’accueil » pour l’utiliser comme une app.
+Sur mobile, « Ajouter à l’écran d’accueil » pour l’utiliser comme une app.
 
-## Déploiement GitHub Pages
+## Hébergement et déploiement
 
-- **`main` = production** : chaque push sur `main` (en pratique, chaque PR fusionnée) teste, construit et publie `dist/` sur la branche `gh-pages`.
-- **Évolutions par pull request** : travailler sur une branche, ouvrir une PR vers `main` ; le workflow `.github/workflows/deploy.yml` y lance les tests et le build, sans déployer.
-Une seule fois : **Settings → Pages → Source : Deploy from a branch → `gh-pages` / `(root)`**.
-L’app est alors servie sur `https://rokuru.github.io/new_shape/`.
+- L’app et son serveur sont hébergés par **Cloudflare Pages** (gratuit) : `functions/api/[[path]].ts` et `server/` pour le serveur, base **D1** pour les données. Mise en place pas à pas : [DEPLOIEMENT.md](DEPLOIEMENT.md).
+- **`main` = production** : chaque PR fusionnée est construite et publiée automatiquement par Cloudflare. Les PR sont vérifiées (tests + build) par `.github/workflows/deploy.yml`.
+- L’ancienne adresse `https://rokuru.github.io/new_shape/` (GitHub Pages) sert une page de déménagement (`legacy/`) : redirection et transfert des données de l’appareil.
+- `npm run dev:cf` : app + serveur + base D1 en local sur http://localhost:8788.
 
-## Connexion GitHub
+## Serveur (API)
 
-Les données de chaque utilisateur sont stockées dans **un gist secret de son propre compte** (`new-shape-data.json`) : pas de base de données à héberger.
+| Route | Rôle |
+| --- | --- |
+| `GET /api/auth/github`, `/api/auth/github/callback` | Connexion, liaison ou import via GitHub (OAuth, jeton révoqué aussitôt) |
+| `POST /api/passkey/register/*`, `/api/passkey/login/*` | Création de compte et connexion par Face ID / Touch ID (WebAuthn) |
+| `GET /api/me`, `POST /api/logout`, `DELETE /api/account`, `DELETE /api/passkeys/:id` | Compte, session, clés d’accès |
+| `GET` / `PUT /api/data` | Données de l’utilisateur (écriture conditionnelle par version, 409 en cas de conflit) |
+| `PUT /api/share`, `GET /api/friends/:pseudo` | Partage entre amis mutuels |
+| `GET` / `DELETE /api/import` | Données récupérées de l’ancien gist, en attente de fusion par l’app |
 
-Deux façons de se connecter :
-
-1. **Jeton d’accès** (fonctionne sans configuration) : l’utilisateur crée un jeton avec la seule permission `gist` et le colle dans Profil → Compte GitHub.
-2. **Bouton « Se connecter avec GitHub »** (OAuth) : à activer une fois, car l’échange du code OAuth exige un secret qui ne peut pas être dans une page statique.
-   1. Créer une OAuth App : GitHub → Settings → Developer settings → OAuth Apps → *New OAuth App*
-      - Homepage URL et **Authorization callback URL** : `https://rokuru.github.io/new_shape/`
-      - Noter le *Client ID* et générer un *Client secret*.
-   2. Créer le Worker Cloudflare (offre gratuite) : *Workers & Pages → Create → Hello World*, nom `new-shape-auth`,
-      coller le code de `auth-worker/worker.js` (Client ID et origine y sont écrits), puis dans
-      *Settings → Variables and Secrets* (variables d’exécution, pas « Build ») : `GITHUB_CLIENT_SECRET` (type Secret).
-      (Ou en ligne de commande : `cd auth-worker && npx wrangler deploy && npx wrangler secret put GITHUB_CLIENT_SECRET`.)
-   3. Renseigner le Client ID et l’URL du Worker dans `.env.production` (valeurs publiques) et pousser.
-
-Configuration actuelle : Client ID `Ov23liyZi5eEiCRHEjXB`, Worker `https://new-shape-auth.vincent-pedussel.workers.dev`.
-
-Le jeton reste dans le navigateur de l’utilisateur (localStorage), ne sert qu’à lire / écrire son gist et est révoqué à la déconnexion.
-Voir [SECURITY.md](SECURITY.md) pour le modèle de sécurité (CSP, validation des données, partage public, limites connues)
-et la mise à jour du Worker.
-
-### Amis
-
-- Les données complètes restent dans le gist **secret** `new-shape-data.json`.
-- Le partage (désactivé par défaut) publie un résumé dans un gist **public** `new-shape-share.json` ; le désactiver supprime ce gist.
-- Trouver un ami = lire les gists publics de son compte (`/users/{pseudo}/gists`). La liste d’amis est synchronisée avec le reste des données ; « Ami mutuel » s’affiche quand l’ami vous suit aussi (le partage public ne contient que des empreintes de la liste d’amis, pas les pseudos en clair).
-- Les données d’un ami sont non fiables : elles sont revalidées (`parseShare`) et son identité vient de l’API GitHub.
+Voir [SECURITY.md](SECURITY.md) pour le modèle de sécurité (session HttpOnly, CSRF, CSP, validation, amis mutuels, limites connues).
 
 ## Structure
 
@@ -87,11 +70,13 @@ et la mise à jour du Worker.
 src/
   data/        exercices et programmes de référence
   lib/         calculs (calc), progression, générateur, store (zustand + localStorage),
-               github (API, OAuth), sync (synchronisation et fusion),
-               share (partage public et amis), bia (balance Tanita)
+               api (serveur, Face ID, GitHub), sync (synchronisation et fusion),
+               share (partage et amis), transfer (déménagement), bia (balance Tanita)
   pages/       Accueil, Séance, Programmes, Corps, Nutrition, Progrès, Amis, Profil
   components/  UI partagée, logo, formulaire de profil, barres de volume
-auth-worker/   proxy OAuth (Cloudflare Worker)
+functions/     point d’entrée du serveur (Cloudflare Pages Functions)
+server/        serveur : sessions, GitHub, clés d’accès, données, amis (+ tests avec une base SQLite en mémoire)
+legacy/        page de déménagement publiée sur l’ancienne adresse GitHub Pages
 scripts/       génération des icônes PNG à partir du logo
 ```
 

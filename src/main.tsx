@@ -3,8 +3,9 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import { applyTheme, readTheme } from './pages/Profile';
-import { consumeOAuthCallback } from './lib/github';
-import { login, startSync, useAuth } from './lib/sync';
+import { consumeAuthReturn } from './lib/api';
+import { afterSignIn, applyGistImport, startSync, useAuth } from './lib/sync';
+import { startTransferReceiver } from './lib/transfer';
 // Typographies auto-hébergées (hors-ligne, sans appel à Google Fonts) : Barlow pour le texte,
 // Barlow Condensed pour les titres, le logo et les chiffres.
 import '@fontsource/barlow/latin-400.css';
@@ -33,12 +34,21 @@ if (window.top !== window.self) {
 
 applyTheme(readTheme());
 
-// Retour de la page d'autorisation GitHub (?code=…) : l'URL est nettoyée avant le premier rendu,
-// puis le code est échangé contre un jeton et la première synchro démarre.
-consumeOAuthCallback()
-  .then((token) => (token ? login(token) : undefined))
-  .catch((e: Error) => useAuth.setState({ status: 'error', error: e.message }));
+// Retour de GitHub (?auth=… ou ?auth_error=…) : l'adresse est nettoyée avant le premier rendu,
+// puis le compte est chargé, la synchro démarre et un éventuel import de l'ancien gist est fusionné.
+const authReturn = consumeAuthReturn();
 startSync();
+startTransferReceiver();
+if (authReturn?.error) useAuth.setState({ status: 'error', error: authReturn.error });
+else if (authReturn?.mode) {
+  void afterSignIn()
+    .then(async () => {
+      if (authReturn.mode !== 'import') return;
+      const done = authReturn.imported === 'ok' && (await applyGistImport());
+      useAuth.setState({ notice: done ? 'Données de l’ancien gist importées ✓' : 'Aucune donnée New Shape trouvée dans tes gists.' });
+    })
+    .catch((e: Error) => useAuth.setState({ status: 'error', error: e.message }));
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

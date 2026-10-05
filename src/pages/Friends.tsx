@@ -3,28 +3,29 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import type { Tab } from '../App';
 import { getExercise } from '../data/exercises';
 import { GOAL_LABELS } from '../lib/calc';
-import { buildShare, friendHash, lookupFriend, mergeSeries, refreshFriends, useFriends, usePublish, type FriendEntry, type SharePayload } from '../lib/share';
+import { buildShare, lookupFriend, mergeSeries, refreshFriends, useFriends, usePublish, type FriendEntry, type SharePayload } from '../lib/share';
 import { useStore } from '../lib/store';
 import { syncNow, useAuth } from '../lib/sync';
 import { LEVEL_LABELS } from '../components/ProfileForm';
+import { GitHubMark } from '../components/AccountCard';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented } from '../components/ui';
 
 export default function FriendsPage({ go }: { go: (t: Tab) => void }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const { friends } = useStore();
   const data = useFriends((s) => s.data);
   const [selected, setSelected] = useState<string | undefined>();
 
   useEffect(() => {
-    if (token && friends.length) void refreshFriends(token, friends);
-  }, [token, friends]);
+    if (user && friends.length) void refreshFriends(friends);
+  }, [user, friends]);
 
-  if (!token || !user) {
+  if (!user) {
     return (
       <div>
         <h1>Amis</h1>
         <div className="card">
-          <p>Pour suivre tes amis et comparer vos progrès, connecte-toi d’abord avec ton compte GitHub.</p>
+          <p>Pour suivre tes amis et comparer vos progrès, connecte-toi d’abord à ton compte New Shape.</p>
           <button className="btn primary" onClick={() => go('profile')}>
             Se connecter
           </button>
@@ -44,19 +45,32 @@ export default function FriendsPage({ go }: { go: (t: Tab) => void }) {
 
       <div className="card">
         <h2>Mes amis</h2>
-        {friends.length === 0 && <Empty>Ajoute un ami avec son pseudo GitHub pour comparer vos courbes et vos séances.</Empty>}
+        {friends.length === 0 && <Empty>Ajoute un ami avec son pseudo New Shape pour comparer vos courbes et vos séances.</Empty>}
         {friends.map((f) => (
-          <FriendRow key={f} login={f} entry={data[f.toLowerCase()]} me={user.login} active={f === current} onSelect={() => setSelected(f)} />
+          <FriendRow key={f} login={f} entry={data[f.toLowerCase()]} active={f === current} onSelect={() => setSelected(f)} />
         ))}
       </div>
 
       {current && entry?.share && <Compare friend={entry.share} />}
-      {current && entry && !entry.share && (
+      {current && entry && !entry.share && entry.status !== 'error' && (
         <div className="callout">
-          @{current} n’a pas encore activé le partage dans New Shape. Envoie-lui le lien de l’app : dès qu’il active « Partager mes progrès », ses courbes apparaîtront ici.
+          {entry.status === 'not_mutual'
+            ? `@${current} ne t’a pas encore ajouté. Ses progrès apparaîtront ici dès qu’il t’aura ajouté à son tour avec ton pseudo @${user.login}.`
+            : entry.status === 'not_found'
+              ? `Aucun compte New Shape « ${current} ».`
+              : `@${current} n’a pas encore activé « Partager mes progrès ». Ses courbes apparaîtront ici dès qu’il l’aura fait.`}
         </div>
       )}
     </div>
+  );
+}
+
+/** Compte relié à GitHub : pseudo vérifié par GitHub. */
+function GitHubBadge() {
+  return (
+    <span className="tag" title="Compte relié à GitHub">
+      <GitHubMark /> vérifié
+    </span>
   );
 }
 
@@ -72,7 +86,7 @@ function Avatar({ url, size = 36 }: { url?: string; size?: number }) {
 
 function ShareCard() {
   const { share, setShare } = useStore();
-  const { publishedAt, error, gistId } = usePublish();
+  const { publishedAt, error } = usePublish();
   const { user } = useAuth();
   const set = (p: Partial<typeof share>) => {
     setShare(p);
@@ -87,7 +101,7 @@ function ShareCard() {
           role="switch"
           aria-checked={share.enabled}
           onClick={() => {
-            if (!share.enabled && !confirm('Tes progrès (charges, séances et, si tu le choisis, ton poids) seront publiés dans un gist PUBLIC de ton compte GitHub. Toute personne connaissant ton pseudo pourra les voir. Continuer ?')) return;
+            if (!share.enabled && !confirm('Tes progrès (charges, séances et, si tu le choisis, ton poids) seront visibles par tes amis mutuels : ceux que tu as ajoutés et qui t’ont ajouté. Continuer ?')) return;
             set({ enabled: !share.enabled });
           }}
         >
@@ -95,7 +109,8 @@ function ShareCard() {
         </button>
       </div>
       <p className="small secondary" style={{ marginTop: 8 }}>
-        Tes amis te trouvent avec ton pseudo GitHub <b>@{user?.login}</b>. Sont partagés : tes charges (1RM estimés), ta régularité, tes dernières séances
+        Tes amis te trouvent avec ton pseudo <b>@{user?.login}</b>. Seuls tes <b>amis mutuels</b> (ajoutés dans les deux sens) voient ton partage. Sont partagés : tes
+        charges (1RM estimés), ta régularité, tes dernières séances
         {share.body ? ', ton poids et ta composition (1 valeur par semaine)' : ''}. Tes notes, mensurations détaillées et ton programme restent privés.
       </p>
       <label className="small" style={{ display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer' }}>
@@ -107,17 +122,7 @@ function ShareCard() {
           {error ? (
             <span className="status bad">⚠ {error}</span>
           ) : publishedAt ? (
-            <>
-              Publié le {fmtDate(publishedAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-              {gistId && (
-                <>
-                  {' · '}
-                  <a href={`https://gist.github.com/${user?.login}/${gistId}`} target="_blank" rel="noreferrer">
-                    voir ce qui est public
-                  </a>
-                </>
-              )}
-            </>
+            <>Partagé avec tes amis mutuels, mis à jour le {fmtDate(publishedAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
           ) : (
             'Publication en cours…'
           )}
@@ -128,7 +133,7 @@ function ShareCard() {
 }
 
 function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const { friends, addFriend } = useStore();
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
@@ -136,9 +141,9 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
 
   const search = async () => {
     const login = q.trim().replace(/^@/, '');
-    if (!login || !token) return;
+    if (!login || !user) return;
     setBusy(true);
-    setResult({ ...(await lookupFriend(token, login)), login });
+    setResult({ ...(await lookupFriend(login).catch(() => ({ status: 'error' as const, fetchedAt: '' }))), login });
     setBusy(false);
   };
   const already = result?.user && friends.some((f) => f.toLowerCase() === result.user!.login.toLowerCase());
@@ -155,7 +160,7 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
           void search();
         }}
       >
-        <input aria-label="Pseudo GitHub de ton ami" value={q} onChange={(e) => setQ(e.target.value)} placeholder="pseudo GitHub, ex. octocat" autoCapitalize="none" autoCorrect="off" />
+        <input aria-label="Pseudo New Shape de ton ami" value={q} onChange={(e) => setQ(e.target.value)} placeholder="pseudo de ton ami" autoCapitalize="none" autoCorrect="off" />
         <button className="btn" disabled={busy || !q.trim()}>
           {busy ? '…' : 'Rechercher'}
         </button>
@@ -163,7 +168,7 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
       {result && (
         <div className="list-item" style={{ marginTop: 8 }}>
           {result.status === 'not_found' ? (
-            <span className="secondary">Aucun compte GitHub « {result.login} ».</span>
+            <span className="secondary">Aucun compte New Shape « {result.login} ».</span>
           ) : result.status === 'error' ? (
             <span className="secondary">Recherche impossible (hors connexion ?).</span>
           ) : (
@@ -172,12 +177,14 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
                 <Avatar url={result.user?.avatarUrl} />
                 <div style={{ minWidth: 0 }}>
                   <div>
-                    <b>{result.user?.name || result.user?.login}</b> <span className="small muted">@{result.user?.login}</span>
+                    <b>{result.user?.name || result.user?.login}</b> <span className="small muted">@{result.user?.login}</span> {result.user?.github && <GitHubBadge />}
                   </div>
                   <div className="small muted">
                     {result.share
                       ? `${GOAL_LABELS[result.share.profile.goal]} · ${result.share.stats.workouts} séances`
-                      : 'N’utilise pas encore New Shape ou n’a pas activé le partage'}
+                      : result.status === 'not_mutual'
+                        ? 'Ses progrès seront visibles quand vous vous serez ajoutés tous les deux'
+                        : 'N’a pas activé le partage'}
                   </div>
                 </div>
               </div>
@@ -206,20 +213,10 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
   );
 }
 
-function FriendRow({ login, entry, me, active, onSelect }: { login: string; entry?: FriendEntry; me: string; active: boolean; onSelect: () => void }) {
+function FriendRow({ login, entry, active, onSelect }: { login: string; entry?: FriendEntry; active: boolean; onSelect: () => void }) {
   const { removeFriend } = useStore();
   const s = entry?.share;
-  // Ami mutuel : ancien format (pseudos en clair) ou empreinte « ami:moi » dans son partage.
-  const [hashMatch, setHashMatch] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    if (s?.friendHashes?.length) void friendHash(login, me).then((h) => alive && setHashMatch(s.friendHashes!.includes(h)));
-    else setHashMatch(false);
-    return () => {
-      alive = false;
-    };
-  }, [s, login, me]);
-  const mutual = hashMatch || s?.friends.some((f) => f.toLowerCase() === me.toLowerCase());
+  const mutual = entry?.mutual;
   const thisWeek = s?.weekly.at(-1)?.sessions;
   return (
     <div className="list-item" style={active ? { background: 'var(--surface-2)', margin: '0 -8px', padding: '10px 8px', borderRadius: 8 } : undefined}>
@@ -227,13 +224,17 @@ function FriendRow({ login, entry, me, active, onSelect }: { login: string; entr
         <Avatar url={entry?.user?.avatarUrl} />
         <div style={{ minWidth: 0 }}>
           <div>
-            <b>{entry?.user?.name || login}</b> <span className="small muted">@{login}</span> {mutual && <span className="tag">Ami mutuel</span>}
+            <b>{entry?.user?.name || login}</b> <span className="small muted">@{login}</span> {entry?.user?.github && <GitHubBadge />} {mutual && <span className="tag">Ami mutuel</span>}
           </div>
           <div className="small muted">
             {!entry
               ? 'Chargement…'
-              : !s
-                ? 'Partage non activé'
+              : entry.status === 'not_mutual'
+                ? 'Ne t’a pas encore ajouté'
+                : entry.status === 'not_found'
+                  ? 'Compte introuvable'
+                  : !s
+                    ? 'Partage non activé'
                 : `${s.stats.lastWorkout ? `dernière séance le ${fmtDate(s.stats.lastWorkout)}` : 'aucune séance'} · ${thisWeek ?? 0} cette semaine`}
           </div>
         </div>

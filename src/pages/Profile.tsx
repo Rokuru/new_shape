@@ -23,7 +23,7 @@ export function applyTheme(t: Theme) {
 
 export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
   const { profile, setProfile, importData, reset } = useStore();
-  const connected = useAuth((s) => Boolean(s.token));
+  const connected = useAuth((s) => Boolean(s.user));
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [msg, setMsg] = useState('');
 
@@ -86,7 +86,7 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
 
       <div className="card">
         <h2>Données</h2>
-        <p className="small secondary">{connected ? 'Tes données sont synchronisées avec GitHub. Tu peux aussi les exporter en fichier.' : 'Sans compte GitHub, tes données restent uniquement dans ce navigateur : exporte-les régulièrement ou connecte-toi ci-dessus.'}</p>
+        <p className="small secondary">{connected ? 'Tes données sont synchronisées avec ton compte. Tu peux aussi les exporter en fichier.' : 'Sans compte, tes données restent uniquement dans ce navigateur : exporte-les régulièrement ou connecte-toi ci-dessus.'}</p>
         <div className="row">
           <button className="btn" onClick={download}>
             Exporter (.json)
@@ -99,8 +99,8 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
             className="btn danger ghost"
             onClick={() => {
               if (connected) {
-                // Effacer en étant connecté viderait aussi le gist : on se déconnecte d'abord.
-                if (confirm('Effacer les données de cet appareil et se déconnecter ? Elles restent sauvegardées sur GitHub.')) logout(true);
+                // Effacer en étant connecté viderait aussi le compte : on se déconnecte d'abord.
+                if (confirm('Effacer les données de cet appareil et se déconnecter ? Elles restent sauvegardées sur ton compte.')) void logout(true);
               } else if (confirm('Effacer toutes les données ? Cette action est irréversible.')) reset();
             }}
           >

@@ -1,6 +1,0 @@
-name = "new-shape-auth"
-main = "worker.js"
-compatibility_date = "2026-09-01"
-
-# Le Client ID et l'origine autorisée sont écrits dans worker.js (valeurs publiques).
-# Seul le secret est à définir : npx wrangler secret put GITHUB_CLIENT_SECRET
