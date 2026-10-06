@@ -4,6 +4,7 @@ import { localDate } from '../lib/dates';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
+import { ExerciseInfoButton, ExerciseLink } from './ExerciseInfo';
 import NumField from './NumField';
 import Sheet from './Sheet';
 import { fmtDate, Icon } from './ui';
@@ -60,7 +61,9 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
         return (
           <div key={i} className="edit-ex">
             <div className="spread">
-              <h3 style={{ margin: 0 }}>{info.name}</h3>
+              <h3 style={{ margin: 0 }}>
+                <ExerciseLink id={ex.exerciseId} />
+              </h3>
               <button className="btn ghost sm" aria-label={`Retirer ${info.name}`} onClick={() => setExercises((xs) => xs.filter((_, j) => j !== i))}>
                 <Icon name="trash" size={16} />
               </button>
@@ -112,6 +115,7 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
               </optgroup>
             ))}
           </select>
+          {adding && <ExerciseInfoButton id={adding} />}
           <button
             className="btn"
             disabled={!adding}

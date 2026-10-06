@@ -231,6 +231,7 @@ export function sanitizeProgram(v: unknown): Program | undefined {
     days,
     custom: true,
   };
+  if (typeof v.generated === 'boolean') p.generated = v.generated;
   const style = oneOf(v.style, STYLES);
   if (style) p.style = style;
   const dur = num(v.durationMin, 5, 300);

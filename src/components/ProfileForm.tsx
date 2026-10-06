@@ -2,7 +2,8 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { PROFILE_LIMITS } from '../lib/store';
 import { MUSCLE_LABELS, MUSCLES } from '../data/exercises';
 import { ACTIVITY_LABELS, GOAL_LABELS } from '../lib/calc';
-import type { ActivityLevel, Equipment, Goal, Level, Profile } from '../lib/types';
+import { splitFor, SPLITS } from '../lib/generator';
+import type { ActivityLevel, Equipment, Goal, Level, Profile, SplitPref } from '../lib/types';
 
 export const LEVEL_LABELS: Record<Level, string> = {
   beginner: 'Débutant (< 1 an)',
@@ -103,6 +104,7 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
           </select>
         </label>
       </div>
+      <SplitPicker profile={profile} onChange={onChange} />
       <div>
         <div className="small secondary" style={{ marginBottom: 6 }}>
           Muscles à prioriser (volume supplémentaire)
@@ -124,6 +126,41 @@ export default function ProfileForm({ profile, onChange }: { profile: Profile; o
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Type de programme généré (full body, haut/bas, PPL…) et préférence pour les machines. */
+export function SplitPicker({ profile, onChange }: { profile: Profile; onChange: (p: Partial<Profile>) => void }) {
+  const pref = profile.split ?? 'auto';
+  const plan = splitFor(profile.daysPerWeek, pref);
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <label className="field">
+        Type de programme
+        <select value={pref} onChange={(e) => onChange({ split: e.target.value as SplitPref })}>
+          {(Object.keys(SPLITS) as SplitPref[]).map((k) => (
+            <option key={k} value={k}>
+              {SPLITS[k].label}
+              {k !== 'auto' && (profile.daysPerWeek < SPLITS[k].min ? ` (${SPLITS[k].min} séances min.)` : '')}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="small secondary">
+        {SPLITS[pref].hint} Avec {profile.daysPerWeek} séances : <b>{plan.label}</b>.{plan.note && <span className="muted"> {plan.note}</span>}
+      </div>
+      {profile.equipment === 'full_gym' && (
+        <label className="small" style={{ cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={profile.preferMachines === true}
+            onChange={(e) => onChange({ preferMachines: e.target.checked })}
+            style={{ width: 20, height: 20, minHeight: 0, flexShrink: 0 }}
+          />
+          <span>Machines de préférence (Basic-Fit) : presse pectoraux, tirage, presse à cuisses… plutôt que barres et haltères</span>
+        </label>
+      )}
     </div>
   );
 }

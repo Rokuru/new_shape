@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { getExercise, MUSCLE_LABELS } from '../data/exercises';
 import { guideFor, PATTERN_LABELS, PATTERN_STEPS } from '../data/exerciseGuide';
+import { breathingFor, EN_NAMES, frenchQueryName, mistakesFor, tempoFor, VARIANTS, videoSearchUrl } from '../data/exerciseDetails';
 import ExerciseFigure from './ExerciseFigure';
 import MuscleMap from './MuscleMap';
 import { Icon } from './ui';
@@ -14,7 +15,7 @@ export function ExerciseInfoProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={open}>
       {children}
-      {id && <ExerciseSheet id={id} onClose={() => setId(undefined)} />}
+      {id && <ExerciseSheet key={id} id={id} onClose={() => setId(undefined)} />}
     </Ctx.Provider>
   );
 }
@@ -30,27 +31,44 @@ export function ExerciseLink({ id, children }: { id: string; children?: ReactNod
   );
 }
 
+/** Bouton « i » seul, à côté d'une liste de choix d'exercice. */
+export function ExerciseInfoButton({ id }: { id: string }) {
+  const open = useContext(Ctx);
+  return (
+    <button type="button" className="btn" onClick={() => open(id)} aria-haspopup="dialog" aria-label={`Fiche : ${getExercise(id).name}`}>
+      <Icon name="info" size={18} />
+    </button>
+  );
+}
+
 function ExerciseSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const ex = getExercise(id);
   const guide = guideFor(id);
+  const variants = VARIANTS[id];
+  const en = EN_NAMES[id];
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
+    // Capture : si la fiche s'ouvre par-dessus un autre panneau, Échap ne ferme qu'elle.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', onKey, true);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = overflow;
       prev?.focus();
     };
   }, [onClose]);
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop over" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <div style={{ minWidth: 0 }}>
@@ -98,6 +116,62 @@ function ExerciseSheet({ id, onClose }: { id: string; onClose: () => void }) {
             )}
           </div>
         </div>
+
+        <div className="sheet-grid">
+          <div>
+            <h3>Erreurs fréquentes</h3>
+            <ul className="sheet-list">
+              {mistakesFor(id).map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3>Respiration</h3>
+            <p className="secondary">{breathingFor(guide.pattern)}</p>
+            <h3>Rythme</h3>
+            <p className="secondary">{tempoFor(guide.pattern)}</p>
+          </div>
+        </div>
+
+        {(variants?.easier?.length || variants?.harder?.length) && (
+          <>
+            <h3>Variantes</h3>
+            <div className="sheet-variants">
+              {variants.easier?.length ? (
+                <div>
+                  <div className="small muted">Plus facile</div>
+                  {variants.easier.map((v) => (
+                    <ExerciseLink key={v} id={v} />
+                  ))}
+                </div>
+              ) : null}
+              {variants.harder?.length ? (
+                <div>
+                  <div className="small muted">Plus difficile</div>
+                  {variants.harder.map((v) => (
+                    <ExerciseLink key={v} id={v} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </>
+        )}
+
+        <h3>En vidéo</h3>
+        <div className="row" style={{ gap: 8 }}>
+          <a className="btn sm" href={videoSearchUrl(`${frenchQueryName(ex.name)} technique exécution`)} target="_blank" rel="noopener noreferrer">
+            <Icon name="play" size={16} /> Vidéos en français
+          </a>
+          {en && (
+            <a className="btn sm" href={videoSearchUrl(`${en} proper form`)} target="_blank" rel="noopener noreferrer">
+              <Icon name="play" size={16} /> En anglais ({en})
+            </a>
+          )}
+        </div>
+        <p className="small muted" style={{ marginBottom: 0 }}>
+          Ouvre une recherche YouTube dans un nouvel onglet. Privilégie les chaînes de coachs diplômés ou de kinés, et compare avec les consignes ci-dessus.
+        </p>
       </div>
     </div>
   );

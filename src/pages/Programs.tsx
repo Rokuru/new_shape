@@ -1,28 +1,60 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MUSCLE_LABELS } from '../data/exercises';
-import { EQUIPMENT_LABELS } from '../components/ProfileForm';
+import { EQUIPMENT_LABELS, SplitPicker } from '../components/ProfileForm';
 import { canDo, programScore, programStats, STYLE_LABELS } from '../lib/programStats';
 import type { Tab } from '../App';
 import { MUSCLES } from '../data/exercises';
 import { PROGRAMS } from '../data/programs';
 import { GOAL_LABELS, volumeFromSets } from '../lib/calc';
 import { generateProgram, weeklySetTarget } from '../lib/generator';
-import { useStore } from '../lib/store';
-import type { Program, ProgramStyle } from '../lib/types';
+import { uid, useStore } from '../lib/store';
+import type { PlannedExercise, Profile, Program, ProgramStyle } from '../lib/types';
 import { LEVEL_LABELS } from '../components/ProfileForm';
 import { fmtNum, Icon } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
 import { ExerciseLink } from '../components/ExerciseInfo';
+import Sheet from '../components/Sheet';
 import ProgramEditor, { blankProgram, toEditable } from '../components/ProgramEditor';
 import { safeUrl } from '../lib/sanitize';
-import { getExercise } from '../data/exercises';
+import { EXERCISES, getExercise } from '../data/exercises';
 import { getStretch, suggestStretches } from '../data/stretches';
 
+/** Programme issu du générateur et jamais modifié à la main (drapeau, ou auteur pour les versions précédentes). */
+const isGenerated = (p: Program) => p.generated ?? p.author === 'Généré à partir de ton profil';
+
 export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
-  const { profile, customPrograms, activeProgramId, activateProgram, saveCustomProgram, deleteCustomProgram } = useStore();
+  const { profile, setProfile, customPrograms, activeProgramId, activateProgram, saveCustomProgram, deleteCustomProgram } = useStore();
   const [seed, setSeed] = useState(0);
   const [editing, setEditing] = useState<{ program: Program; isNew: boolean }>();
   const generated = useMemo(() => generateProgram(profile), [profile, seed]);
+  // Exercices remplacés à la main dans le programme proposé (effacés quand le profil change).
+  const [swaps, setSwaps] = useState<Record<string, string>>({});
+  useEffect(() => setSwaps({}), [generated]);
+  const shown = useMemo(() => applySwaps(generated, swaps), [generated, swaps]);
+  const [swapping, setSwapping] = useState<{ d: number; j: number }>();
+  const previous = customPrograms.find(isGenerated);
+  const [keepOld, setKeepOld] = useState(false);
+
+  // Suppression annulable pendant quelques secondes.
+  const [undo, setUndo] = useState<{ program: Program; wasActive: boolean; nextDayIndex: number }>();
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(undefined), 8000);
+    return () => clearTimeout(t);
+  }, [undo]);
+  const remove = (p: Program) => {
+    const st = useStore.getState();
+    setUndo({ program: p, wasActive: st.activeProgramId === p.id, nextDayIndex: st.nextDayIndex });
+    deleteCustomProgram(p.id);
+  };
+  const restore = () => {
+    if (!undo) return;
+    // Nouvel identifiant : la suppression a pu déjà partir vers les autres appareils.
+    const copy = { ...undo.program, id: uid() };
+    saveCustomProgram(copy);
+    if (undo.wasActive) useStore.setState({ activeProgramId: copy.id, nextDayIndex: undo.nextDayIndex });
+    setUndo(undefined);
+  };
 
   const [style, setStyle] = useState<ProgramStyle | 'all'>('all');
   const score = (p: Program) => programScore(p, profile);
@@ -41,25 +73,48 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
         </div>
         <p className="small secondary">
           Généré à partir de ton profil ({GOAL_LABELS[profile.goal].toLowerCase()}, {LEVEL_LABELS[profile.level].toLowerCase()}, {profile.daysPerWeek} séances de{' '}
-          {profile.sessionMinutes} min). Il applique les principes qui font consensus : chaque muscle 2×/semaine, 10–20 séries dures par muscle et par semaine, séries à
-          0–3 répétitions de l’échec, et surcharge progressive.
+          {profile.sessionMinutes} min). Il applique les principes qui font consensus : 10–20 séries dures par muscle et par semaine, séries à 0–3 répétitions de l’échec,
+          surcharge progressive, et chaque muscle 2×/semaine quand la répartition le permet.
         </p>
-        <ProgramDetail program={generated} open />
+        <div className="pe-stretch" style={{ marginBottom: 12 }}>
+          <SplitPicker profile={profile} onChange={setProfile} />
+        </div>
+        <ProgramDetail program={shown} open onSwap={(d, j) => setSwapping({ d, j })} />
         <h3 style={{ marginTop: 16 }}>Volume hebdomadaire prévu</h3>
-        <VolumeBars volume={volumeFromSets(generated.days.flatMap((d) => d.exercises))} targets={Object.fromEntries(MUSCLES.map((m) => [m, weeklySetTarget(profile, m)]))} />
+        <VolumeBars volume={volumeFromSets(shown.days.flatMap((d) => d.exercises))} targets={Object.fromEntries(MUSCLES.map((m) => [m, weeklySetTarget(profile, m)]))} />
+        {previous && (
+          <label className="small" style={{ marginTop: 12, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="checkbox" checked={keepOld} onChange={(e) => setKeepOld(e.target.checked)} style={{ width: 20, height: 20, minHeight: 0, flexShrink: 0 }} />
+            <span>Garder aussi « {previous.name} » (sinon il est remplacé)</span>
+          </label>
+        )}
         <div className="row" style={{ marginTop: 12 }}>
           <button
             className="btn primary"
             onClick={() => {
-              saveCustomProgram(generated);
-              activateProgram(generated.id);
+              const p = previous && !keepOld ? { ...shown, id: previous.id } : shown;
+              saveCustomProgram(p);
+              activateProgram(p.id);
               setSeed((s) => s + 1);
+              setKeepOld(false);
             }}
           >
-            Enregistrer et activer
+            {previous && !keepOld ? 'Remplacer mon programme généré et l’activer' : 'Enregistrer et activer'}
           </button>
         </div>
       </div>
+      {swapping && (
+        <SwapSheet
+          profile={profile}
+          planned={shown.days[swapping.d].exercises[swapping.j]}
+          exclude={shown.days[swapping.d].exercises.map((e) => e.exerciseId)}
+          onClose={() => setSwapping(undefined)}
+          onPick={(id) => {
+            setSwaps((x) => ({ ...x, [`${swapping.d}:${swapping.j}`]: id }));
+            setSwapping(undefined);
+          }}
+        />
+      )}
 
       <div className="spread" style={{ marginTop: 24 }}>
         <h2 style={{ margin: 0 }}>Mes programmes</h2>
@@ -80,7 +135,7 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
           active={p.id === activeProgramId}
           onActivate={() => activateProgram(p.id)}
           onEdit={() => setEditing({ program: toEditable(p, false), isNew: false })}
-          onDelete={() => confirm('Supprimer ce programme ?') && deleteCustomProgram(p.id)}
+          onDelete={() => remove(p)}
         />
       ))}
 
@@ -108,7 +163,23 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
           onCopy={() => setEditing({ program: toEditable(p, true), isNew: true })}
         />
       ))}
-      {editing && <ProgramEditor key={editing.program.id} initial={editing.program} isNew={editing.isNew} onClose={() => setEditing(undefined)} />}
+      {editing && (
+        <ProgramEditor
+          key={editing.program.id}
+          initial={editing.program}
+          isNew={editing.isNew}
+          onClose={() => setEditing(undefined)}
+          onDelete={editing.isNew ? undefined : () => remove(editing.program)}
+        />
+      )}
+      {undo && (
+        <div className="snackbar" role="status">
+          <span>« {undo.program.name} » supprimé</span>
+          <button className="btn sm" onClick={restore}>
+            Annuler
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -212,8 +283,8 @@ function ProgramCard({
             </button>
           )}
           {onDelete && (
-            <button className="btn sm ghost danger" onClick={onDelete} aria-label="Supprimer">
-              <Icon name="trash" size={16} />
+            <button className="btn sm danger" onClick={onDelete}>
+              <Icon name="trash" size={16} /> Supprimer
             </button>
           )}
         </div>
@@ -266,7 +337,7 @@ function ProgramCard({
   );
 }
 
-function ProgramDetail({ program, open }: { program: Program; open?: boolean }) {
+function ProgramDetail({ program, open, onSwap }: { program: Program; open?: boolean; onSwap?: (day: number, index: number) => void }) {
   return (
     <details open={open}>
       <summary className="small">Détail des séances</summary>
@@ -284,6 +355,13 @@ function ProgramDetail({ program, open }: { program: Program; open?: boolean }) 
                     <td className="num" style={{ whiteSpace: 'nowrap' }}>
                       {e.sets} × {e.repMin === e.repMax ? e.repMin : `${e.repMin}–${e.repMax}`}
                     </td>
+                    {onSwap && (
+                      <td style={{ width: 1, padding: 0 }}>
+                        <button className="btn ghost sm" aria-label={`Remplacer ${getExercise(e.exerciseId).name}`} title="Remplacer cet exercice" onClick={() => onSwap(i, j)}>
+                          <Icon name="swap" size={16} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -307,5 +385,68 @@ function StretchLine({ day }: { day: Program['days'][number] }) {
     <div className="small muted" style={{ marginTop: 6 }}>
       🧘 Étirements{day.stretches ? '' : ' conseillés'} : {ids.map((id) => getStretch(id)?.name ?? id).join(', ')}
     </div>
+  );
+}
+
+/** Pas des exercices de musculation : jamais proposés en remplacement. */
+const NOT_STRENGTH = new Set(['jumping_jacks', 'high_knees']);
+
+/** Remplace des exercices du programme proposé ; les répétitions suivent le type du nouvel exercice. */
+function applySwaps(p: Program, swaps: Record<string, string>): Program {
+  if (!Object.keys(swaps).length) return p;
+  return {
+    ...p,
+    days: p.days.map((d, i) => ({
+      ...d,
+      exercises: d.exercises.map((e, j) => {
+        const id = swaps[`${i}:${j}`];
+        if (!id) return e;
+        const same = getExercise(id).kind === getExercise(e.exerciseId).kind;
+        const reps: Partial<PlannedExercise> = same ? {} : getExercise(id).kind === 'compound' ? { repMin: 8, repMax: 12, restSec: 120 } : { repMin: 10, repMax: 15, restSec: 75 };
+        return { ...e, ...reps, exerciseId: id };
+      }),
+    })),
+  };
+}
+
+function SwapSheet({ profile, planned, exclude, onPick, onClose }: { profile: Profile; planned: PlannedExercise; exclude: string[]; onPick: (id: string) => void; onClose: () => void }) {
+  const cur = getExercise(planned.exerciseId);
+  const machines = profile.preferMachines && profile.equipment === 'full_gym';
+  const options = EXERCISES.filter((e) => e.primary[0] === cur.primary[0] && e.equipment.includes(profile.equipment) && !exclude.includes(e.id) && !NOT_STRENGTH.has(e.id)).sort(
+    (a, b) =>
+      Number(b.kind === cur.kind) - Number(a.kind === cur.kind) ||
+      (machines ? Number(!!b.machine) - Number(!!a.machine) : 0) ||
+      a.name.localeCompare(b.name, 'fr'),
+  );
+  return (
+    <Sheet title={cur.name} kicker="Remplacer l’exercice" onClose={onClose}>
+      <p className="small secondary" style={{ marginTop: 0 }}>
+        Exercices qui travaillent surtout les {MUSCLE_LABELS[cur.primary[0]].toLowerCase()}, faisables avec ton matériel ({EQUIPMENT_LABELS[profile.equipment].toLowerCase()}). Touche un nom pour
+        voir sa fiche.
+      </p>
+      {options.length ? (
+        <ul className="swap-list">
+          {options.map((e) => (
+            <li key={e.id}>
+              <div>
+                <ExerciseLink id={e.id} />
+                <div className="small muted">
+                  {e.kind === 'compound' ? 'Polyarticulaire' : 'Isolation'}
+                  {e.machine ? ' · machine' : ''}
+                </div>
+              </div>
+              <button className="btn sm primary" onClick={() => onPick(e.id)}>
+                Choisir
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="small muted">Aucun autre exercice disponible avec ton matériel.</p>
+      )}
+      <p className="small muted" style={{ marginBottom: 0 }}>
+        Le remplacement s’applique au programme proposé ; il est gardé quand tu l’enregistres. Pour un programme déjà enregistré, utilise « Modifier ».
+      </p>
+    </Sheet>
   );
 }

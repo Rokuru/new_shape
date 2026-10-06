@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { MovePattern } from '../data/exerciseGuide';
 
 type P = [number, number];
@@ -283,26 +284,107 @@ function Figure({ pose }: { pose: Pose }) {
   );
 }
 
-/** Schéma simple du mouvement : position de départ → position d'arrivée (ou maintien pour le gainage). */
-export default function ExerciseFigure({ pattern }: { pattern: MovePattern }) {
-  const poses = POSES[pattern];
-  const frame = (pose: Pose, label: string, key: number) => (
-    <figure className="fig-frame" key={key}>
-      <svg viewBox="0 -14 120 132" role="img" aria-label={label}>
+const lerp = (a: P, b: P, t: number): P => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+const JOINTS = ['head', 'neck', 'hip', 'knee', 'ankle', 'toe', 'elbow', 'hand', 'knee2', 'ankle2', 'elbow2', 'hand2'] as const;
+
+/** Pose intermédiaire entre le départ et l'arrivée (t de 0 à 1). */
+function between(a: Pose, b: Pose, t: number): Pose {
+  const out: Pose = { ...(t < 0.5 ? a : b) };
+  for (const k of JOINTS) {
+    const pa = a[k];
+    const pb = b[k];
+    if (pa && pb) out[k] = lerp(pa, pb, t);
+  }
+  // Matériel : déplacé avec le corps quand les deux poses ont le même, sinon on bascule à mi-chemin.
+  const ga = a.gear ?? [];
+  const gb = b.gear ?? [];
+  if (ga.length === gb.length && ga.every((g, i) => g.t === gb[i].t))
+    out.gear = ga.map((g, i) => {
+      const h = gb[i];
+      if ((g.t === 'bar' || g.t === 'db' || g.t === 'kb') && 'at' in h) return { ...g, at: lerp(g.at, h.at, t) };
+      if ((g.t === 'line' || g.t === 'cable') && 'from' in h) return { ...g, from: lerp(g.from, h.from, t), to: lerp(g.to, h.to, t) };
+      return g;
+    });
+  return out;
+}
+
+/** Cycle d'une répétition : départ (pause), effort, arrivée (pause), retour. */
+const CYCLE = [
+  { label: 'Départ', ms: 600 },
+  { label: 'Effort', ms: 1100 },
+  { label: 'Arrivée', ms: 500 },
+  { label: 'Retour (lent)', ms: 1800 },
+];
+const CYCLE_MS = CYCLE.reduce((s, c) => s + c.ms, 0);
+const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
+
+function phaseAt(ms: number): { t: number; label: string } {
+  let rest = ms % CYCLE_MS;
+  for (const [i, c] of CYCLE.entries()) {
+    if (rest < c.ms) {
+      const x = rest / c.ms;
+      return { label: c.label, t: i === 0 ? 0 : i === 1 ? ease(x) : i === 2 ? 1 : 1 - ease(x) };
+    }
+    rest -= c.ms;
+  }
+  return { label: CYCLE[0].label, t: 0 };
+}
+
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function Frame({ pose, label, live }: { pose: Pose; label: string; live?: boolean }) {
+  return (
+    <figure className="fig-frame">
+      <svg viewBox="0 -14 120 132" role="img" aria-label={live ? 'Animation du mouvement' : label}>
         <line x1={4} y1={GROUND} x2={116} y2={GROUND} className="fig-ground" />
         <Figure pose={pose} />
       </svg>
-      <figcaption>{label}</figcaption>
+      <figcaption aria-live="off">{label}</figcaption>
     </figure>
   );
-  if (poses.length === 1) return <div className="fig-row single">{frame(poses[0], 'Position à tenir', 0)}</div>;
+}
+
+/**
+ * Schéma du mouvement : animation d'une répétition (départ → arrivée → retour lent),
+ * ou les deux positions côte à côte. Position unique pour le gainage.
+ */
+export default function ExerciseFigure({ pattern }: { pattern: MovePattern }) {
+  const poses = POSES[pattern];
+  const [animate, setAnimate] = useState(() => !reducedMotion());
+  const [phase, setPhase] = useState({ t: 0, label: CYCLE[0].label });
+  const moving = animate && poses.length > 1;
+
+  useEffect(() => {
+    if (!moving) return;
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      setPhase(phaseAt(now - start));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [moving, pattern]);
+
+  if (poses.length === 1) return <div className="fig-row single"><Frame pose={poses[0]} label="Position à tenir" /></div>;
   return (
-    <div className="fig-row">
-      {frame(poses[0], 'Départ', 0)}
-      <svg className="fig-arrow" viewBox="0 0 24 24" aria-hidden>
-        <path d="M4 12h14M13 6l6 6-6 6" />
-      </svg>
-      {frame(poses[1], 'Arrivée', 1)}
+    <div className="fig-wrap">
+      {moving ? (
+        <div className="fig-row single">
+          <Frame pose={between(poses[0], poses[1], phase.t)} label={phase.label} live />
+        </div>
+      ) : (
+        <div className="fig-row">
+          <Frame pose={poses[0]} label="Départ" />
+          <svg className="fig-arrow" viewBox="0 0 24 24" aria-hidden>
+            <path d="M4 12h14M13 6l6 6-6 6" />
+          </svg>
+          <Frame pose={poses[1]} label="Arrivée" />
+        </div>
+      )}
+      <button type="button" className="btn ghost sm fig-toggle" onClick={() => setAnimate((a) => !a)}>
+        {moving ? 'Voir départ et arrivée' : '▶ Animer le mouvement'}
+      </button>
     </div>
   );
 }

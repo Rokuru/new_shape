@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { adaptiveAdjustment, computeBmr, composition, currentComposition, e1rm, setE1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
-import { generateProgram } from './generator';
+import { generateProgram, splitFor, SPLITS } from './generator';
 import { suggest } from './progression';
 import { DEFAULT_PROFILE } from './store';
 import type { BodyEntry, LoggedExercise, PlannedExercise, Profile } from './types';
@@ -179,6 +179,46 @@ describe('générateur de programme', () => {
     const prio = generateProgram({ ...profile, daysPerWeek: 4, sessionMinutes: 90, priorities: ['shoulders'] });
     const vol = (p: typeof base) => volumeFromSets(p.days.flatMap((d) => d.exercises)).shoulders;
     expect(vol(prio)).toBeGreaterThan(vol(base));
+  });
+
+  it('chaque type de programme donne le bon nombre de séances, avec le matériel et la durée respectés', () => {
+    for (const split of Object.keys(SPLITS) as (keyof typeof SPLITS)[])
+      for (const days of [2, 3, 4, 5, 6])
+        for (const equipment of ['full_gym', 'home_dumbbells', 'bodyweight'] as const) {
+          const p = generateProgram({ ...profile, daysPerWeek: days, equipment, sessionMinutes: 60, split });
+          expect(p.days, `${split} ${days} ${equipment}`).toHaveLength(days);
+          for (const d of p.days) {
+            expect(d.exercises.length, `${split} ${days} ${equipment} ${d.name}`).toBeGreaterThanOrEqual(2);
+            expect(d.exercises.reduce((s, e) => s + e.sets, 0)).toBeLessThanOrEqual(Math.floor(60 / 3.5) + 2);
+            for (const e of d.exercises) expect(getExercise(e.exerciseId).equipment).toContain(equipment);
+            expect(new Set(d.exercises.map((e) => e.exerciseId)).size).toBe(d.exercises.length);
+          }
+        }
+  });
+
+  it('3 séances : full body, haut/bas, PPL, mix ou split par muscle selon le choix', () => {
+    const names = (split: Parameters<typeof splitFor>[1]) => generateProgram({ ...profile, daysPerWeek: 3, split }).days.map((d) => d.name);
+    expect(names('auto')).toEqual(['Full body A', 'Full body B', 'Full body C']);
+    expect(names('upper_lower')).toEqual(['Haut du corps A', 'Bas du corps', 'Haut du corps B']);
+    expect(names('ppl')).toEqual(['Push (pecs/épaules/triceps)', 'Pull (dos/biceps)', 'Jambes']);
+    expect(names('mix')).toEqual(['Haut du corps', 'Bas du corps', 'Full body']);
+    expect(names('bro')).toEqual(['Pecs / dos', 'Jambes', 'Épaules / bras']);
+    expect(splitFor(3, 'bro').note).toMatch(/une fois par semaine/);
+    expect(splitFor(2, 'ppl')).toMatchObject({ label: 'Full body ×2', note: expect.stringMatching(/au moins 3/) });
+  });
+
+  it('machines de préférence : surtout des machines guidées, seulement en salle', () => {
+    const machineShare = (p: ReturnType<typeof generateProgram>) => {
+      const ex = p.days.flatMap((d) => d.exercises);
+      return ex.filter((e) => getExercise(e.exerciseId).machine).length / ex.length;
+    };
+    const base = generateProgram({ ...profile, daysPerWeek: 3, equipment: 'full_gym' });
+    const m = generateProgram({ ...profile, daysPerWeek: 3, equipment: 'full_gym', preferMachines: true });
+    expect(machineShare(m)).toBeGreaterThan(0.6);
+    expect(machineShare(m)).toBeGreaterThan(machineShare(base));
+    expect(m.days[0].exercises.map((e) => e.exerciseId)).toContain('m_chest_press');
+    const home = generateProgram({ ...profile, daysPerWeek: 3, equipment: 'home_dumbbells', preferMachines: true });
+    expect(machineShare(home)).toBe(0);
   });
 
   it('les programmes de la bibliothèque n’utilisent que des exercices connus', () => {
