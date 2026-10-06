@@ -48,6 +48,9 @@ describe('dépense liée au sport', () => {
     const perSession = Math.round(2.5 * (computeBmr(profile, 80).bmr / 24));
     expect(a.training).toBe(Math.round((5 * perSession) / 14)); // la séance du 15 sort de la fenêtre (18/09 → 01/10)
     expect(a.walking).toBe(40); // 560 kcal / 14 j
+    // Détail affiché dans « Comment c'est calculé ».
+    expect(a).toMatchObject({ windowDays: 14, sessions: 5, sessionMinutes: 300, walks: 1, walkMinutes: 60, walkingTotal: 560 });
+    expect(a.trainingTotal).toBe(5 * perSession);
   });
 
   it('augmente la maintenance sans toucher au calcul de l’objectif', () => {
