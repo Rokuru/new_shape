@@ -2537,3 +2537,34 @@ img.avatar,
   flex: 1;
   min-width: 0;
 }
+
+/* Fiche d'exercice : animation, erreurs, variantes */
+.fig-wrap {
+  display: grid;
+  gap: 4px;
+}
+.fig-toggle {
+  justify-self: center;
+}
+.sheet-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+}
+.sheet-list li + li {
+  margin-top: 4px;
+}
+.sheet-variants {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.sheet-variants > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
