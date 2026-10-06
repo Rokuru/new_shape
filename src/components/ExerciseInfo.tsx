@@ -30,6 +30,16 @@ export function ExerciseLink({ id, children }: { id: string; children?: ReactNod
   );
 }
 
+/** Bouton « i » seul, à côté d'une liste de choix d'exercice. */
+export function ExerciseInfoButton({ id }: { id: string }) {
+  const open = useContext(Ctx);
+  return (
+    <button type="button" className="btn" onClick={() => open(id)} aria-haspopup="dialog" aria-label={`Fiche : ${getExercise(id).name}`}>
+      <Icon name="info" size={18} />
+    </button>
+  );
+}
+
 function ExerciseSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const ex = getExercise(id);
   const guide = guideFor(id);
@@ -38,19 +48,24 @@ function ExerciseSheet({ id, onClose }: { id: string; onClose: () => void }) {
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
+    // Capture : si la fiche s'ouvre par-dessus un autre panneau, Échap ne ferme qu'elle.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      onClose();
+    };
+    document.addEventListener('keydown', onKey, true);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.body.style.overflow = overflow;
       prev?.focus();
     };
   }, [onClose]);
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop over" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
           <div style={{ minWidth: 0 }}>

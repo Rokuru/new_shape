@@ -16,6 +16,8 @@ export type Muscle =
   | 'calves'
   | 'abs';
 
+export type SplitPref = 'auto' | 'full' | 'upper_lower' | 'ppl' | 'mix' | 'bro';
+
 export interface Profile {
   name: string;
   sex: Sex;
@@ -29,6 +31,10 @@ export interface Profile {
   sessionMinutes: number;
   /** Muscles que l'utilisateur veut prioriser (volume supplémentaire). */
   priorities: Muscle[];
+  /** Répartition voulue pour le programme généré (auto : selon le nombre de séances). */
+  split?: SplitPref;
+  /** Programme généré : machines guidées en priorité (salle complète). */
+  preferMachines?: boolean;
   /** Formule du métabolisme de base choisie (auto par défaut). */
   bmrMethod?: BmrMethod;
   /** Poids visé (kg) et poids de tendance au moment où l'objectif a été fixé. */
@@ -150,6 +156,8 @@ export interface Program {
   progression: string;
   days: ProgramDay[];
   custom?: boolean;
+  /** Programme créé par le générateur « sur mesure » (remplacé quand on en enregistre un nouveau) ; false une fois modifié à la main. */
+  generated?: boolean;
   /** Famille de méthode, pour filtrer et comparer. */
   style?: ProgramStyle;
   /** Durée annoncée d'une séance (min), échauffement compris, quand l'estimation par séries ne convient pas (circuits). */

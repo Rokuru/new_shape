@@ -61,7 +61,7 @@ function ExerciseSelect({ value, onChange, label }: { value: string; onChange: (
 }
 
 /** Éditeur de programme personnel : nom, séances, exercices (séries, répétitions, RIR, repos, ordre) et étirements. */
-export default function ProgramEditor({ initial, isNew, onClose }: { initial: Program; isNew: boolean; onClose: () => void }) {
+export default function ProgramEditor({ initial, isNew, onClose, onDelete }: { initial: Program; isNew: boolean; onClose: () => void; onDelete?: () => void }) {
   const { saveCustomProgram, activateProgram, activeProgramId } = useStore();
   const [p, setP] = useState(initial);
   const [activate, setActivate] = useState(isNew);
@@ -85,7 +85,8 @@ export default function ProgramEditor({ initial, isNew, onClose }: { initial: Pr
     if (empty) return setErr(`« ${empty.name || 'Séance'} » n’a aucun exercice.`);
     const bad = p.days.flatMap((d) => d.exercises).find((e) => !e.sets || !e.repMin || e.repMin > e.repMax);
     if (bad) return setErr(`${getExercise(bad.exerciseId).name} : au moins 1 série, et répétitions min ≤ max.`);
-    saveCustomProgram({ ...p, name: p.name.trim(), custom: true, daysPerWeek: p.days.length, days: p.days.map((d, i) => ({ ...d, name: d.name.trim() || `Séance ${String.fromCharCode(65 + i)}` })) });
+    // Modifié à la main : ce n'est plus le programme généré, il ne sera pas remplacé par le suivant.
+    saveCustomProgram({ ...p, generated: false, name: p.name.trim(), custom: true, daysPerWeek: p.days.length, days: p.days.map((d, i) => ({ ...d, name: d.name.trim() || `Séance ${String.fromCharCode(65 + i)}` })) });
     if (activate && activeProgramId !== p.id) activateProgram(p.id);
     onClose();
   };
@@ -227,6 +228,18 @@ export default function ProgramEditor({ initial, isNew, onClose }: { initial: Pr
           Annuler
         </button>
       </div>
+      {onDelete && (
+        <button
+          className="btn block danger"
+          style={{ marginTop: 20 }}
+          onClick={() => {
+            onClose();
+            onDelete();
+          }}
+        >
+          <Icon name="trash" size={18} /> Supprimer ce programme
+        </button>
+      )}
     </Sheet>
   );
 }

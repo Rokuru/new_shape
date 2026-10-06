@@ -1544,6 +1544,9 @@ details[open] > summary::before {
   color: var(--accent-text);
   opacity: 0.8;
 }
+.sheet-backdrop.over {
+  z-index: 60;
+}
 .ex-link:hover {
   color: var(--accent-text);
 }
@@ -2478,4 +2481,59 @@ table.compare tr.group th {
 img.avatar,
 .avatar-choice img {
   object-fit: cover;
+}
+
+/* Barre « Programme supprimé · Annuler » */
+.snackbar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 8px 8px 8px 16px;
+  border-radius: 14px;
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.snackbar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snackbar .btn {
+  flex-shrink: 0;
+  background: var(--surface);
+  color: var(--text);
+  border-color: transparent;
+}
+@media (min-width: 768px) {
+  .snackbar {
+    bottom: calc(env(safe-area-inset-bottom) + 24px);
+  }
+}
+.swap-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.swap-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.swap-list li > :first-child {
+  flex: 1;
+  min-width: 0;
 }

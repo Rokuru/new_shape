@@ -61,6 +61,9 @@ export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
   if (typeof src.targetSetAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(src.targetSetAt)) out.targetSetAt = src.targetSetAt;
   if (ok(src.targetBodyFatPct, 3, 60)) out.targetBodyFatPct = src.targetBodyFatPct as number;
   if (ok(src.targetStartBfPct, 2, 70)) out.targetStartBfPct = src.targetStartBfPct as number;
+  const split = pick(src.split, ['auto', 'full', 'upper_lower', 'ppl', 'mix', 'bro'] as const, 'auto');
+  if (split !== 'auto') out.split = split;
+  if (src.preferMachines === true) out.preferMachines = true;
   return out;
 }
 
