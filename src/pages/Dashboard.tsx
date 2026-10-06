@@ -11,6 +11,7 @@ import { useChartRange } from '../hooks/useChartRange';
 import { breakGaps, inRange, RANGE_OPTIONS, timeAxis } from '../lib/timeAxis';
 import { goalProjection } from '../lib/goal';
 import { ffmiReliable } from '../components/FfmiInfo';
+import { ExerciseLink } from '../components/ExerciseInfo';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -109,10 +110,14 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
 
       <div className="tiles">
         <Tile
-          label="Poids lissé"
+          label="Poids"
           icon="scale"
-          value={trend.length ? `${fmtNum(trend.at(-1)!.trend)} kg` : '—'}
-          sub={latest ? `pesée ${fmtNum(latest.weightKg)} kg${rate !== undefined ? ` · ${signed(rate, 2)} kg/sem.` : ''}` : 'Pèse-toi 3×/sem.'}
+          value={latest ? `${fmtNum(latest.weightKg)} kg` : '—'}
+          sub={
+            latest && trend.length
+              ? `tendance ${fmtNum(trend.at(-1)!.trend)} kg${rate !== undefined ? ` · ${signed(rate, 2)} kg/sem.` : ''}`
+              : 'Pèse-toi 3×/sem.'
+          }
         />
         {goal && (
           <Tile
@@ -246,7 +251,9 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
                   <Icon name="trophy" size={20} />
                 </span>
                 <div className="pr-main">
-                  <div>{getExercise(p.exerciseId).name}</div>
+                  <div>
+                    <ExerciseLink id={p.exerciseId} />
+                  </div>
                   <div className="small muted">
                     {fmtDate(p.date)} · {getExercise(p.exerciseId).bodyweight ? `PDC${p.weight ? ` + ${fmtNum(p.weight)} kg` : ''}` : `${fmtNum(p.weight)} kg`} × {p.reps}
                   </div>

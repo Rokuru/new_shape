@@ -86,7 +86,10 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
               )}
               {w.exercises.map((e, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>
-                  <b>{getExercise(e.exerciseId).name}</b> :{' '}
+                  <b>
+                    <ExerciseLink id={e.exerciseId} />
+                  </b>{' '}
+                  :{' '}
                   {e.sets
                     .filter((s) => s.done)
                     .map((s) => `${fmtNum(s.weight)}×${s.reps}`)
