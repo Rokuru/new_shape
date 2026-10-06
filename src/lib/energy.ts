@@ -32,7 +32,17 @@ export interface ActivityAverage {
   walking: number;
   /** 'history' : moyenne réelle ; 'plan' : estimée d'après le profil (pas encore assez d'historique). */
   source: 'history' | 'plan';
+  /** Nombre de jours de la moyenne (de 1 à `windowDays`). */
   days: number;
+  /** Fenêtre maximale de la moyenne (14 jours). */
+  windowDays: number;
+  /** Détail sur la période : nombre, durée totale (min) et calories totales. */
+  sessions: number;
+  sessionMinutes: number;
+  trainingTotal: number;
+  walks: number;
+  walkMinutes: number;
+  walkingTotal: number;
 }
 
 /**
@@ -53,9 +63,12 @@ export function activityAverage(
   const days = Math.max(1, Math.min(windowDays, sinceFirst));
   const fromDate = addDays(todayKey, -days);
 
-  const walking =
-    s.cardio.filter((c) => c.date > fromDate && c.date <= todayKey && isValidCardio(c)).reduce((sum, c) => sum + cardioStats(c, s.profile, weightKg).kcal, 0) / days;
+  const walkStats = s.cardio.filter((c) => c.date > fromDate && c.date <= todayKey && isValidCardio(c)).map((c) => cardioStats(c, s.profile, weightKg));
+  const walkingTotal = walkStats.reduce((sum, c) => sum + c.kcal, 0);
+  const walking = walkingTotal / days;
 
+  const inWindow = s.workouts.filter((w) => w.finished && dayKey(w.date) > fromDate && dayKey(w.date) <= todayKey);
+  const trainingTotal = inWindow.reduce((sum, w) => sum + workoutKcal(w, bmr), 0);
   let training: number;
   let source: ActivityAverage['source'];
   if (sinceFirst < 7) {
@@ -63,8 +76,21 @@ export function activityAverage(
     training = (s.profile.daysPerWeek * (RESISTANCE_MET - 1) * (bmr / 24) * (s.profile.sessionMinutes / 60)) / 7;
     source = 'plan';
   } else {
-    training = s.workouts.filter((w) => w.finished && dayKey(w.date) > fromDate && dayKey(w.date) <= todayKey).reduce((sum, w) => sum + workoutKcal(w, bmr), 0) / days;
+    training = trainingTotal / days;
     source = 'history';
   }
-  return { perDay: Math.round(training + walking), training: Math.round(training), walking: Math.round(walking), source, days };
+  return {
+    perDay: Math.round(training + walking),
+    training: Math.round(training),
+    walking: Math.round(walking),
+    source,
+    days,
+    windowDays,
+    sessions: inWindow.length,
+    sessionMinutes: Math.round(inWindow.reduce((sum, w) => sum + workoutMinutes(w), 0)),
+    trainingTotal: Math.round(trainingTotal),
+    walks: walkStats.length,
+    walkMinutes: Math.round(walkStats.reduce((sum, c) => sum + c.durationMin, 0)),
+    walkingTotal: Math.round(walkingTotal),
+  };
 }

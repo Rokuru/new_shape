@@ -3,7 +3,7 @@ import type { Tab } from '../App';
 import { adaptiveAdjustment, ACTIVITY_LABELS, BMR_FORMULAS, computeBmr, currentComposition, GOAL_LABELS, HIGH_FAT_PCT, nutritionTargets, weeklyRate } from '../lib/calc';
 import { useStore } from '../lib/store';
 import type { BmrMethod } from '../lib/types';
-import { activityAverage } from '../lib/energy';
+import { activityAverage, RESISTANCE_MET } from '../lib/energy';
 import FoodLog from '../components/FoodLog';
 import { Empty, fmtDate, fmtNum, signed, Tile } from '../components/ui';
 
@@ -29,6 +29,9 @@ const ADVICE: Record<string, string[]> = {
     'Glucides suffisants (4–6 g/kg) pour soutenir les séances lourdes.',
   ],
 };
+
+const dayCount = (n: number) => `${n} dernier${n > 1 ? 's' : ''} jour${n > 1 ? 's' : ''}`;
+const duration = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${String(min % 60).padStart(2, '0')}` : ''}` : `${min} min`);
 
 export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
   const { profile, setProfile, body, workouts, cardio, kcalAdjust, kcalAdjustedAt, setKcalAdjust } = useStore();
@@ -184,7 +187,11 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
                 <td>
                   + musculation, moyenne / jour
                   <div className="small muted">
-                    {act.source === 'plan' ? `d’après ton plan (${profile.daysPerWeek} × ${profile.sessionMinutes} min / sem.)` : `tes séances des ${act.days} derniers jours`}
+                    {act.source === 'plan'
+                      ? `d’après ton plan : ${profile.daysPerWeek} séances × ${profile.sessionMinutes} min par semaine, ÷ 7 jours (moins d’une semaine d’historique)`
+                      : act.sessions
+                        ? `${act.sessions} séance${act.sessions > 1 ? 's' : ''}, ${duration(act.sessionMinutes)} au total = ${fmtNum(act.trainingTotal, 0)} kcal ÷ ${dayCount(act.days)}`
+                        : `aucune séance sur ${dayCount(act.days)}`}
                   </div>
                 </td>
                 <td className="num">+{fmtNum(act.training, 0)} kcal</td>
@@ -193,10 +200,19 @@ export default function NutritionPage({ go }: { go: (t: Tab) => void }) {
                 <td>
                   + marche, moyenne / jour
                   <div className="small muted">
-                    {act.walking ? `tes marches des ${act.days} dernier${act.days > 1 ? 's' : ''} jour${act.days > 1 ? 's' : ''}` : 'aucune marche enregistrée sur la période'}
+                    {act.walks
+                      ? `${act.walks} marche${act.walks > 1 ? 's' : ''}, ${duration(act.walkMinutes)} au total = ${fmtNum(act.walkingTotal, 0)} kcal ÷ ${dayCount(act.days)}`
+                      : `aucune marche sur ${dayCount(act.days)}`}
                   </div>
                 </td>
-                <td className="num">+{fmtNum(act.perDay - act.training, 0)} kcal</td>
+                <td className="num">+{fmtNum(act.walking, 0)} kcal</td>
+              </tr>
+              <tr>
+                <td colSpan={2} className="small muted">
+                  Moyenne sur les {dayCount(act.days)} (fenêtre glissante de {act.windowDays} jours au plus, depuis ta première activité enregistrée). Les jours sans sport
+                  comptent : la cible reste la même chaque jour. Une séance compte selon sa durée (≈ {fmtNum(((RESISTANCE_MET - 1) * t.bmr) / 24, 0)} kcal par heure pour toi), pas selon les
+                  charges soulevées.
+                </td>
               </tr>
               <tr>
                 <td>= Maintenance</td>
