@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { cardioStats, dailyTotals, isValidCardio, type DayTotal } from '../lib/cardio';
+import { energyBasis } from '../lib/energy';
 import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import type { CardioEntry } from '../lib/types';
@@ -22,7 +22,8 @@ const readMode = (): Mode => {
  */
 export default function CardioCard() {
   const { cardio, profile, body, addCardio, deleteCardio } = useStore();
-  const weightKg = body.at(-1)?.weightKg ?? 75;
+  // Même poids que l'onglet Nutrition : les calories affichées ici sont celles qui comptent dans la cible.
+  const { weightKg } = energyBasis(body, profile);
   const todayKey = useToday();
   const [picked, setDate] = useState<string>();
   // Sans choix explicite, la date suit le jour courant (même si l'app est restée ouverte depuis la veille).
@@ -146,19 +147,8 @@ export default function CardioCard() {
 
       {recent.length > 0 && (
         <>
-          <h3 style={{ marginTop: 16 }}>Calories dépensées – 14 derniers jours</h3>
-          <div className="chart sm">
-            <ResponsiveContainer>
-              <BarChart data={days} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="date" tickFormatter={(d) => fmtDate(d, { day: 'numeric' })} tickLine={false} axisLine={{ stroke: 'var(--axis)' }} interval={0} />
-                <YAxis tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip content={<DayTooltip />} cursor={{ fill: 'var(--surface-2)' }} />
-                <Bar dataKey="kcal" name="kcal" fill="var(--series-1)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ marginTop: 8 }}>
+          <h3 style={{ marginTop: 16 }}>Dernières marches</h3>
+          <div>
             {recent.map((e) => {
               const st = cardioStats(e, profile, weightKg);
               return (
@@ -191,25 +181,6 @@ export default function CardioCard() {
           sur 14 jours : pas besoin de les « manger » en plus.
         </p>
       </details>
-    </div>
-  );
-}
-
-function DayTooltip({ active, payload }: { active?: boolean; payload?: { payload: DayTotal }[] }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
-  return (
-    <div className="tooltip">
-      <div className="t">{fmtDate(d.date, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-      <div>
-        {d.minutes ? (
-          <>
-            <b>{d.kcal} kcal</b> · {fmtNum(d.steps, 0)} pas · {fmtNum(d.distanceKm, 1)} km{d.elevationM ? ` · +${d.elevationM} m` : ''}
-          </>
-        ) : (
-          'Aucune marche'
-        )}
-      </div>
     </div>
   );
 }

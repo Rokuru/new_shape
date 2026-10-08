@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityAverage, workoutKcal, workoutMinutes } from './energy';
+import { activityAverage, dailyActivity, energyBasis, workoutKcal, workoutMinutes } from './energy';
 import { computeBmr, nutritionTargets } from './calc';
 import { DEFAULT_PROFILE } from './store';
 import type { Workout } from './types';
@@ -59,5 +59,30 @@ describe('dépense liée au sport', () => {
     const withSport = nutritionTargets({ ...profile, goal: 'recomp' }, latest, undefined, 0, 200);
     expect(withSport.tdee - base.tdee).toBe(200);
     expect(withSport.calories - base.calories).toBe(200);
+  });
+
+  it('jour par jour : musculation et marche séparées, mêmes totaux que la moyenne de la cible', () => {
+    const workouts = ['2026-09-15', '2026-09-21', '2026-09-23', '2026-09-25', '2026-09-28', '2026-09-30'].map((d) => w(d, 60));
+    const cardio = [{ id: 'c', date: '2026-09-29', inclinePct: 10, speedKmh: 5, durationMin: 60 }];
+    const now = new Date('2026-10-01T12:00:00Z');
+    const days = dailyActivity({ workouts, cardio, profile }, 80, 14, now);
+    const a = activityAverage({ workouts, cardio, profile }, 80, now);
+    expect(days).toHaveLength(14);
+    expect(days[0].date).toBe('2026-09-18');
+    expect(days.at(-1)!.date).toBe('2026-10-01');
+    expect(days.reduce((s, d) => s + d.training, 0)).toBe(a.trainingTotal);
+    expect(days.reduce((s, d) => s + d.walking, 0)).toBe(a.walkingTotal);
+    const sept29 = days.find((d) => d.date === '2026-09-29')!;
+    expect(sept29).toMatchObject({ training: 0, walking: 560, sessions: 0, walkMinutes: 60 });
+    const sept30 = days.find((d) => d.date === '2026-09-30')!;
+    expect(sept30).toMatchObject({ sessions: 1, sessionMinutes: 60, walking: 0 });
+    expect(sept30.training).toBe(workoutKcal(w('2026-09-30', 60), computeBmr(profile, 80).bmr));
+  });
+
+  it('poids des calories : celui de l’onglet Nutrition (tendance), 75 kg sans pesée', () => {
+    expect(energyBasis([], profile)).toEqual({ weightKg: 75 });
+    const b = energyBasis([{ id: '1', date: '2026-10-01', weightKg: 90, bodyFatPct: 25 }], profile);
+    expect(b.weightKg).toBe(90);
+    expect(b.bodyFatPct).toBe(25);
   });
 });

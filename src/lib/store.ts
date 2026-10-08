@@ -5,7 +5,7 @@ import { PROGRAMS } from '../data/programs';
 import { getExercise, MUSCLES as MUSCLE_IDS } from '../data/exercises';
 import { suggestStretches } from '../data/stretches';
 import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Muscle, Profile, Program, ProgramDay, Workout } from './types';
-import { history, suggest } from './progression';
+import { history, prefillSets } from './progression';
 import { sanitizeCollections, sanitizeWorkout } from './sanitize';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -127,14 +127,7 @@ interface State {
 export const allPrograms = (custom: Program[]) => [...custom, ...PROGRAMS];
 
 function buildExercises(day: ProgramDay, workouts: Workout[]): LoggedExercise[] {
-  return day.exercises.map((target) => {
-    const s = suggest(target, history(workouts, target.exerciseId));
-    return {
-      exerciseId: target.exerciseId,
-      target,
-      sets: Array.from({ length: target.sets }, () => ({ weight: s?.weight ?? 0, reps: s?.reps ?? target.repMax, rir: undefined, done: false })),
-    };
-  });
+  return day.exercises.map((target) => ({ exerciseId: target.exerciseId, target, sets: prefillSets(history(workouts, target.exerciseId), target) }));
 }
 
 const initial = {

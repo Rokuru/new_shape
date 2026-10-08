@@ -1115,6 +1115,25 @@ th.num {
   margin-bottom: 2px;
   font-weight: 600;
 }
+/* Ligne de tooltip : trait court de la couleur de la série, valeur en premier. */
+.tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tip-key {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.tip-total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--grid);
+}
 .recharts-cartesian-grid line {
   stroke: var(--grid);
 }
@@ -2567,4 +2586,31 @@ img.avatar,
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--surface-2);
+}
+
+/* Mes séances : nom puis date et chiffres (à la ligne si besoin), chevron aligné sur la 1re ligne */
+details.session-item {
+  display: block;
+}
+details.session-item > summary {
+  display: flex;
+  align-items: flex-start;
+}
+details.session-item > summary::before {
+  flex-shrink: 0;
+  margin-top: 0.55em;
+}
+.session-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
+}
+.session-name {
+  font-weight: 600;
+}
+.session-sum .small {
+  font-weight: 400;
 }
