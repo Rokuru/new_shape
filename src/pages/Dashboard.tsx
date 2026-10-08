@@ -12,6 +12,7 @@ import { breakGaps, inRange, RANGE_OPTIONS, timeAxis } from '../lib/timeAxis';
 import { goalProjection } from '../lib/goal';
 import { ffmiReliable } from '../components/FfmiInfo';
 import { ExerciseLink } from '../components/ExerciseInfo';
+import { WeeklyReportCard } from '../components/WeeklyReport';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -201,6 +202,8 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           />
         )}
       </div>
+
+      <WeeklyReportCard />
 
       <div className="grid grid-2">
         <div className="card">
