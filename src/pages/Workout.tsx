@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Tab } from '../App';
 import { EXERCISES, getExercise, MUSCLE_LABELS, MUSCLES } from '../data/exercises';
-import { tonnage } from '../lib/calc';
-import { history, suggest } from '../lib/progression';
+import { computeBmr, tonnage } from '../lib/calc';
+import { energyBasis, workoutKcal } from '../lib/energy';
+import { history, prefillSets, suggest } from '../lib/progression';
 import { allPrograms, useStore } from '../lib/store';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
+import ActivityCard from '../components/ActivityCard';
 import CardioCard from '../components/CardioCard';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import NumField from '../components/NumField';
@@ -24,100 +26,138 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const editing = workouts.find((w) => w.id === editId);
   const duplicating = workouts.find((w) => w.id === dupId);
 
-  const recent = [...workouts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
   return (
     <div>
       <h1>Séance</h1>
       <div className="split">
-      <div>
-      {program ? (
-        <div className="card">
-          <div className="card-header">
-            <h2>{program.name}</h2>
-          </div>
-          <div className="stack">
-            {program.days.map((d, i) => (
-              <div className="list-item" key={i}>
-                <div style={{ minWidth: 0 }}>
-                  <div>
-                    {d.name} {i === nextDayIndex % program.days.length && <span className="tag">Prochaine</span>}
-                  </div>
-                  <div className="small muted">{d.exercises.length} exercices · {d.exercises.reduce((s, e) => s + e.sets, 0)} séries</div>
-                </div>
-                <button className={`btn ${i === nextDayIndex % program.days.length ? 'go' : ''}`} onClick={() => startWorkout(program, i)}>
-                  {i === nextDayIndex % program.days.length && <Icon name="play" size={18} />} Démarrer
-                </button>
+        <div>
+          {program ? (
+            <div className="card">
+              <div className="card-header">
+                <h2>{program.name}</h2>
               </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="callout">
-          Aucun programme actif. <a href="#programs">Choisis-en un</a> ou démarre une séance libre.
-        </div>
-      )}
-      <button className="btn block" onClick={() => startWorkout()}>
-        <Icon name="plus" size={18} /> Séance libre
-      </button>
-      </div>
-
-      <div>
-        <CardioCard />
-      </div>
-      </div>
-
-      <h2 style={{ marginTop: 24 }}>Historique</h2>
-      <div className="card">
-        {recent.length === 0 && <Empty>Aucune séance enregistrée.</Empty>}
-        {recent.map((w) => (
-          <details key={w.id} className="list-item" style={{ display: 'block' }}>
-            <summary>
-              <span>{w.dayName}</span> <span className="small muted">· {fmtDate(w.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-              <span className="small muted">
-                {' '}
-                · {fmtNum(tonnage(w) / 1000, 1)} t{w.durationMin ? ` · ${w.durationMin} min` : ''}
-              </span>
-            </summary>
-            <div className="small" style={{ marginTop: 8 }}>
-              {w.stretches?.some((s) => s.done) && (
-                <div style={{ marginBottom: 4 }}>
-                  <b>Étirements</b> : {w.stretches.filter((s) => s.done).map((s) => getStretch(s.id)?.name ?? s.id).join(', ')}
-                </div>
-              )}
-              {w.exercises.map((e, i) => (
-                <div key={i} style={{ marginBottom: 4 }}>
-                  <b>
-                    <ExerciseLink id={e.exerciseId} />
-                  </b>{' '}
-                  :{' '}
-                  {e.sets
-                    .filter((s) => s.done)
-                    .map((s) => `${fmtNum(s.weight)}×${s.reps}`)
-                    .join(', ')}
-                </div>
-              ))}
-              <div className="row" style={{ gap: 8, marginTop: 8 }}>
-                <button className="btn sm" onClick={() => setEditId(w.id)}>
-                  <Icon name="edit" size={16} /> Modifier
-                </button>
-                <button className="btn sm" onClick={() => setDupId(w.id)}>
-                  <Icon name="copy" size={16} /> Dupliquer
-                </button>
-                <button
-                  className="btn danger ghost sm"
-                  onClick={() => {
-                    if (confirm('Supprimer cette séance ?')) deleteWorkout(w.id);
-                  }}
-                >
-                  <Icon name="trash" size={16} /> Supprimer
-                </button>
+              <div className="stack">
+                {program.days.map((d, i) => (
+                  <div className="list-item" key={i}>
+                    <div style={{ minWidth: 0 }}>
+                      <div>
+                        {d.name} {i === nextDayIndex % program.days.length && <span className="tag">Prochaine</span>}
+                      </div>
+                      <div className="small muted">
+                        {d.exercises.length} exercices · {d.exercises.reduce((s, e) => s + e.sets, 0)} séries
+                      </div>
+                    </div>
+                    <button className={`btn ${i === nextDayIndex % program.days.length ? 'go' : ''}`} onClick={() => startWorkout(program, i)}>
+                      {i === nextDayIndex % program.days.length && <Icon name="play" size={18} />} Démarrer
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
-          </details>
-        ))}
+          ) : (
+            <div className="callout">
+              Aucun programme actif. <a href="#programs">Choisis-en un</a> ou démarre une séance libre.
+            </div>
+          )}
+          <button className="btn block" style={{ marginBottom: 16 }} onClick={() => startWorkout()}>
+            <Icon name="plus" size={18} /> Séance libre
+          </button>
+          <MySessions workouts={workouts} onEdit={setEditId} onDuplicate={setDupId} onDelete={deleteWorkout} />
+        </div>
+
+        <div>
+          <ActivityCard />
+          <CardioCard />
+        </div>
       </div>
       {editing && <WorkoutEditor key={editing.id} workout={editing} onClose={() => setEditId(undefined)} />}
       {duplicating && <DuplicateWorkout workout={duplicating} onClose={() => setDupId(undefined)} onCopied={setEditId} />}
+    </div>
+  );
+}
+
+/** Mes séances : les plus récentes d'abord, détail dépliable (exercices, étirements) et actions. */
+function MySessions({
+  workouts,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: {
+  workouts: Workout[];
+  onEdit: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { profile, body } = useStore();
+  const [limit, setLimit] = useState(8);
+  const basis = energyBasis(body, profile);
+  const bmr = computeBmr(profile, basis.weightKg, basis.bodyFatPct).bmr;
+  const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h2>Mes séances</h2>
+        {sorted.length > 0 && (
+          <span className="small muted">
+            {sorted.length} séance{sorted.length > 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+      {sorted.length === 0 && <Empty>Aucune séance enregistrée.</Empty>}
+      {sorted.slice(0, limit).map((w) => (
+        <details key={w.id} className="list-item session-item">
+          <summary>
+            <span className="session-sum">
+              <span className="session-name">{w.dayName}</span>
+              <span className="small muted">
+                {fmtDate(w.date, { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtNum(tonnage(w) / 1000, 1)} t{w.durationMin ? ` · ${w.durationMin} min` : ''} ·{' '}
+                {fmtNum(workoutKcal(w, bmr), 0)} kcal
+              </span>
+            </span>
+          </summary>
+          <div className="small" style={{ marginTop: 8 }}>
+            {w.stretches?.some((s) => s.done) && (
+              <div style={{ marginBottom: 4 }}>
+                <b>Étirements</b> : {w.stretches.filter((s) => s.done).map((s) => getStretch(s.id)?.name ?? s.id).join(', ')}
+              </div>
+            )}
+            {w.exercises.map((e, i) => (
+              <div key={i} style={{ marginBottom: 4 }}>
+                <b>
+                  <ExerciseLink id={e.exerciseId} />
+                </b>{' '}
+                :{' '}
+                {e.sets
+                  .filter((s) => s.done)
+                  .map((s) => `${fmtNum(s.weight)}×${s.reps}`)
+                  .join(', ')}
+              </div>
+            ))}
+            {w.note && <div className="muted" style={{ marginBottom: 4 }}>📝 {w.note}</div>}
+            <div className="row" style={{ gap: 8, marginTop: 8 }}>
+              <button className="btn sm" onClick={() => onEdit(w.id)}>
+                <Icon name="edit" size={16} /> Modifier
+              </button>
+              <button className="btn sm" onClick={() => onDuplicate(w.id)}>
+                <Icon name="copy" size={16} /> Dupliquer
+              </button>
+              <button
+                className="btn danger ghost sm"
+                onClick={() => {
+                  if (confirm('Supprimer cette séance ?')) onDelete(w.id);
+                }}
+              >
+                <Icon name="trash" size={16} /> Supprimer
+              </button>
+            </div>
+          </div>
+        </details>
+      ))}
+      {sorted.length > limit && (
+        <button className="btn ghost block" style={{ marginTop: 8 }} onClick={() => setLimit((l) => l + 15)}>
+          Afficher plus ({sorted.length - limit} séance{sorted.length - limit > 1 ? 's' : ''} plus ancienne{sorted.length - limit > 1 ? 's' : ''})
+        </button>
+      )}
     </div>
   );
 }
@@ -259,12 +299,8 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
               className="btn"
               disabled={!adding}
               onClick={() => {
-                const past = history(workouts, adding)[0]?.ex.sets.filter((s) => s.done);
-                const top = past?.length ? past[0] : { weight: 0, reps: 10 };
-                updateActive((w) => ({
-                  ...w,
-                  exercises: [...w.exercises, { exerciseId: adding, sets: Array.from({ length: 3 }, () => ({ weight: top.weight, reps: top.reps, done: false })) }],
-                }));
+                // Mêmes séries que la dernière fois, une par une (charges et répétitions de chaque série).
+                updateActive((w) => ({ ...w, exercises: [...w.exercises, { exerciseId: adding, sets: prefillSets(history(workouts, adding)) }] }));
                 setAdding('');
               }}
             >

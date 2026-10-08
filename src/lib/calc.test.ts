@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { adaptiveAdjustment, computeBmr, composition, currentComposition, e1rm, setE1rm, navyBodyFat, nutritionTargets, volumeFromSets, weeklyRate, weightTrend } from './calc';
 import { generateProgram, splitFor, SPLITS } from './generator';
-import { suggest } from './progression';
+import { prefillSets, suggest } from './progression';
 import { DEFAULT_PROFILE } from './store';
 import type { BodyEntry, LoggedExercise, PlannedExercise, Profile } from './types';
 import { getExercise } from '../data/exercises';
@@ -137,6 +137,41 @@ describe('surcharge progressive', () => {
     const fail = { ex: sets(80, [5, 5, 4, 4, 3]) };
     expect(suggest(lin, [fail])).toMatchObject({ weight: 80 });
     expect(suggest(lin, [fail, fail, fail])).toMatchObject({ weight: 72.5 });
+  });
+
+  describe('séries pré-remplies', () => {
+    const pyramid: LoggedExercise = {
+      exerciseId: 'leg_ext',
+      sets: [
+        { weight: 45, reps: 12, done: true },
+        { weight: 73, reps: 12, done: true },
+        { weight: 79, reps: 12, done: true },
+        { weight: 85, reps: 14, done: true },
+        { weight: 90, reps: 3, done: false },
+      ],
+    };
+    const pairs = (xs: { weight: number; reps: number }[]) => xs.map((s) => `${s.weight}×${s.reps}`);
+
+    it('exercice ajouté en séance : chaque série de la dernière fois, une par une', () => {
+      const out = prefillSets([{ ex: pyramid }]);
+      expect(pairs(out)).toEqual(['45×12', '73×12', '79×12', '85×14']);
+      expect(out.every((s) => !s.done && s.rir === undefined)).toBe(true);
+    });
+
+    it('sans historique : 3 séries vides', () => {
+      expect(pairs(prefillSets([]))).toEqual(['0×10', '0×10', '0×10']);
+      expect(pairs(prefillSets([], dbl))).toEqual(['0×12', '0×12', '0×12']);
+    });
+
+    it('programme : montée en charge conservée, séries à la charge max selon la progression', () => {
+      const target: PlannedExercise = { exerciseId: 'leg_ext', sets: 3, repMin: 10, repMax: 15, rir: 1, restSec: 90 };
+      expect(pairs(prefillSets([{ ex: pyramid }], target))).toEqual(['45×12', '73×12', '79×12', '85×15']);
+    });
+
+    it('programme en séries égales : toutes les séries suivent la suggestion, complétées au nombre prévu', () => {
+      expect(pairs(prefillSets([{ ex: sets(60, [12, 12, 12]) }], dbl))).toEqual(['62.5×8', '62.5×8', '62.5×8']);
+      expect(pairs(prefillSets([{ ex: sets(60, [10, 9]) }], dbl))).toEqual(['60×10', '60×10', '60×10']);
+    });
   });
 });
 

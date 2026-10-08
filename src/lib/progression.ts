@@ -1,5 +1,5 @@
 import { getExercise } from '../data/exercises';
-import type { LoggedExercise, PlannedExercise, Workout } from './types';
+import type { LoggedExercise, LoggedSet, PlannedExercise, Workout } from './types';
 
 export interface Suggestion {
   weight: number;
@@ -60,4 +60,22 @@ export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[])
     reps: Math.min(Math.max(minReps + 1, target.repMin), target.repMax),
     reason: `Garde la charge, vise ${Math.min(Math.max(minReps + 1, target.repMin), target.repMax)} reps sur chaque série.`,
   };
+}
+
+/**
+ * Séries pré-remplies au début d'un exercice, série par série d'après la dernière séance
+ * (montée en charge et nombre de séries compris).
+ * Exercice de programme : les séries à la charge maximale suivent la suggestion de progression,
+ * et on complète jusqu'au nombre de séries prévu.
+ */
+export function prefillSets(past: { ex: LoggedExercise }[], target?: PlannedExercise): LoggedSet[] {
+  const last = past[0]?.ex.sets.filter((s) => s.done) ?? [];
+  const fresh = (weight: number, reps: number): LoggedSet => ({ weight, reps, done: false });
+  if (!target) return last.length ? last.map((s) => fresh(s.weight, s.reps)) : Array.from({ length: 3 }, () => fresh(0, 10));
+  const sug = suggest(target, past);
+  if (!sug) return Array.from({ length: target.sets }, () => fresh(0, target.repMax));
+  const top = Math.max(...last.map((s) => s.weight));
+  const sets = last.map((s) => (s.weight === top ? fresh(sug.weight, sug.reps) : fresh(s.weight, s.reps)));
+  while (sets.length < target.sets) sets.push(fresh(sug.weight, sug.reps));
+  return sets;
 }

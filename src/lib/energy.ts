@@ -1,7 +1,16 @@
 import { addDays, dayKey, daysBetween, localDate } from './dates';
-import { cardioStats, isValidCardio } from './cardio';
-import { computeBmr } from './calc';
-import type { CardioEntry, Profile, Workout } from './types';
+import { cardioStats, dailyTotals, isValidCardio } from './cardio';
+import { computeBmr, currentComposition } from './calc';
+import type { BodyEntry, CardioEntry, Profile, Workout } from './types';
+
+/**
+ * Poids et % de gras retenus pour les calories d'activité : ceux de l'onglet Nutrition (poids de tendance),
+ * pour que les calories affichées partout soient celles qui comptent dans la cible.
+ */
+export function energyBasis(body: BodyEntry[], profile: Profile): { weightKg: number; bodyFatPct?: number } {
+  const comp = currentComposition(body, profile);
+  return comp ? { weightKg: comp.weightKg, bodyFatPct: comp.bodyFatPct } : { weightKg: 75 };
+}
 
 /**
  * Intensité moyenne d'une séance de musculation, temps de repos compris : 3,5 MET
@@ -93,4 +102,43 @@ export function activityAverage(
     walkMinutes: Math.round(walkStats.reduce((sum, c) => sum + c.durationMin, 0)),
     walkingTotal: Math.round(walkingTotal),
   };
+}
+
+export interface DayActivity {
+  date: string;
+  /** Calories nettes (au-delà du repos) de musculation et de marche. */
+  training: number;
+  walking: number;
+  sessions: number;
+  sessionMinutes: number;
+  walkMinutes: number;
+  distanceKm: number;
+  steps: number;
+}
+
+/**
+ * Dépense sportive jour par jour sur les `days` derniers jours : musculation + marche,
+ * calculée comme la moyenne qui s'ajoute à la cible de l'onglet Nutrition.
+ */
+export function dailyActivity(
+  s: { workouts: Workout[]; cardio: CardioEntry[]; profile: Profile; bodyFatPct?: number },
+  weightKg: number,
+  days = 14,
+  now = new Date(),
+): DayActivity[] {
+  const bmr = computeBmr(s.profile, weightKg, s.bodyFatPct).bmr;
+  const finished = s.workouts.filter((w) => w.finished);
+  return dailyTotals(s.cardio, s.profile, weightKg, days, now).map((d) => {
+    const sessions = finished.filter((w) => dayKey(w.date) === d.date);
+    return {
+      date: d.date,
+      training: sessions.reduce((sum, w) => sum + workoutKcal(w, bmr), 0),
+      walking: d.kcal,
+      sessions: sessions.length,
+      sessionMinutes: Math.round(sessions.reduce((sum, w) => sum + workoutMinutes(w), 0)),
+      walkMinutes: d.minutes,
+      distanceKm: d.distanceKm,
+      steps: d.steps,
+    };
+  });
 }
