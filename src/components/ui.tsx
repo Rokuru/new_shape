@@ -87,6 +87,15 @@ export const fmtNum = (n: number | undefined, d = 1) => (n === undefined || Numb
 
 export const signed = (n: number, d = 1) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmtNum(Math.abs(n), d)}`;
 
+/** Texte avec `**gras**` (seule mise en forme reconnue ; tout le reste reste du texte). */
+export function Rich({ text }: { text: string }) {
+  return (
+    <>
+      {text.split('**').map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part))}
+    </>
+  );
+}
+
 /** Tooltip commun aux graphiques Recharts. */
 export function ChartTooltip({
   active,

@@ -25,6 +25,7 @@ import {
 import { addDays, dayKey, parseLocalDate } from './dates';
 import { activityAverage, workoutKcal, workoutMinutes } from './energy';
 import { weeklySetTarget } from './generator';
+import { planStatus } from './plan';
 import { activityByDay, currentStreak } from './streak';
 import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, LoggedSet, Profile, Program, Workout } from './types';
 
@@ -141,6 +142,11 @@ export function weeklyReport(data: ReportData, weekStart: string, today: string)
     }.`,
   );
   if (program) line(`- Programme suivi : « ${program.name} » (${program.days.map((d) => d.name).join(', ')}).`);
+  const plan = planStatus(profile, last);
+  if (plan) {
+    const where = plan.finished ? 'plan terminé' : plan.started ? `semaine ${plan.week}/${plan.tpl.weeks}, phase ${plan.phaseIndex + 1} – ${plan.phase.name}` : `départ le ${longDay(plan.start)}`;
+    line(`- Plan objectif : « ${plan.tpl.name} » (${where} ; du ${longDay(plan.start)} au ${longDay(plan.end)}). Marche prévue dans cette phase : ${plan.phase.cardio.walk}, ${plan.phase.cardio.steps} pas/jour.`);
+  }
   const targets = [
     profile.targetWeightKg !== undefined ? `${n(profile.targetWeightKg)} kg` : undefined,
     profile.targetBodyFatPct !== undefined ? `${n(profile.targetBodyFatPct)} % de masse grasse` : undefined,

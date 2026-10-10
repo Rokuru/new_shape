@@ -6,6 +6,8 @@ import { getExercise, MUSCLES as MUSCLE_IDS } from '../data/exercises';
 import { suggestStretches } from '../data/stretches';
 import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Muscle, Profile, Program, ProgramDay, Workout } from './types';
 import { history, prefillSets } from './progression';
+import { adjustSets, PLAN_PROGRAMS, planAdjust, planProgramFor, planTemplate, type PlanAdjust } from './plan';
+import { currentComposition } from './calc';
 import { sanitizeCollections, sanitizeWorkout } from './sanitize';
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -64,6 +66,9 @@ export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
   const split = pick(src.split, ['auto', 'full', 'upper_lower', 'ppl', 'mix', 'bro'] as const, 'auto');
   if (split !== 'auto') out.split = split;
   if (src.preferMachines === true) out.preferMachines = true;
+  const plan = src.plan as { id?: unknown; start?: unknown } | undefined;
+  if (plan && typeof plan === 'object' && typeof plan.id === 'string' && /^[\w-]{1,40}$/.test(plan.id) && typeof plan.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(plan.start))
+    out.plan = { id: plan.id, start: plan.start };
   return out;
 }
 
@@ -121,13 +126,22 @@ interface State {
   addFriend: (login: string) => void;
   removeFriend: (login: string) => void;
   setShare: (s: Partial<ShareSettings>) => void;
+  /** Applique un plan objectif : profil (objectif, séances, cibles), départ et programme de la phase en cours. */
+  applyPlan: (id: string, start: string, target: { weightKg: number; bodyFatPct?: number }) => void;
+  removePlan: () => void;
+  /** Passe au programme de la nouvelle phase quand on suit le plan. */
+  syncPlanPhase: (day: string) => void;
   reset: () => void;
 }
 
-export const allPrograms = (custom: Program[]) => [...custom, ...PROGRAMS];
+/** Programmes utilisables : les miens, la bibliothèque, et les phases des plans objectifs. */
+export const allPrograms = (custom: Program[]) => [...custom, ...PROGRAMS, ...PLAN_PROGRAMS];
 
-function buildExercises(day: ProgramDay, workouts: Workout[]): LoggedExercise[] {
-  return day.exercises.map((target) => ({ exerciseId: target.exerciseId, target, sets: prefillSets(history(workouts, target.exerciseId), target) }));
+function buildExercises(day: ProgramDay, workouts: Workout[], adj?: PlanAdjust): LoggedExercise[] {
+  return day.exercises.map((target) => {
+    const sets = adjustSets(target.exerciseId, prefillSets(history(workouts, target.exerciseId), target), adj);
+    return { exerciseId: target.exerciseId, target: adj ? { ...target, sets: sets.length } : target, sets };
+  });
 }
 
 const initial = {
@@ -172,15 +186,17 @@ export const useStore = create<State>()(
         })),
       activateProgram: (id) => set({ activeProgramId: id, nextDayIndex: 0 }),
       startWorkout: (program, dayIndex) => {
-        const { workouts } = get();
+        const { workouts, profile } = get();
         const day = program && dayIndex !== undefined ? program.days[dayIndex] : undefined;
+        // Plan objectif : 2 séries en S1–S2, semaine allégée… appliqués dès le pré-remplissage.
+        const adj = program ? planAdjust(profile, program.id, today()) : undefined;
         set({
           activeWorkout: {
             id: uid(),
             date: new Date().toISOString(),
             programId: program?.id,
             dayName: day?.name ?? 'Séance libre',
-            exercises: day ? buildExercises(day, workouts) : [],
+            exercises: day ? buildExercises(day, workouts, adj) : [],
             stretches: day ? (day.stretches ?? suggestStretches(day.exercises, getExercise)).map((id) => ({ id, done: false })) : undefined,
             finished: false,
           },
@@ -228,6 +244,39 @@ export const useStore = create<State>()(
       removeFriend: (login) => set((s) => ({ friends: s.friends.filter((f) => f.toLowerCase() !== login.toLowerCase()) })),
       setShare: (p) => set((s) => ({ share: { ...s.share, ...p } })),
       applySynced: (d) => set({ onboarded: d.onboarded === true, profile: sanitizeProfile(d.profile), ...sanitizeCollections(d as unknown as Record<string, unknown>) }),
+      applyPlan: (id, start, target) =>
+        set((s) => {
+          const tpl = planTemplate(id);
+          if (!tpl) return {};
+          const day = today();
+          const sorted = [...s.body].sort((a, b) => a.date.localeCompare(b.date));
+          const lastWeighing = sorted.filter((e) => e.date <= day).at(-1);
+          const comp = currentComposition(sorted, s.profile);
+          const profile = sanitizeProfile({
+            ...s.profile,
+            ...tpl.profile,
+            plan: { id, start },
+            targetWeightKg: target.weightKg,
+            targetStartKg: lastWeighing?.weightKg,
+            targetSetAt: day,
+            targetBodyFatPct: target.bodyFatPct,
+            targetStartBfPct: target.bodyFatPct !== undefined ? comp?.bodyFatPct : undefined,
+          });
+          return { profile, activeProgramId: planProgramFor(profile, day), nextDayIndex: 0 };
+        }),
+      removePlan: () =>
+        set((s) => {
+          const tpl = planTemplate(s.profile.plan?.id);
+          const following = tpl && s.activeProgramId?.startsWith(`plan-${tpl.id}-`);
+          return { profile: sanitizeProfile({ ...s.profile, plan: undefined }), ...(following ? { activeProgramId: undefined, nextDayIndex: 0 } : {}) };
+        }),
+      syncPlanPhase: (day) => {
+        const { profile, activeProgramId } = get();
+        const tpl = planTemplate(profile.plan?.id);
+        const want = planProgramFor(profile, day);
+        // Seulement si on suit déjà le plan : un autre programme choisi à la main n'est jamais remplacé.
+        if (tpl && want && activeProgramId !== want && activeProgramId?.startsWith(`plan-${tpl.id}-`)) set({ activeProgramId: want, nextDayIndex: 0 });
+      },
       reset: () => set({ ...initial }),
     }),
     {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Tab } from '../App';
 import AccountCard from '../components/AccountCard';
+import PlanCard from '../components/PlanCard';
 import ProfileForm from '../components/ProfileForm';
 import { logout, useAuth } from '../lib/sync';
 import { exportData, today, useStore } from '../lib/store';
@@ -60,6 +61,7 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
     <div>
       <h1>Profil</h1>
       <AccountCard />
+      <PlanCard go={go} />
       <div className="card">
         <ProfileForm profile={profile} onChange={setProfile} />
         <p className="small muted" style={{ marginTop: 12 }}>

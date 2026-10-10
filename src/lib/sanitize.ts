@@ -208,6 +208,8 @@ function programDay(v: unknown): ProgramDay | undefined {
   if (!isObj(v)) return undefined;
   const d: ProgramDay = { name: str(v.name, 100) ?? 'Séance', exercises: arr(v.exercises).slice(0, 40).map(planned).filter((x): x is PlannedExercise => !!x) };
   if (Array.isArray(v.stretches)) d.stretches = v.stretches.filter((s): s is string => typeof s === 'string' && s.length <= 60).slice(0, 30);
+  const note = str(v.note, 500);
+  if (note) d.note = note;
   return d;
 }
 

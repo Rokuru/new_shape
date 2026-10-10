@@ -15,6 +15,7 @@ import VolumeBars from '../components/VolumeBars';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import Sheet from '../components/Sheet';
 import ProgramEditor, { blankProgram, toEditable } from '../components/ProgramEditor';
+import PlanCard from '../components/PlanCard';
 import { safeUrl } from '../lib/sanitize';
 import { EXERCISES, getExercise } from '../data/exercises';
 import { getStretch, suggestStretches } from '../data/stretches';
@@ -63,6 +64,7 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
   return (
     <div>
       <h1>Programmes</h1>
+      <PlanCard go={go} />
 
       <div className="card">
         <div className="card-header">
@@ -366,6 +368,7 @@ function ProgramDetail({ program, open, onSwap }: { program: Program; open?: boo
                 ))}
               </tbody>
             </table>
+            {d.note && <div className="small secondary day-note">👉 {d.note}</div>}
             <StretchLine day={d} />
           </div>
         ))}
