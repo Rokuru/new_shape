@@ -2670,3 +2670,114 @@ details.session-item > summary::before {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Plan objectif */
+.plan-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.plan-status {
+  display: grid;
+  gap: 6px;
+}
+.plan-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+.plan-progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--series-1);
+}
+.plan-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: var(--text-2);
+}
+.plan-list li + li {
+  margin-top: 6px;
+}
+.plan-list b {
+  color: var(--text);
+}
+.plan-phases {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 12px;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.plan-phases li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--border-strong);
+  border-radius: 0 12px 12px 0;
+  background: var(--surface-2);
+}
+.plan-phases li.current {
+  border-left-color: var(--series-1);
+  background: var(--accent-soft);
+}
+.plan-table th,
+.plan-table td {
+  vertical-align: top;
+}
+.plan-table tbody th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+}
+.plan-table tr.current > * {
+  background: var(--accent-soft);
+}
+details.plan-phase > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+details.plan-phase > summary::before {
+  align-self: center;
+}
+.plan-phase-title {
+  font-family: var(--font-display, inherit);
+  font-size: 1.15rem;
+}
+details.plan-phase.current {
+  border-color: var(--series-1);
+}
+.plan-session + .plan-session {
+  margin-top: 14px;
+}
+.plan-session h3 {
+  margin: 12px 0 6px;
+}
+.plan-details {
+  padding: 10px 0;
+  border-top: 1px solid var(--grid);
+}
+.plan-details > summary {
+  font-weight: 600;
+}
+.plan-banner {
+  margin-bottom: 12px;
+}
+.day-note {
+  margin-top: 2px;
+}

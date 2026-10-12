@@ -44,6 +44,8 @@ export interface Profile {
   /** % de masse grasse visé, et % mesuré au moment où cet objectif a été fixé. */
   targetBodyFatPct?: number;
   targetStartBfPct?: number;
+  /** Plan objectif suivi (data/plans) et son lundi de départ (AAAA-MM-JJ). */
+  plan?: { id: string; start: string };
 }
 
 export type BmrMethod = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'tinsley';
@@ -143,6 +145,8 @@ export interface ProgramDay {
   exercises: PlannedExercise[];
   /** Étirements de fin de séance (identifiants de data/stretches) ; absent = suggestion automatique. */
   stretches?: string[];
+  /** Consigne de la séance (cardio après, circuit…). */
+  note?: string;
 }
 
 export interface Program {

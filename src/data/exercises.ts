@@ -48,6 +48,8 @@ export const EXERCISES: Exercise[] = [
   { id: 'kb_swing', name: 'Swing kettlebell (ou haltère)', primary: ['glutes', 'hamstrings'], secondary: ['back', 'abs'], equipment: [G, D], kind: 'compound', increment: 4, tips: 'Charnière de hanche, pas un squat : les hanches projettent la kettlebell, les bras ne font que la guider.' },
   { id: 'kb_clean', name: 'Épaulé kettlebell', primary: ['glutes', 'hamstrings', 'back'], secondary: ['shoulders'], equipment: [G, D], kind: 'compound', increment: 4 },
   { id: 'turkish_getup', name: 'Turkish get-up', primary: ['shoulders', 'abs'], secondary: ['glutes', 'quads'], equipment: [G, D], kind: 'compound', increment: 4, tips: 'Lentement, le regard sur la charge, bras tendu à la verticale du début à la fin.' },
+  { id: 'box_squat', name: 'Box squat goblet (assis sur un banc)', primary: ['quads', 'glutes'], secondary: ['hamstrings', 'abs'], equipment: [G, D], kind: 'compound', increment: 2, tips: 'Haltère contre la poitrine : descends jusqu’à t’asseoir sur le banc, puis repars en poussant dans les talons.' },
+  { id: 'reverse_lunge', name: 'Fentes arrière', primary: ['quads', 'glutes'], secondary: ['hamstrings'], equipment: [G, D, B], kind: 'compound', increment: 2, tips: 'Le pas se fait en arrière : le genou avant reste au-dessus de la cheville, plus doux pour les genoux que la fente avant.' },
   { id: 'pistol_squat', name: 'Squat une jambe (assisté)', primary: ['quads', 'glutes'], secondary: [], equipment: [B], kind: 'compound', increment: 0 },
 
   // Poussée
@@ -60,6 +62,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'pushup_rotation', name: 'Pompes avec rotation', primary: ['chest'], secondary: ['shoulders', 'abs', 'triceps'], equipment: [B, D, G], kind: 'compound', increment: 0 },
   { id: 'bench_dip', name: 'Dips sur chaise / banc', primary: ['triceps'], secondary: ['chest', 'shoulders'], equipment: [B, D, G], kind: 'compound', increment: 0 },
   { id: 'pushup', name: 'Pompes', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [B, D], kind: 'compound', increment: 0 },
+  { id: 'incline_pushup', name: 'Pompes mains surélevées (sur un banc)', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [B, D, G], kind: 'compound', increment: 0 },
   { id: 'pec_deck', machine: true, name: 'Butterfly (Pec fly)', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'cable_fly', name: 'Écarté poulie (Cable crossover)', primary: ['chest'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_fly', name: 'Écarté haltères', primary: ['chest'], secondary: [], equipment: [D], kind: 'isolation', increment: 1 },
@@ -83,6 +86,8 @@ export const EXERCISES: Exercise[] = [
   { id: 'rear_delt_fly', name: 'Oiseau haltères', primary: ['shoulders'], secondary: ['back'], equipment: [D, G], kind: 'isolation', increment: 1 },
   { id: 'barbell_curl', name: 'Curl barre', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'db_curl', name: 'Curl haltères incliné', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
+  { id: 'standing_db_curl', name: 'Curl haltères debout', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
+  { id: 'cable_curl', name: 'Curl biceps poulie basse', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 2.5 },
   { id: 'preacher_curl', name: 'Curl pupitre', primary: ['biceps'], secondary: [], equipment: [G], kind: 'isolation', increment: 1 },
   { id: 'hammer_curl', name: 'Curl marteau', primary: ['biceps'], secondary: [], equipment: [G, D], kind: 'isolation', increment: 1 },
   { id: 'chinup', bodyweight: true, name: 'Tractions supination', primary: ['back', 'biceps'], secondary: [], equipment: [G, B], kind: 'compound', increment: 2.5 },
@@ -97,6 +102,7 @@ export const EXERCISES: Exercise[] = [
 
   // Machines guidées des clubs Basic-Fit (Matrix, Technogym selon les clubs) : nom français (nom anglais inscrit sur la machine).
   { id: 'm_chest_press', machine: true, name: 'Presse pectoraux (Chest press)', primary: ['chest'], secondary: ['triceps', 'shoulders'], equipment: [G], kind: 'compound', increment: 5, tips: 'Poignées à hauteur du milieu de la poitrine, omoplates contre le dossier ; pousse sans verrouiller les coudes.' },
+  { id: 'm_incline_press', machine: true, name: 'Développé incliné machine (Incline chest press)', primary: ['chest'], secondary: ['shoulders', 'triceps'], equipment: [G], kind: 'compound', increment: 5 },
   { id: 'm_shoulder_press', machine: true, name: 'Développé épaules machine (Shoulder press)', primary: ['shoulders'], secondary: ['triceps'], equipment: [G], kind: 'compound', increment: 5, tips: 'Siège réglé pour que les poignées partent à hauteur des épaules ; dos collé au dossier.' },
   { id: 'm_seated_row', machine: true, name: 'Tirage horizontal machine (Seated row)', primary: ['back'], secondary: ['biceps', 'shoulders'], equipment: [G], kind: 'compound', increment: 5, tips: 'Poitrine contre l’appui, tire les coudes vers l’arrière en serrant les omoplates.' },
   { id: 'm_rear_delt', machine: true, name: 'Oiseau machine (Rear delt fly)', primary: ['shoulders'], secondary: ['back'], equipment: [G], kind: 'isolation', increment: 2.5, tips: 'Face à la machine, poitrine contre le dossier, bras presque tendus : ouvre en arc jusqu’à l’alignement des épaules.' },

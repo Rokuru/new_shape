@@ -5,6 +5,9 @@ import { computeBmr, tonnage } from '../lib/calc';
 import { energyBasis, workoutKcal } from '../lib/energy';
 import { history, prefillSets, suggest } from '../lib/progression';
 import { allPrograms, useStore } from '../lib/store';
+import { planAdjust, planProgramId, planStatus } from '../lib/plan';
+import { useToday } from '../hooks/useToday';
+import { dayKey } from '../lib/dates';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
 import ActivityCard from '../components/ActivityCard';
@@ -17,8 +20,12 @@ import WorkoutEditor, { DuplicateWorkout } from '../components/WorkoutEditor';
 import { loadPrefs, loadRestEnd, notifySupported, requestNotify, restDone, savePrefs, saveRestEnd, unlockAudio, type RestAlertPrefs } from '../lib/restAlert';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
-  const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout } = useStore();
+  const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout, profile } = useStore();
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
+  const todayKey = useToday();
+  const plan = planStatus(profile, todayKey);
+  const onPlan = plan && program?.id === planProgramId(plan.tpl, plan.phase) ? plan : undefined;
+  const adjust = program ? planAdjust(profile, program.id, todayKey) : undefined;
 
   const [editId, setEditId] = useState<string>();
   const [dupId, setDupId] = useState<string>();
@@ -36,6 +43,21 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
               <div className="card-header">
                 <h2>{program.name}</h2>
               </div>
+              {onPlan && (
+                <p className="small secondary" style={{ marginTop: 0 }}>
+                  <a href="#plan" onClick={(e) => (e.preventDefault(), go('plan'))}>
+                    Plan objectif
+                  </a>{' '}
+                  · {onPlan.started ? `semaine ${onPlan.week}/${onPlan.tpl.weeks}` : `départ le ${fmtDate(onPlan.start, { weekday: 'long', day: 'numeric', month: 'long' })}`} · marche inclinée{' '}
+                  {onPlan.phase.cardio.walk} · {onPlan.phase.cardio.steps} pas/jour
+                  {adjust && (
+                    <>
+                      <br />
+                      <b>{adjust.label.replace(', déjà appliqué', ', appliqué au démarrage').replace(', déjà appliqués', ', appliqués au démarrage')}</b>
+                    </>
+                  )}
+                </p>
+              )}
               <div className="stack">
                 {program.days.map((d, i) => (
                   <div className="list-item" key={i}>
@@ -46,6 +68,7 @@ export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
                       <div className="small muted">
                         {d.exercises.length} exercices · {d.exercises.reduce((s, e) => s + e.sets, 0)} séries
                       </div>
+                      {d.note && <div className="small secondary day-note">👉 {d.note}</div>}
                     </div>
                     <button className={`btn ${i === nextDayIndex % program.days.length ? 'go' : ''}`} onClick={() => startWorkout(program, i)}>
                       {i === nextDayIndex % program.days.length && <Icon name="play" size={18} />} Démarrer
@@ -174,7 +197,12 @@ function useNow(ms = 1000) {
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, '0')}`;
 
 function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void }) {
-  const { updateActive, finishWorkout, cancelWorkout, workouts } = useStore();
+  const { updateActive, finishWorkout, cancelWorkout, workouts, customPrograms, profile } = useStore();
+  // Consigne de la séance (cardio après, circuit) et ajustement du plan objectif appliqué au démarrage.
+  const dayNote = allPrograms(customPrograms)
+    .find((p) => p.id === workout.programId)
+    ?.days.find((d) => d.name === workout.dayName)?.note;
+  const planNote = planAdjust(profile, workout.programId, dayKey(workout.date))?.label;
   const now = useNow();
   // Fin du repos conservée si l'appli est rechargée ou mise en arrière-plan ; un repos déjà fini est ignoré.
   const [restEnd, setRestEndState] = useState<number | undefined>(() => {
@@ -232,9 +260,11 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
       // Propage la charge validée aux séries suivantes encore vides.
       sets: e.sets.map((x, j) => (j === k ? { ...x, done } : j > k && !x.done && done && x.weight === 0 ? { ...x, weight: s.weight } : x)),
     }));
-    if (done) {
+    // Repos 0 : circuit, on enchaîne sans minuteur.
+    const rest = ex.target?.restSec ?? 90;
+    if (done && rest > 0) {
       unlockAudio();
-      setRestEnd(Date.now() + (ex.target?.restSec ?? 90) * 1000);
+      setRestEnd(Date.now() + rest * 1000);
     }
   };
 
@@ -262,6 +292,13 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
           <Icon name="check" size={18} /> Terminer
         </button>
       </div>
+
+      {(planNote || dayNote) && (
+        <div className="callout small plan-banner">
+          {planNote && <div>📉 {planNote}</div>}
+          {dayNote && <div>👉 {dayNote}</div>}
+        </div>
+      )}
 
       <RestAlertSettings prefs={prefs} onChange={setPrefs} />
 
@@ -415,7 +452,7 @@ function ExerciseCard({
           </h3>
           {t && (
             <div className="small secondary">
-              {t.sets} × {t.repMin === t.repMax ? t.repMin : `${t.repMin}–${t.repMax}`} · RIR {t.rir} · repos {Math.round(t.restSec / 60 * 10) / 10} min
+              {t.sets} × {t.repMin === t.repMax ? t.repMin : `${t.repMin}–${t.repMax}`} · RIR {t.rir} · {t.restSec ? `repos ${t.restSec < 60 ? `${t.restSec} s` : `${fmtNum(t.restSec / 60)} min`}` : 'enchaîner sans repos'}
               {t.note ? ` · ${t.note}` : ''}
             </div>
           )}

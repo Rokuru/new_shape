@@ -16,8 +16,10 @@ import ProgressPage from './pages/Progress';
 import ProfilePage from './pages/Profile';
 import Onboarding from './pages/Onboarding';
 import FriendsPage from './pages/Friends';
+import PlanPage from './pages/Plan';
+import { useToday } from './hooks/useToday';
 
-export type Tab = 'home' | 'workout' | 'programs' | 'body' | 'nutrition' | 'progress' | 'profile' | 'friends';
+export type Tab = 'home' | 'workout' | 'programs' | 'body' | 'nutrition' | 'progress' | 'profile' | 'friends' | 'plan';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'home', label: 'Accueil', icon: 'home' },
@@ -30,7 +32,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 const readTab = (): Tab => {
   const h = window.location.hash.slice(1) as Tab;
-  return [...TABS.map((t) => t.id), 'profile', 'friends'].includes(h) ? h : 'home';
+  return [...TABS.map((t) => t.id), 'profile', 'friends', 'plan'].includes(h) ? h : 'home';
 };
 
 export default function App() {
@@ -39,6 +41,13 @@ export default function App() {
   const user = useAuth((s) => s.user);
   const syncError = useAuth((s) => s.status === 'error');
   const [tab, setTab] = useState<Tab>(readTab);
+  const day = useToday();
+  const syncPlanPhase = useStore((s) => s.syncPlanPhase);
+  const planStart = useStore((s) => s.profile.plan?.start);
+  // Plan objectif : la nouvelle phase devient le programme actif le jour où elle commence.
+  useEffect(() => {
+    if (planStart) syncPlanPhase(day);
+  }, [day, planStart, syncPlanPhase]);
 
   useEffect(() => {
     const onHash = () => setTab(readTab());
@@ -134,6 +143,7 @@ export default function App() {
           {tab === 'progress' && <ProgressPage />}
           {tab === 'profile' && <ProfilePage go={go} />}
           {tab === 'friends' && <FriendsPage go={go} />}
+          {tab === 'plan' && <PlanPage go={go} />}
           </ErrorBoundary>
         </main>
       </div>
