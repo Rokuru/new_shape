@@ -259,12 +259,13 @@ function ProgramCard({
   const st = programStats(program);
   return (
     <div className="card" id={`prog-${program.id}`} style={active ? { borderColor: 'var(--accent)' } : undefined}>
-      <div className="spread" style={{ alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0 }}>
+      {/* Titre et boutons côte à côte s'il y a la place, sinon les boutons passent dessous (iPhone). */}
+      <div className="prog-head">
+        <div className="prog-title">
           <h3 style={{ marginBottom: 2 }}>{program.name}</h3>
           <div className="small muted">{program.author}</div>
         </div>
-        <div className="row" style={{ flexShrink: 0 }}>
+        <div className="prog-actions">
           {active ? (
             <span className="status ok">
               <Icon name="check" size={14} /> Actif
