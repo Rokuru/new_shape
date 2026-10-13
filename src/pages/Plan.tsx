@@ -10,7 +10,7 @@ import { cardioStats, isValidCardio } from '../lib/cardio';
 import { BMR_FORMULAS, currentComposition, nutritionTargets, weightTrend } from '../lib/calc';
 import { addDays, daysBetween } from '../lib/dates';
 import { activityAverage } from '../lib/energy';
-import { checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planEnd, planEnergy, planProgramId, planStatus, planTemplate, trackingRows } from '../lib/plan';
+import { checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planEnd, planEnergy, planProgramId, planStatus, planTemplate, trackingRows, weekSessions } from '../lib/plan';
 import { useStore } from '../lib/store';
 import { dayToTime, timeAxis } from '../lib/timeAxis';
 import type { LoggedSet } from '../lib/types';
@@ -268,6 +268,7 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
         </ol>
         <h3>Semaine type</h3>
         <Table table={tpl.weekType} />
+        <WeekGuide tpl={tpl} week={st && !st.finished ? Math.max(1, st.week) : 1} />
       </div>
 
       {tpl.phases.map((p, i) => (
@@ -416,6 +417,35 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
         </button>
       )}
       {applying && <ApplyPlanSheet tpl={tpl} onClose={() => setApplying(false)} />}
+    </div>
+  );
+}
+
+/**
+ * 1re / 2e / 3e séance = l'ordre dans la semaine ; A, B, C (ou Haut, Bas…) = le contenu, qui tourne selon la phase.
+ * On montre concrètement les séances de cette semaine et de la suivante.
+ */
+function WeekGuide({ tpl, week }: { tpl: (typeof PLAN_TEMPLATES)[number]; week: number }) {
+  const line = (w: number) =>
+    weekSessions(tpl, w)
+      .map((x) => `${x.day} ${x.name}`)
+      .join(', ');
+  return (
+    <div className="callout small" style={{ marginTop: 10 }}>
+      <div>
+        <b>« 1re, 2e, 3e séance »</b> = l’ordre des séances dans la semaine. <b>A, B, C</b> (puis Haut, Bas…) = le contenu de la séance, détaillé dans chaque phase. Avec 2
+        séances différentes pour 3 jours, elles alternent : A-B-A une semaine, B-A-B la suivante.
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <b>Semaine {week}</b> : {line(week)}.
+        {week < tpl.weeks && (
+          <>
+            {' '}
+            <b>Semaine {week + 1}</b> : {line(week + 1)}.
+          </>
+        )}
+      </div>
+      <div style={{ marginTop: 6 }}>Un jour décalé ? Pas de souci : l’onglet Séance te propose toujours la bonne séance suivante (étiquette « Prochaine »).</div>
     </div>
   );
 }

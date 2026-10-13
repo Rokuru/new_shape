@@ -48,6 +48,8 @@ export interface PlanTemplate {
   books: string;
   overview: string;
   weekType: PlanTable;
+  /** Jours des séances de la semaine type (1re, 2e, 3e séance). */
+  sessionDays: string[];
   phases: PlanPhase[];
   cardioIntro: string;
   cardioBullets: string[];
@@ -84,15 +86,16 @@ export const BASICFIT_CUT: PlanTemplate = {
   weekType: {
     head: ['Jour', 'Phases 1–2', 'Phases 3–4'],
     rows: [
-      ['Lundi', 'Séance 1 + 10–15 min de marche inclinée', 'Séance Haut'],
+      ['Lundi', '1re séance de la semaine + 10–15 min de marche inclinée', 'Séance Haut'],
       ['Mardi', 'Marche inclinée', 'Marche inclinée (ou 4e séance optionnelle)'],
-      ['Mercredi', 'Séance 2', 'Séance Bas'],
+      ['Mercredi', '2e séance de la semaine', 'Séance Bas'],
       ['Jeudi', 'Marche inclinée', 'Marche inclinée (+ intervalles vélo en phase 4)'],
-      ['Vendredi', 'Séance 3', 'Séance métabolique ou congestion'],
+      ['Vendredi', '3e séance de la semaine', 'Séance métabolique ou congestion'],
       ['Samedi', 'Marche longue ou sport', 'Marche longue ou sport'],
       ['Dimanche', 'Repos, juste les pas du jour', 'Repos, juste les pas du jour'],
     ],
   },
+  sessionDays: ['lundi', 'mercredi', 'vendredi'],
   phases: [
     {
       id: 'p1',

@@ -108,6 +108,22 @@ export function adjustSets(exerciseId: string, sets: LoggedSet[], adj: PlanAdjus
   return sets.slice(0, Math.max(1, sets.length - 1)).map((s) => ({ ...s, weight: inc > 0 ? Math.round((s.weight * 0.9) / inc) * inc : s.weight }));
 }
 
+/** Nom court d'une séance : « Séance A – poussée… » → « A », « Séance métabolique » → « Métabolique ». */
+export function shortSessionName(name: string): string {
+  const s = name.replace(/^Séance /, '').split(' – ')[0];
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Séances prévues une semaine donnée, une par jour de séance (lundi, mercredi, vendredi) :
+ * les séances de la phase tournent dans l'ordre (phase 1 : A-B-A puis B-A-B ; phase 2 : A-B-C).
+ */
+export function weekSessions(tpl: PlanTemplate, week: number): { day: string; name: string }[] {
+  const phase = phaseForWeek(tpl, week);
+  const offset = (Math.max(week, phase.weeks[0]) - phase.weeks[0]) * tpl.sessionDays.length;
+  return tpl.sessionDays.map((day, i) => ({ day, name: shortSessionName(phase.days[(offset + i) % phase.days.length].name) }));
+}
+
 /** Semaines du plan qui contiennent le 25 décembre ou le 1er janvier (séances souvent décalées). */
 export function holidayWeeks(tpl: PlanTemplate, start: string): number[] {
   const weeks = new Set<number>();

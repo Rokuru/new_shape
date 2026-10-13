@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASICFIT_CUT, PLAN_TEMPLATES } from '../data/plans';
 import { EXERCISES } from '../data/exercises';
-import { adjustSets, checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planAdjust, planEnd, planProgramFor, planProgramId, planStatus, planWeek, trackingRows } from './plan';
+import { adjustSets, checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planAdjust, planEnd, planProgramFor, planProgramId, planStatus, planWeek, shortSessionName, trackingRows, weekSessions } from './plan';
 import { DEFAULT_PROFILE, sanitizeProfile, useStore } from './store';
 import type { Profile, Workout } from './types';
 
@@ -69,6 +69,17 @@ describe('calendrier du plan', () => {
     expect(checkpoints(tpl, START)).toEqual(['2026-10-12', '2026-11-12', '2026-12-12', '2027-01-12', '2027-02-12', '2027-03-12', '2027-04-12', '2027-05-12', '2027-06-12']);
     // Départ un 31 : dernier jour des mois plus courts.
     expect(checkpoints(tpl, '2026-08-31').slice(0, 3)).toEqual(['2026-08-31', '2026-09-30', '2026-10-31']);
+  });
+
+  it('séances de la semaine : A-B-A puis B-A-B en phase 1, A-B-C en phase 2', () => {
+    const names = (w: number) => weekSessions(tpl, w).map((x) => `${x.day} ${x.name}`).join(', ');
+    expect(names(1)).toBe('lundi A, mercredi B, vendredi A');
+    expect(names(2)).toBe('lundi B, mercredi A, vendredi B');
+    expect(names(3)).toBe('lundi A, mercredi B, vendredi A');
+    expect(names(7)).toBe('lundi A, mercredi B, vendredi C');
+    expect(names(15)).toBe('lundi Haut, mercredi Bas, vendredi Métabolique');
+    expect(names(25)).toBe('lundi Haut lourd, mercredi Bas lourd, vendredi Congestion');
+    expect(shortSessionName('Séance B – tirage et chaîne postérieure')).toBe('B');
   });
 
   it('S11–S12 tombent pendant les fêtes', () => {
