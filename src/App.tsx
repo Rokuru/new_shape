@@ -38,6 +38,7 @@ const readTab = (): Tab => {
 export default function App() {
   const onboarded = useStore((s) => s.onboarded);
   const hasActive = useStore((s) => !!s.activeWorkout);
+  const paused = useStore((s) => !!s.activeWorkout?.pausedAt);
   const user = useAuth((s) => s.user);
   const syncError = useAuth((s) => s.status === 'error');
   const [tab, setTab] = useState<Tab>(readTab);
@@ -74,7 +75,7 @@ export default function App() {
   ) : (
     <Icon name="user" size={20} />
   );
-  const label = (t: (typeof TABS)[number]) => (t.id === 'workout' && hasActive ? 'En cours' : t.label);
+  const label = (t: (typeof TABS)[number]) => (t.id === 'workout' && hasActive ? (paused ? 'En pause' : 'En cours') : t.label);
 
   return (
     <ExerciseInfoProvider>
@@ -95,7 +96,7 @@ export default function App() {
             <button key={t.id} className={`side-link ${tab === t.id ? 'active' : ''}`} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
               <span className="side-icon">
                 <Icon name={t.icon} />
-                {t.id === 'workout' && hasActive && <i className="live-dot" aria-hidden />}
+                {t.id === 'workout' && hasActive && <i className={`live-dot ${paused ? 'paused' : ''}`} aria-hidden />}
               </span>
               <span className="side-label">{label(t)}</span>
             </button>
@@ -154,7 +155,7 @@ export default function App() {
           <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => go(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
             <span className="tab-icon">
               <Icon name={t.icon} />
-              {t.id === 'workout' && hasActive && <i className="live-dot" aria-hidden />}
+              {t.id === 'workout' && hasActive && <i className={`live-dot ${paused ? 'paused' : ''}`} aria-hidden />}
             </span>
             {label(t)}
           </button>

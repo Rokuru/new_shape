@@ -203,4 +203,7 @@ export interface Workout {
   finished: boolean;
   /** Étirements prévus pour la séance et ceux effectués. */
   stretches?: { id: string; done: boolean }[];
+  /** Séance en cours mise en pause (ex. lancée avant d'arriver à la salle) : début de la pause et temps de pause cumulé (ms). */
+  pausedAt?: string;
+  pausedMs?: number;
 }

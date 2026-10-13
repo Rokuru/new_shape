@@ -2,7 +2,7 @@
  * Plans objectifs : semaine en cours, phase, ajustements automatiques (séries plafonnées, semaine allégée),
  * calculs de l'objectif et suivi mensuel, à partir du profil et des données de l'utilisateur.
  */
-import { PLAN_TEMPLATES, type PlanPhase, type PlanTemplate } from '../data/plans';
+import { PLAN_TEMPLATES, type PlanPhase, type PlanTable, type PlanTemplate } from '../data/plans';
 import { getExercise } from '../data/exercises';
 import { bodyFatOf, bodyweightAt, computeBmr, setE1rm } from './calc';
 import { addDays, dayKey, daysBetween, parseLocalDate } from './dates';
@@ -43,10 +43,49 @@ export function phaseForWeek(tpl: PlanTemplate, week: number): PlanPhase {
 export const phaseDates = (start: string, phase: PlanPhase) => ({ from: addDays(start, (phase.weeks[0] - 1) * 7), to: addDays(start, phase.weeks[1] * 7 - 1) });
 export const planEnd = (tpl: PlanTemplate, start: string) => addDays(start, tpl.weeks * 7 - 1);
 
+const WEEKDAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+/** Jour de la semaine, lundi = 0. */
+const weekday = (day: string) => (parseLocalDate(day).getDay() + 6) % 7;
+
 /** Lundi qui suit (ou aujourd'hui si on est lundi) : départ proposé. */
 export function nextMonday(day: string): string {
-  const dow = (parseLocalDate(day).getDay() + 6) % 7; // lundi = 0
+  const dow = weekday(day);
   return dow === 0 ? day : addDays(day, 7 - dow);
+}
+
+/** « du mercredi au mardi » : les 7 jours d'une semaine du plan, qui commence le jour du départ. */
+export function weekSpan(start: string): string {
+  const first = weekday(start);
+  return `du ${WEEKDAYS[first]} au ${WEEKDAYS[(first + 6) % 7]}`;
+}
+
+/** Jours de séance dans l'ordre d'une semaine du plan : départ un mercredi → mercredi, vendredi, lundi. */
+export function sessionDaysFrom(tpl: PlanTemplate, start?: string): string[] {
+  if (!start) return tpl.sessionDays;
+  const pos = (d: string) => (WEEKDAYS.indexOf(d) - weekday(start) + 7) % 7;
+  return [...tpl.sessionDays].sort((a, b) => pos(a) - pos(b));
+}
+
+/**
+ * Semaine type recalée sur le jour du départ : les lignes partent de ce jour, et les séances (1re, 2e, 3e,
+ * ou Haut, Bas…) suivent l'ordre de la semaine du plan. Départ un lundi : la semaine type telle quelle.
+ */
+export function weekTypeFrom(tpl: PlanTemplate, start?: string): PlanTable {
+  const { rows } = tpl.weekType;
+  if (!start || !rows.every((r) => WEEKDAYS.includes(r[0].toLowerCase()))) return tpl.weekType;
+  const order = sessionDaysFrom(tpl, start);
+  const rowOf = (d: string) => rows.find((r) => r[0].toLowerCase() === d);
+  const pos = (r: string[]) => (WEEKDAYS.indexOf(r[0].toLowerCase()) - weekday(start) + 7) % 7;
+  return {
+    ...tpl.weekType,
+    rows: rows
+      .map((r) => {
+        const k = order.indexOf(r[0].toLowerCase());
+        const src = k >= 0 ? rowOf(tpl.sessionDays[k]) : undefined;
+        return src ? [r[0], ...src.slice(1)] : r;
+      })
+      .sort((a, b) => pos(a) - pos(b)),
+  };
 }
 
 export interface PlanStatus {
@@ -115,13 +154,14 @@ export function shortSessionName(name: string): string {
 }
 
 /**
- * Séances prévues une semaine donnée, une par jour de séance (lundi, mercredi, vendredi) :
- * les séances de la phase tournent dans l'ordre (phase 1 : A-B-A puis B-A-B ; phase 2 : A-B-C).
+ * Séances prévues une semaine donnée, une par jour de séance (lundi, mercredi, vendredi, dans l'ordre de la semaine
+ * du plan qui part du jour du départ) : les séances de la phase tournent (phase 1 : A-B-A puis B-A-B ; phase 2 : A-B-C).
  */
-export function weekSessions(tpl: PlanTemplate, week: number): { day: string; name: string }[] {
+export function weekSessions(tpl: PlanTemplate, week: number, start?: string): { day: string; name: string }[] {
   const phase = phaseForWeek(tpl, week);
-  const offset = (Math.max(week, phase.weeks[0]) - phase.weeks[0]) * tpl.sessionDays.length;
-  return tpl.sessionDays.map((day, i) => ({ day, name: shortSessionName(phase.days[(offset + i) % phase.days.length].name) }));
+  const days = sessionDaysFrom(tpl, start);
+  const offset = (Math.max(week, phase.weeks[0]) - phase.weeks[0]) * days.length;
+  return days.map((day, i) => ({ day, name: shortSessionName(phase.days[(offset + i) % phase.days.length].name) }));
 }
 
 /** Semaines du plan qui contiennent le 25 décembre ou le 1er janvier (séances souvent décalées). */

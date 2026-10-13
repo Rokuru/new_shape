@@ -4,7 +4,7 @@ import { EXERCISES, getExercise, MUSCLE_LABELS, MUSCLES } from '../data/exercise
 import { computeBmr, tonnage } from '../lib/calc';
 import { energyBasis, workoutKcal } from '../lib/energy';
 import { history, prefillSets, suggest } from '../lib/progression';
-import { allPrograms, useStore } from '../lib/store';
+import { activeMs, allPrograms, useStore } from '../lib/store';
 import { planAdjust, planProgramId, planStatus } from '../lib/plan';
 import { useToday } from '../hooks/useToday';
 import { dayKey } from '../lib/dates';
@@ -196,8 +196,14 @@ function useNow(ms = 1000) {
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, '0')}`;
 
+/** « 18:42 », ou « le 12 oct. à 18:42 » pour une pause commencée un autre jour. */
+function pausedSince(iso: string): string {
+  const time = new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return dayKey(iso) === dayKey(new Date().toISOString()) ? time : `le ${fmtDate(dayKey(iso), { day: 'numeric', month: 'short' })} à ${time}`;
+}
+
 function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void }) {
-  const { updateActive, finishWorkout, cancelWorkout, workouts, customPrograms, profile } = useStore();
+  const { updateActive, finishWorkout, cancelWorkout, pauseWorkout, resumeWorkout, workouts, customPrograms, profile } = useStore();
   // Consigne de la séance (cardio après, circuit) et ajustement du plan objectif appliqué au démarrage.
   const dayNote = allPrograms(customPrograms)
     .find((p) => p.id === workout.programId)
@@ -255,6 +261,8 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
     const ex = workout.exercises[i];
     const s = ex.sets[k];
     const done = !s.done;
+    // Valider une série pendant la pause, c'est qu'on a repris.
+    if (done && workout.pausedAt) resumeWorkout();
     setEx(i, (e) => ({
       ...e,
       // Propage la charge validée aux séries suivantes encore vides.
@@ -268,17 +276,31 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
     }
   };
 
-  const elapsed = Math.round((now - new Date(workout.date).getTime()) / 1000);
+  // Chrono sans les pauses : il s'arrête pendant la pause.
+  const elapsed = Math.round(activeMs(workout, now) / 1000);
   const doneSets = workout.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
+  const pausedAt = workout.pausedAt;
+  const pause = () => {
+    setRestEnd(undefined);
+    pauseWorkout();
+  };
 
   return (
     <div>
       <div className="spread" style={{ marginBottom: 12 }}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h1 style={{ margin: 0 }}>{workout.dayName}</h1>
-          <div className="small muted">
-            {mmss(elapsed)} · {doneSets}/{totalSets} séries
+          <div className="workout-meta small muted">
+            <span>
+              {mmss(elapsed)}
+              {pausedAt && ' (en pause)'} · {doneSets}/{totalSets} séries
+            </span>
+            {!pausedAt && (
+              <button className="btn sm" onClick={pause}>
+                <Icon name="pause" size={16} /> Pause
+              </button>
+            )}
           </div>
         </div>
         <button
@@ -292,6 +314,20 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
           <Icon name="check" size={18} /> Terminer
         </button>
       </div>
+
+      {pausedAt && (
+        <div className="callout small paused-banner" role="status">
+          <div>
+            <b>Séance en pause depuis {pausedSince(pausedAt)}.</b>{' '}
+            {doneSets === 0
+              ? 'Rien n’est encore validé : à la reprise, le chrono repart de zéro et la séance prend l’heure de la reprise.'
+              : 'Le chrono est arrêté : le temps de pause ne compte pas dans la durée ni dans les calories de la séance.'}
+          </div>
+          <button className="btn go" onClick={resumeWorkout}>
+            <Icon name="play" size={18} /> Reprendre la séance
+          </button>
+        </div>
+      )}
 
       {(planNote || dayNote) && (
         <div className="callout small plan-banner">

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Tab } from '../App';
 import ApplyPlanSheet, { suggestedTarget } from '../components/ApplyPlanSheet';
+import PlanStartSheet from '../components/PlanStartSheet';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import { ChartTooltip, fmtDate, fmtNum, Icon, Legend, Rich } from '../components/ui';
 import { PLAN_TEMPLATES, type PlanPhase, type PlanTable } from '../data/plans';
@@ -10,7 +11,7 @@ import { cardioStats, isValidCardio } from '../lib/cardio';
 import { BMR_FORMULAS, currentComposition, nutritionTargets, weightTrend } from '../lib/calc';
 import { addDays, daysBetween } from '../lib/dates';
 import { activityAverage } from '../lib/energy';
-import { checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planEnd, planEnergy, planProgramId, planStatus, planTemplate, trackingRows, weekSessions } from '../lib/plan';
+import { checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planEnd, planEnergy, planProgramId, planStatus, planTemplate, trackingRows, weekSessions, weekSpan, weekTypeFrom } from '../lib/plan';
 import { useStore } from '../lib/store';
 import { dayToTime, timeAxis } from '../lib/timeAxis';
 import type { LoggedSet } from '../lib/types';
@@ -62,6 +63,7 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
   const { profile, body, workouts, cardio, kcalAdjust, activeProgramId, removePlan } = useStore();
   const today = useToday();
   const [applying, setApplying] = useState(false);
+  const [editingStart, setEditingStart] = useState(false);
   const st = planStatus(profile, today);
   const tpl = st?.tpl ?? planTemplate(profile.plan?.id) ?? PLAN_TEMPLATES[0];
   const applied = Boolean(st);
@@ -141,6 +143,11 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
                 Ton programme actif n’est pas celui du plan : active-le depuis ton profil ou l’onglet Programmes.
               </div>
             )}
+            <div className="row" style={{ gap: 8, marginTop: 4 }}>
+              <button className="btn sm" onClick={() => setEditingStart(true)}>
+                <Icon name="calendar" size={16} /> Changer la date de début
+              </button>
+            </div>
           </div>
         ) : (
           <div className="row" style={{ gap: 8 }}>
@@ -267,8 +274,8 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
           })}
         </ol>
         <h3>Semaine type</h3>
-        <Table table={tpl.weekType} />
-        <WeekGuide tpl={tpl} week={st && !st.finished ? Math.max(1, st.week) : 1} />
+        <Table table={weekTypeFrom(tpl, start)} />
+        <WeekGuide tpl={tpl} week={st && !st.finished ? Math.max(1, st.week) : 1} start={start} />
       </div>
 
       {tpl.phases.map((p, i) => (
@@ -417,6 +424,7 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
         </button>
       )}
       {applying && <ApplyPlanSheet tpl={tpl} onClose={() => setApplying(false)} />}
+      {editingStart && <PlanStartSheet onClose={() => setEditingStart(false)} />}
     </div>
   );
 }
@@ -425,9 +433,9 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
  * 1re / 2e / 3e séance = l'ordre dans la semaine ; A, B, C (ou Haut, Bas…) = le contenu, qui tourne selon la phase.
  * On montre concrètement les séances de cette semaine et de la suivante.
  */
-function WeekGuide({ tpl, week }: { tpl: (typeof PLAN_TEMPLATES)[number]; week: number }) {
+function WeekGuide({ tpl, week, start }: { tpl: (typeof PLAN_TEMPLATES)[number]; week: number; start: string }) {
   const line = (w: number) =>
-    weekSessions(tpl, w)
+    weekSessions(tpl, w, start)
       .map((x) => `${x.day} ${x.name}`)
       .join(', ');
   return (
@@ -437,7 +445,7 @@ function WeekGuide({ tpl, week }: { tpl: (typeof PLAN_TEMPLATES)[number]; week: 
         séances différentes pour 3 jours, elles alternent : A-B-A une semaine, B-A-B la suivante.
       </div>
       <div style={{ marginTop: 6 }}>
-        <b>Semaine {week}</b> : {line(week)}.
+        Les semaines du plan partent du jour de départ : {weekSpan(start)}. <b>Semaine {week}</b> : {line(week)}.
         {week < tpl.weeks && (
           <>
             {' '}

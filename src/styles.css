@@ -2782,6 +2782,35 @@ details.plan-phase.current {
 .plan-banner {
   margin-bottom: 12px;
 }
+
+/* Séance en pause : chrono arrêté, reprise en un geste */
+.workout-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+.workout-meta .btn.sm {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+.callout.paused-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  border-left-color: var(--warning);
+}
+.paused-banner > div {
+  flex: 1 1 220px;
+}
+.live-dot.paused {
+  background: var(--warning);
+  animation: none;
+}
 .day-note {
   margin-top: 2px;
 }

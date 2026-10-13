@@ -22,6 +22,7 @@ const paths: Record<string, ReactNode> = {
   walk: <path d="M13 4.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM9 21l2.5-6.5L14 17v4M7.5 11l2.5-3.5 4 1 2.5 3.5M10 7.5l1.5 7" />,
   trophy: <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />,
   play: <path d="M7 4.5v15l12-7.5z" />,
+  pause: <path d="M8 5v14M16 5v14" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   calendar: <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 2v4M16 2v4" />,
   info: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16v-5M12 8h.01" />,

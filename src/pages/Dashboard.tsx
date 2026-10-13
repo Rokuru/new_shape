@@ -16,7 +16,7 @@ import { WeeklyReportCard } from '../components/WeeklyReport';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
-  const { food, profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, kcalAdjust } = useStore();
+  const { food, profile, body, cardio, workouts, customPrograms, activeProgramId, nextDayIndex, activeWorkout, startWorkout, resumeWorkout, kcalAdjust } = useStore();
   const todayKey = useToday(); // re-rendu au changement de jour (app restée ouverte après minuit)
   const program = allPrograms(customPrograms).find((p) => p.id === activeProgramId);
   const latest = body.at(-1);
@@ -59,10 +59,17 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
         <div className="hero-next">
           {activeWorkout ? (
             <>
-              <div className="label">Séance en cours</div>
+              <div className="label">{activeWorkout.pausedAt ? 'Séance en pause' : 'Séance en cours'}</div>
               <div className="hero-session">{activeWorkout.dayName}</div>
               <div className="hero-actions">
-                <button className="btn go lg" onClick={() => go('workout')}>
+                <button
+                  className="btn go lg"
+                  onClick={() => {
+                    // Séance en pause : « Reprendre » relance aussi le chrono.
+                    if (activeWorkout.pausedAt) resumeWorkout();
+                    go('workout');
+                  }}
+                >
                   <Icon name="play" size={20} /> Reprendre
                 </button>
               </div>

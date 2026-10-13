@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASICFIT_CUT, PLAN_TEMPLATES } from '../data/plans';
 import { EXERCISES } from '../data/exercises';
-import { adjustSets, checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planAdjust, planEnd, planProgramFor, planProgramId, planStatus, planWeek, shortSessionName, trackingRows, weekSessions } from './plan';
+import { adjustSets, checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseDates, planAdjust, planEnd, planProgramFor, planProgramId, planStatus, planWeek, sessionDaysFrom, shortSessionName, trackingRows, weekSessions, weekSpan, weekTypeFrom } from './plan';
 import { DEFAULT_PROFILE, sanitizeProfile, useStore } from './store';
 import type { Profile, Workout } from './types';
 
@@ -84,6 +84,34 @@ describe('calendrier du plan', () => {
 
   it('S11–S12 tombent pendant les fêtes', () => {
     expect(holidayWeeks(tpl, START)).toEqual([11, 12]);
+  });
+
+  it('départ un mercredi : semaines du mercredi au mardi, séances mercredi, vendredi, lundi', () => {
+    const WED = '2026-10-14';
+    expect(weekSpan(WED)).toBe('du mercredi au mardi');
+    expect(weekSpan(START)).toBe('du lundi au dimanche');
+    const names = (w: number) => weekSessions(tpl, w, WED).map((x) => `${x.day} ${x.name}`).join(', ');
+    expect(names(1)).toBe('mercredi A, vendredi B, lundi A');
+    expect(names(2)).toBe('mercredi B, vendredi A, lundi B');
+    expect(names(15)).toBe('mercredi Haut, vendredi Bas, lundi Métabolique');
+    // Départ un jour sans séance : la semaine commence à la séance suivante.
+    expect(sessionDaysFrom(tpl, '2026-10-13')).toEqual(['mercredi', 'vendredi', 'lundi']); // mardi
+    expect(sessionDaysFrom(tpl, '2026-10-15')).toEqual(['vendredi', 'lundi', 'mercredi']); // jeudi
+    expect(sessionDaysFrom(tpl, '2026-10-18')).toEqual(['lundi', 'mercredi', 'vendredi']); // dimanche
+    // Lundi 19 octobre = fin de la semaine 1 ; la semaine 2 commence le mercredi 21.
+    expect(planWeek(WED, '2026-10-20')).toBe(1);
+    expect(planWeek(WED, '2026-10-21')).toBe(2);
+  });
+
+  it('semaine type recalée sur le jour du départ', () => {
+    expect(weekTypeFrom(tpl, START)).toEqual(tpl.weekType);
+    const rows = weekTypeFrom(tpl, '2026-10-14').rows;
+    expect(rows.map((r) => r[0])).toEqual(['Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche', 'Lundi', 'Mardi']);
+    expect(rows[0][1]).toMatch(/^1re séance de la semaine \+ 10–15 min de marche/);
+    expect(rows[0][2]).toBe('Séance Haut');
+    expect(rows[2].slice(1)).toEqual(['2e séance de la semaine', 'Séance Bas']);
+    expect(rows[5].slice(1)).toEqual(['3e séance de la semaine', 'Séance métabolique ou congestion']);
+    expect(rows[1]).toEqual(tpl.weekType.rows[3]); // jeudi : marche, inchangé
   });
 });
 
@@ -182,6 +210,32 @@ describe('plan appliqué au profil', () => {
     useStore.getState().activateProgram('ppl_6');
     useStore.getState().syncPlanPhase('2027-01-18');
     expect(useStore.getState().activeProgramId).toBe('ppl_6');
+  });
+
+  it('changer la date de début recale semaines et phase sans toucher aux objectifs', () => {
+    const st = useStore.getState();
+    st.applyPlan(tpl.id, START, { weightKg: 93, bodyFatPct: 20 });
+    const before = useStore.getState().profile;
+    useStore.getState().setPlanStart('2026-10-14');
+    const after = useStore.getState().profile;
+    expect(after.plan).toEqual({ id: tpl.id, start: '2026-10-14' });
+    expect(after).toMatchObject({ targetWeightKg: 93, targetBodyFatPct: 20, targetStartKg: before.targetStartKg, targetSetAt: before.targetSetAt });
+    // Mardi 27 octobre : S3 avec un départ le lundi 12, encore S2 (2 séries) avec un départ le mercredi 14.
+    expect(planStatus({ ...after, plan: { id: tpl.id, start: START } }, '2026-10-27')!.week).toBe(3);
+    expect(planStatus(after, '2026-10-27')!.week).toBe(2);
+    expect(planAdjust(after, pid(0), '2026-10-27')?.maxSets).toBe(2);
+    // Date invalide : ignorée.
+    useStore.getState().setPlanStart('mercredi');
+    expect(useStore.getState().profile.plan?.start).toBe('2026-10-14');
+  });
+
+  it('reculer le départ ramène à la phase du jour quand on suit le plan', () => {
+    useStore.getState().applyPlan(tpl.id, START, { weightKg: 93, bodyFatPct: 20 });
+    vi.setSystemTime(new Date('2026-11-24T10:00:00')); // S7 : phase 2
+    useStore.getState().syncPlanPhase('2026-11-24');
+    expect(useStore.getState().activeProgramId).toBe(pid(1));
+    useStore.getState().setPlanStart('2026-11-04'); // S3 : phase 1
+    expect(useStore.getState().activeProgramId).toBe(pid(0));
   });
 
   it('retirer le plan arrête le suivi et désactive son programme', () => {
