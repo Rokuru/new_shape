@@ -103,7 +103,7 @@ export const BASICFIT_CUT: PlanTemplate = {
       weeks: [1, 6],
       summary: 'Tout se fait sur machines guidées, en alternant A-B-A une semaine puis B-A-B la suivante. Le but : apprendre les gestes et préparer tendons et articulations avant de charger.',
       bullets: [
-        '**Séries.** 2 séries en S1–S2, puis 3 séries de S3 à S6 : l’app ajuste toute seule.',
+        '**Séries.** 2 séries par exercice en S1–S2, puis 3 pour les gros exercices et 2 pour les petits de S3 à S6 : l’app ajuste toute seule.',
         '**Intensité.** Arrête chaque série quand il te reste 2 à 3 répétitions possibles.',
         '**Tempo.** Descente contrôlée en 2–3 s, montée franche.',
         '**Échauffement.** 10 min avant chaque séance (voir « Règles »).',
