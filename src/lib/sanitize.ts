@@ -164,6 +164,13 @@ export function sanitizeWorkout(v: unknown): Workout | undefined {
   if (dur !== undefined) w.durationMin = Math.round(dur);
   const note = str(v.note, 2000);
   if (note) w.note = note;
+  // Pause : seulement pour la séance en cours (une séance terminée n'en garde pas).
+  if (!w.finished) {
+    const pausedAt = isoDate(v.pausedAt);
+    if (pausedAt) w.pausedAt = pausedAt;
+    const pausedMs = num(v.pausedMs, 0, 7 * 86_400_000);
+    if (pausedMs) w.pausedMs = Math.round(pausedMs);
+  }
   if (Array.isArray(v.stretches)) {
     w.stretches = v.stretches
       .slice(0, 30)

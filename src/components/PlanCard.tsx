@@ -6,6 +6,7 @@ import { daysBetween } from '../lib/dates';
 import { planProgramId, planStatus } from '../lib/plan';
 import { useStore } from '../lib/store';
 import ApplyPlanSheet from './ApplyPlanSheet';
+import PlanStartSheet from './PlanStartSheet';
 import { fmtDate, fmtNum, Icon } from './ui';
 
 /** Plan objectif : avancement si un plan est suivi, sinon les plans proposés (profil, programmes). */
@@ -13,6 +14,7 @@ export default function PlanCard({ go }: { go: (t: Tab) => void }) {
   const { profile, activeProgramId, activateProgram } = useStore();
   const today = useToday();
   const [applying, setApplying] = useState<string>();
+  const [editingStart, setEditingStart] = useState(false);
   const st = planStatus(profile, today);
 
   if (!st) {
@@ -89,12 +91,16 @@ export default function PlanCard({ go }: { go: (t: Tab) => void }) {
         <button className="btn primary sm" onClick={() => go('plan')}>
           <Icon name="list" size={16} /> Ouvrir mon plan
         </button>
+        <button className="btn sm" onClick={() => setEditingStart(true)}>
+          <Icon name="calendar" size={16} /> Changer la date de début
+        </button>
         {!following && !finished && (
           <button className="btn sm" onClick={() => activateProgram(want)}>
             Suivre le plan (activer la phase {phaseIndex + 1})
           </button>
         )}
       </div>
+      {editingStart && <PlanStartSheet onClose={() => setEditingStart(false)} />}
     </div>
   );
 }

@@ -110,6 +110,9 @@ interface State {
   activateProgram: (id: string) => void;
   startWorkout: (program?: Program, dayIndex?: number) => void;
   updateActive: (fn: (w: Workout) => Workout) => void;
+  /** Pause de la séance en cours (chrono arrêté) et reprise ; sans série validée, la reprise repart de zéro. */
+  pauseWorkout: () => void;
+  resumeWorkout: () => void;
   finishWorkout: () => void;
   cancelWorkout: () => void;
   deleteWorkout: (id: string) => void;
@@ -131,7 +134,15 @@ interface State {
   removePlan: () => void;
   /** Passe au programme de la nouvelle phase quand on suit le plan. */
   syncPlanPhase: (day: string) => void;
+  /** Nouvelle date de départ du plan (phases et suivi recalés dessus). */
+  setPlanStart: (start: string) => void;
   reset: () => void;
+}
+
+/** Temps de séance effectif (ms) : depuis le début, sans les pauses (ni la pause en cours). */
+export function activeMs(w: Pick<Workout, 'date' | 'pausedAt' | 'pausedMs'>, now: number): number {
+  const paused = (w.pausedMs ?? 0) + (w.pausedAt ? Math.max(0, now - new Date(w.pausedAt).getTime()) : 0);
+  return Math.max(0, now - new Date(w.date).getTime() - paused);
 }
 
 /** Programmes utilisables : les miens, la bibliothèque, et les phases des plans objectifs. */
@@ -203,12 +214,24 @@ export const useStore = create<State>()(
         });
       },
       updateActive: (fn) => set((s) => (s.activeWorkout ? { activeWorkout: fn(s.activeWorkout) } : {})),
+      pauseWorkout: () => set((s) => (s.activeWorkout && !s.activeWorkout.pausedAt ? { activeWorkout: { ...s.activeWorkout, pausedAt: new Date().toISOString() } } : {})),
+      resumeWorkout: () =>
+        set((s) => {
+          const w = s.activeWorkout;
+          if (!w?.pausedAt) return {};
+          const { pausedAt, pausedMs, ...rest } = w;
+          // Rien de validé (séance lancée trop tôt) : on repart de zéro, à la date et l'heure de la reprise.
+          if (!w.exercises.some((e) => e.sets.some((x) => x.done))) return { activeWorkout: { ...rest, date: new Date().toISOString() } };
+          return { activeWorkout: { ...rest, pausedMs: (pausedMs ?? 0) + Math.max(0, Date.now() - new Date(pausedAt).getTime()) } };
+        }),
       finishWorkout: () => {
         const { activeWorkout, workouts, activeProgramId, nextDayIndex, customPrograms } = get();
         if (!activeWorkout) return;
-        const durationMin = Math.round((Date.now() - new Date(activeWorkout.date).getTime()) / 60000);
+        // Durée sans les pauses ; une séance terminée ne garde pas les champs de pause.
+        const durationMin = Math.round(activeMs(activeWorkout, Date.now()) / 60000);
+        const { pausedAt: _p, pausedMs: _m, ...done } = activeWorkout;
         const finished: Workout = {
-          ...activeWorkout,
+          ...done,
           durationMin,
           finished: true,
           exercises: activeWorkout.exercises.filter((e) => e.sets.some((s) => s.done)),
@@ -270,6 +293,12 @@ export const useStore = create<State>()(
           const following = tpl && s.activeProgramId?.startsWith(`plan-${tpl.id}-`);
           return { profile: sanitizeProfile({ ...s.profile, plan: undefined }), ...(following ? { activeProgramId: undefined, nextDayIndex: 0 } : {}) };
         }),
+      setPlanStart: (start) => {
+        const plan = get().profile.plan;
+        if (!plan || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return;
+        set((s) => ({ profile: sanitizeProfile({ ...s.profile, plan: { ...plan, start } }) }));
+        get().syncPlanPhase(today());
+      },
       syncPlanPhase: (day) => {
         const { profile, activeProgramId } = get();
         const tpl = planTemplate(profile.plan?.id);

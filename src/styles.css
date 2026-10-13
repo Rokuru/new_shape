@@ -630,6 +630,10 @@ img {
 .split > * > .card:last-child {
   margin-bottom: 0;
 }
+/* Colonne rétrécissable : un tableau large défile dans son cadre au lieu d'élargir la page. */
+.split > * {
+  min-width: 0;
+}
 @media (min-width: 1100px) {
   .split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -2778,6 +2782,65 @@ details.plan-phase.current {
 .plan-banner {
   margin-bottom: 12px;
 }
+
+/* Séance en pause : chrono arrêté, reprise en un geste */
+.workout-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+.workout-meta .btn.sm {
+  min-height: 32px;
+  padding: 4px 10px;
+}
+.callout.paused-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  border-left-color: var(--warning);
+}
+.paused-banner > div {
+  flex: 1 1 220px;
+}
+.live-dot.paused {
+  background: var(--warning);
+  animation: none;
+}
 .day-note {
   margin-top: 2px;
+}
+
+/* Carte de programme : titre prioritaire, boutons à la ligne quand la place manque */
+.prog-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+.prog-title {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.prog-title h3 {
+  overflow-wrap: break-word;
+}
+.prog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Petits iPhone (320 px) : libellés d'onglets un peu plus petits pour que « Programmes » tienne. */
+@media (max-width: 359px) {
+  .tabbar button {
+    font-size: 0.6rem;
+    letter-spacing: 0;
+  }
 }

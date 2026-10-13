@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { PlanTemplate } from '../data/plans';
 import { currentComposition, GOAL_LABELS } from '../lib/calc';
-import { goalMath, nextMonday, planEnd } from '../lib/plan';
+import { goalMath, nextMonday, planEnd, weekSessions, weekSpan } from '../lib/plan';
 import { useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import { EQUIPMENT_LABELS, LEVEL_LABELS } from './ProfileForm';
@@ -52,7 +52,7 @@ export default function ApplyPlanSheet({ tpl, onClose, onApplied }: { tpl: PlanT
       </p>
       <div className="form-grid">
         <label className="field">
-          Départ (un lundi de préférence)
+          Date de début (jour de ta 1re séance)
           <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
         </label>
         <label className="field">
@@ -66,7 +66,11 @@ export default function ApplyPlanSheet({ tpl, onClose, onApplied }: { tpl: PlanT
       </div>
       {valid && (
         <p className="small secondary">
-          Fin du plan le <b>{fmtDate(planEnd(tpl, start), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b> ({tpl.weeks} semaines).
+          Fin du plan le <b>{fmtDate(planEnd(tpl, start), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b> ({tpl.weeks} semaines, chacune {weekSpan(start)}). Semaine 1 :{' '}
+          {weekSessions(tpl, 1, start)
+            .map((x) => `${x.day} ${x.name}`)
+            .join(', ')}
+          .
           {gm && gm.toLoseKg > 0 && (
             <>
               {' '}
