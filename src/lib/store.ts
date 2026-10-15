@@ -69,6 +69,7 @@ export function sanitizeProfile(p: Partial<Profile> | undefined): Profile {
   const plan = src.plan as { id?: unknown; start?: unknown } | undefined;
   if (plan && typeof plan === 'object' && typeof plan.id === 'string' && /^[\w-]{1,40}$/.test(plan.id) && typeof plan.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(plan.start))
     out.plan = { id: plan.id, start: plan.start };
+  if (typeof src.deficitStart === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(src.deficitStart)) out.deficitStart = src.deficitStart;
   return out;
 }
 

@@ -2105,6 +2105,15 @@ table.compare tr.group th {
 .goal-check li.ok {
   color: var(--green-text);
 }
+/* Départ du compteur « Calories à perdre » et bouton pour le changer */
+.deficit-start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-top: 12px;
+}
 
 /* ---------- Étirements ---------- */
 .stretch-row {
