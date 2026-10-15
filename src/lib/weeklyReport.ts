@@ -26,6 +26,7 @@ import { addDays, dayKey, parseLocalDate } from './dates';
 import { activityAverage, workoutKcal, workoutMinutes } from './energy';
 import { weeklySetTarget } from './generator';
 import { planStatus } from './plan';
+import { deficitSummary } from './deficit';
 import { activityByDay, currentStreak } from './streak';
 import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, LoggedSet, Profile, Program, Workout } from './types';
 
@@ -240,6 +241,16 @@ export function weeklyReport(data: ReportData, weekStart: string, today: string)
       `- Jours notés : ${logged.length}/${days.length} · moyenne des jours notés : ${n(avgKcal, 0)} kcal${t ? ` (${n((avgKcal / t.calories) * 100, 0)} % de la cible)` : ''}${
         avgProt !== undefined ? ` · ${n(avgProt, 0)} g de protéines${t ? ` (cible ${t.proteinG} g)` : ''}` : ' · protéines non notées'
       }.`,
+    );
+  }
+
+  // Compteur « Calories à perdre » : arrêté à la fin de la semaine (ou à hier pour la semaine en cours).
+  const def = deficitSummary(data, partial ? today : addDays(end, 1));
+  if (def && !def.notStarted) {
+    const weekDays = def.tally.days.filter((d) => isIn(d.date, start, end));
+    const weekSum = weekDays.reduce((s, d) => s + d.deficit, 0);
+    line(
+      `- Déficit compté (maintenance estimée avec le sport du jour − repas notés ; négatif = surplus) : ${weekDays.length ? `${n(weekSum, 0)} kcal cette semaine sur ${plural(weekDays.length, 'jour')} compté${weekDays.length > 1 ? 's' : ''}` : 'aucun jour complet noté cette semaine'} ; ${n(def.tally.total, 0)} kcal depuis le départ du ${longDay(def.tally.from)}, sur ${n(Math.round(def.goal.kcal / 100) * 100, 0)} kcal à perdre (${def.goal.basis === 'fat' ? `${n(def.goal.toLoseKg)} kg de gras` : `${n(def.goal.toLoseKg)} kg`} × 7 700), soit ${n(def.pct, 1)} %.`,
     );
   }
 

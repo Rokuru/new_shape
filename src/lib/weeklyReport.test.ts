@@ -105,6 +105,17 @@ describe('bilan de la semaine', () => {
     expect(r).toMatch(/Jours notés : 2\/7 · moyenne des jours notés : 2 075 kcal/);
   });
 
+  it('nutrition : compteur « Calories à perdre » arrêté à la fin de la semaine', () => {
+    const withGoal = { ...data, profile: { ...profile, targetSetAt: '2026-09-21', targetStartKg: 118.4, targetBodyFatPct: 20, targetStartBfPct: 33.6 } };
+    const r = weeklyReport(withGoal, '2026-09-28', '2026-10-08');
+    // 28 et 30 sept. comptés cette semaine ; le 22 sept. compte aussi depuis le départ.
+    expect(r).toMatch(
+      /Déficit compté \(maintenance estimée avec le sport du jour − repas notés ; négatif = surplus\) : -?[\d ]+ kcal cette semaine sur 2 jours comptés ; -?[\d ]+ kcal depuis le départ du lundi 21 septembre, sur [\d ]+ kcal à perdre \(20,8 kg de gras × 7 700\), soit [\d,]+ %\./,
+    );
+    // Objectif sans date de départ : pas de compteur.
+    expect(weeklyReport(data, '2026-09-28', '2026-10-08')).not.toContain('Déficit compté');
+  });
+
   it('entraînement : séries validées seulement, objectif du programme, notes, progression et volume', () => {
     const r = weeklyReport(data, '2026-09-28', '2026-10-08');
     expect(r).toContain('2 séances sur 3 prévues');
