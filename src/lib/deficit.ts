@@ -32,14 +32,20 @@ function compositionOn(sortedBody: BodyEntry[], profile: Profile, day: string) {
   return currentComposition(upTo.length ? upTo : sortedBody.slice(0, 1), profile);
 }
 
-/** Départ du compteur : le départ du plan s'il y en a un, sinon le jour où l'objectif a été fixé. */
+/** Départ du compteur : la date choisie, sinon le départ du plan s'il y en a un, sinon le jour où l'objectif a été fixé. */
 export function deficitStart(profile: Profile): string | undefined {
-  return profile.plan?.start ?? profile.targetSetAt;
+  return profile.deficitStart ?? profile.plan?.start ?? profile.targetSetAt;
+}
+
+/** D'où vient le départ du compteur. */
+export function deficitStartSource(profile: Profile): 'custom' | 'plan' | 'goal' | undefined {
+  return profile.deficitStart ? 'custom' : profile.plan ? 'plan' : profile.targetSetAt ? 'goal' : undefined;
 }
 
 /**
  * Total à perdre pour atteindre l'objectif : (gras au départ − gras visé) × 7 700 kcal.
  * Sans % de gras visé ou mesuré : (poids de départ − poids visé) × 7 700. Rien pour un objectif de prise.
+ * Départ choisi à la main : poids et % de gras de ce jour-là (sinon le déficit d'avant l'objectif compterait deux fois).
  */
 export function kcalGoal(profile: Profile, body: BodyEntry[]): KcalGoal | undefined {
   const targetKg = profile.targetWeightKg;
@@ -47,9 +53,10 @@ export function kcalGoal(profile: Profile, body: BodyEntry[]): KcalGoal | undefi
   const sorted = [...body].sort((a, b) => a.date.localeCompare(b.date));
   const from = deficitStart(profile);
   const atStart = from ? compositionOn(sorted, profile, from) : currentComposition(sorted, profile);
-  const startKg = profile.targetStartKg ?? atStart?.weightKg;
+  const custom = !!profile.deficitStart;
+  const startKg = custom ? (atStart?.weightKg ?? profile.targetStartKg) : (profile.targetStartKg ?? atStart?.weightKg);
   if (startKg === undefined) return undefined;
-  const startBf = profile.targetStartBfPct ?? atStart?.bodyFatPct;
+  const startBf = custom ? (atStart?.bodyFatPct ?? profile.targetStartBfPct) : (profile.targetStartBfPct ?? atStart?.bodyFatPct);
   const targetBf = profile.targetBodyFatPct;
   if (targetBf !== undefined && startBf !== undefined) {
     const startFatKg = (startKg * startBf) / 100;
@@ -142,6 +149,8 @@ export interface DeficitSummary {
   reached: boolean;
   /** Le compteur démarre plus tard (départ du plan à venir). */
   notStarted: boolean;
+  /** Départ choisi à la main, départ du plan ou date de l'objectif. */
+  source: 'custom' | 'plan' | 'goal';
 }
 
 export function deficitSummary(data: { profile: Profile; body: BodyEntry[]; food: FoodEntry[]; workouts: Workout[]; cardio: CardioEntry[] }, today: string): DeficitSummary | undefined {
@@ -165,5 +174,6 @@ export function deficitSummary(data: { profile: Profile; body: BodyEntry[]; food
     eta: remaining > 0 && avgPerDay !== undefined && avgPerDay > 0 ? addDays(today, Math.ceil(remaining / avgPerDay)) : undefined,
     reached: remaining <= 0,
     notStarted: daysBetween(today, from) > 0,
+    source: deficitStartSource(data.profile)!,
   };
 }

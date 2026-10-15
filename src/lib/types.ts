@@ -46,6 +46,8 @@ export interface Profile {
   targetStartBfPct?: number;
   /** Plan objectif suivi (data/plans) et son lundi de départ (AAAA-MM-JJ). */
   plan?: { id: string; start: string };
+  /** Départ choisi pour le compteur « Calories à perdre » (AAAA-MM-JJ) ; sinon départ du plan, ou date de l'objectif. */
+  deficitStart?: string;
 }
 
 export type BmrMethod = 'auto' | 'mifflin' | 'harris' | 'katch' | 'cunningham' | 'tinsley';

@@ -1,14 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Tab } from '../App';
 import { useToday } from '../hooks/useToday';
 import { deficitSummary, KCAL_PER_KG, type DeficitSummary } from '../lib/deficit';
 import { useStore } from '../lib/store';
+import DeficitStartSheet, { firstOfMonth } from './DeficitStartSheet';
 import { fmtDate, fmtNum, Icon } from './ui';
 
 const r10 = (n: number) => Math.round(n / 10) * 10;
 const r100 = (n: number) => Math.round(n / 100) * 100;
 const kcal = (n: number) => `${fmtNum(r10(n), 0)} kcal`;
-const dayMonth = (d: string) => fmtDate(d, { day: 'numeric', month: 'long' });
+const dayMonth = (d: string) => firstOfMonth(fmtDate(d, { day: 'numeric', month: 'long' }));
+const SOURCE_LABELS = { custom: 'date choisie', plan: 'départ du plan', goal: 'date de ton objectif' } as const;
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
 
 /** Calories à perdre et déficit compté (voir lib/deficit) ; undefined sans objectif de perte ni pesée. */
@@ -26,6 +28,7 @@ export function DeficitBlock({ s, detailed }: { s: DeficitSummary; detailed?: bo
   const { goal, tally } = s;
   const last = tally.days.at(-1);
   const surplus = tally.total < 0;
+  const [editingStart, setEditingStart] = useState(false);
   return (
     <>
       <div className="goal-head">
@@ -35,7 +38,7 @@ export function DeficitBlock({ s, detailed }: { s: DeficitSummary; detailed?: bo
             {s.reached ? `objectif de ${fmtNum(r100(goal.kcal), 0)} kcal atteint` : surplus ? 'de surplus depuis le départ' : `perdues sur les ${fmtNum(r100(goal.kcal), 0)} kcal de l’objectif`}
           </div>
           <div className="small muted">
-            {s.notStarted ? `le compteur démarre le ${dayMonth(tally.from)}` : `≈ ${fmtNum(Math.max(0, s.fatKg))} kg de gras · depuis le ${dayMonth(tally.from)}`}
+            {s.notStarted ? `le compteur démarre le ${dayMonth(tally.from)}` : `≈ ${fmtNum(Math.max(0, s.fatKg))} kg de gras${detailed ? '' : ` · depuis le ${dayMonth(tally.from)}`}`}
           </div>
         </div>
         <div className="goal-eta">
@@ -65,12 +68,24 @@ export function DeficitBlock({ s, detailed }: { s: DeficitSummary; detailed?: bo
         <span>objectif {fmtNum(r100(goal.kcal), 0)} kcal</span>
       </div>
 
+      {detailed && (
+        <div className="deficit-start">
+          <span className="small secondary">
+            Compté depuis le <b>{firstOfMonth(fmtDate(tally.from, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</b> ({SOURCE_LABELS[s.source]})
+          </span>
+          <button className="btn sm" onClick={() => setEditingStart(true)}>
+            <Icon name="calendar" size={16} /> Changer
+          </button>
+        </div>
+      )}
+      {editingStart && <DeficitStartSheet onClose={() => setEditingStart(false)} />}
+
       <ul className="goal-check small secondary">
         {detailed && (
           <li>
             {goal.basis === 'fat' ? (
               <>
-                Objectif : <b>{fmtNum(goal.toLoseKg)} kg de gras à perdre</b> ({fmtNum(goal.startFatKg)} kg au départ, à {fmtNum(goal.startKg)} kg et {fmtNum(goal.startBf)} % → {fmtNum(goal.targetFatKg)} kg à{' '}
+                Objectif : <b>{fmtNum(goal.toLoseKg)} kg de gras à perdre</b> ({fmtNum(goal.startFatKg)} kg {s.source === 'custom' ? `le ${dayMonth(tally.from)}` : 'au départ'}, à {fmtNum(goal.startKg)} kg et {fmtNum(goal.startBf)} % → {fmtNum(goal.targetFatKg)} kg à{' '}
                 {fmtNum(goal.targetKg)} kg et {fmtNum(goal.targetBf)} %) × {fmtNum(KCAL_PER_KG, 0)} kcal ≈ <b>{fmtNum(r100(goal.kcal), 0)} kcal</b>.
               </>
             ) : (

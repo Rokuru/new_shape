@@ -3,9 +3,9 @@ import { BASICFIT_CUT } from '../data/plans';
 import { ACTIVITY_FACTORS, computeBmr } from './calc';
 import { cardioStats } from './cardio';
 import { addDays, daysBetween } from './dates';
-import { deficitStart, deficitSummary, deficitTally, kcalGoal, KCAL_PER_KG } from './deficit';
+import { deficitStart, deficitStartSource, deficitSummary, deficitTally, kcalGoal, KCAL_PER_KG } from './deficit';
 import { workoutKcal } from './energy';
-import { DEFAULT_PROFILE } from './store';
+import { DEFAULT_PROFILE, sanitizeProfile } from './store';
 import type { BodyEntry, CardioEntry, FoodEntry, Profile, Workout } from './types';
 
 const profile: Profile = {
@@ -113,5 +113,40 @@ describe('déficit compté', () => {
     expect(s.tally.total).toBeLessThan(0);
     expect(s.pct).toBe(0);
     expect(s.eta).toBeUndefined();
+  });
+});
+
+describe('départ du compteur choisi', () => {
+  const custom: Profile = { ...profile, deficitStart: '2026-10-01' };
+  const withOct1: BodyEntry[] = [{ id: 'b0', date: '2026-09-30', weightKg: 119.4, bodyFatPct: 33.5 }, ...body];
+
+  it('prioritaire sur le départ du plan et la date de l’objectif', () => {
+    expect(deficitStart(custom)).toBe('2026-10-01');
+    expect(deficitStartSource(custom)).toBe('custom');
+    expect(deficitStartSource(profile)).toBe('plan');
+    expect(deficitStartSource({ ...profile, plan: undefined })).toBe('goal');
+  });
+
+  it('objectif recalculé avec le poids et le % de gras de ce jour-là', () => {
+    const g = kcalGoal(custom, withOct1)!;
+    expect(g.startKg).toBeCloseTo(119.4, 6);
+    expect(g.startBf).toBe(33.5);
+    expect(g.toLoseKg).toBeCloseTo(119.4 * 0.335 - 18.6, 6);
+    // Sans date choisie : le poids et le % enregistrés quand l'objectif a été fixé.
+    expect(kcalGoal(profile, withOct1)!.startKg).toBe(118);
+  });
+
+  it('compte les repas à partir de cette date, sans toucher au plan', () => {
+    const s = deficitSummary({ ...data, profile: custom, body: withOct1, food: [...food, meal('2026-10-05', 2200)] }, '2026-10-18')!;
+    expect(s).toMatchObject({ source: 'custom', notStarted: false });
+    expect(s.tally.from).toBe('2026-10-01');
+    // Le 12 (avant le départ du plan) compte désormais ; le 16 reste une journée incomplète.
+    expect(s.tally.days.map((d) => d.date)).toEqual(['2026-10-05', '2026-10-12', '2026-10-14', '2026-10-15']);
+    expect(s.planEnd).toBe('2027-06-08'); // fin du plan inchangée
+  });
+
+  it('gardé par la validation du profil (synchro, import)', () => {
+    expect(sanitizeProfile(custom).deficitStart).toBe('2026-10-01');
+    expect(sanitizeProfile({ ...custom, deficitStart: '1er octobre' }).deficitStart).toBeUndefined();
   });
 });
