@@ -3,6 +3,7 @@ import { bodyFatRate, currentComposition, weeklyRate } from '../lib/calc';
 import { bodyFatGoal, goalProjection } from '../lib/goal';
 import { useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
+import { DeficitBlock, useDeficit } from './DeficitCard';
 import { fmtDate, fmtNum, Icon, signed } from './ui';
 
 const fmtEta = (d: string) => fmtDate(d, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -13,6 +14,7 @@ export default function GoalCard() {
   const today = useToday();
   const comp = currentComposition(body, profile);
   const rate = weeklyRate(body);
+  const deficit = useDeficit();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [startText, setStartText] = useState('');
@@ -183,6 +185,13 @@ export default function GoalCard() {
           rate={bodyFatRate(body, profile)}
           today={today}
         />
+      )}
+
+      {deficit && (
+        <div className="goal-bf">
+          <h3>Calories à perdre</h3>
+          <DeficitBlock s={deficit} detailed />
+        </div>
       )}
     </div>
   );

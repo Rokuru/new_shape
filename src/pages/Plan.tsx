@@ -3,6 +3,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { Tab } from '../App';
 import ApplyPlanSheet, { suggestedTarget } from '../components/ApplyPlanSheet';
 import PlanStartSheet from '../components/PlanStartSheet';
+import { DeficitBlock, useDeficit } from '../components/DeficitCard';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import { ChartTooltip, fmtDate, fmtNum, Icon, Legend, Rich } from '../components/ui';
 import { PLAN_TEMPLATES, type PlanPhase, type PlanTable } from '../data/plans';
@@ -64,6 +65,7 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
   const today = useToday();
   const [applying, setApplying] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
+  const deficit = useDeficit();
   const st = planStatus(profile, today);
   const tpl = st?.tpl ?? planTemplate(profile.plan?.id) ?? PLAN_TEMPLATES[0];
   const applied = Boolean(st);
@@ -158,6 +160,13 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
         )}
       </div>
 
+      {applied && deficit && (
+        <div className="card">
+          <h2>Calories à perdre</h2>
+          <DeficitBlock s={deficit} detailed />
+        </div>
+      )}
+
       {axis && (
         <div className="card">
           <div className="card-header">
@@ -240,7 +249,11 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
           {gm && gm.toLoseKg > 0 && (
             <li>
               <Rich
-                text={`**Le rythme.** ${fmtNum(gm.toLoseKg)} kg à perdre ≈ ${fmtNum(Math.round(gm.kcal / 1000) * 1000, 0)} kcal (7 700 kcal/kg). Sur ${tpl.weeks} semaines, ça donne environ ${fmtNum(r10(gm.deficitPlan), 0)} kcal de déficit par jour, soit ${fmtNum(gm.ratePlan, 2)} kg/semaine en moyenne. Sur 6 mois, environ ${fmtNum(r10(gm.deficit6m), 0)} kcal/jour.`}
+                text={`**Le rythme.** ${fmtNum(gm.toLoseKg)} kg à perdre ≈ ${fmtNum(Math.round(gm.kcal / 1000) * 1000, 0)} kcal (7 700 kcal/kg). Sur ${tpl.weeks} semaines, ça donne environ ${fmtNum(r10(gm.deficitPlan), 0)} kcal de déficit par jour, soit ${fmtNum(gm.ratePlan, 2)} kg/semaine en moyenne. Sur 6 mois, environ ${fmtNum(r10(gm.deficit6m), 0)} kcal/jour.${
+                  applied && deficit?.goal.basis === 'fat'
+                    ? ` Le compteur « Calories à perdre » ne compte que le gras : ${fmtNum(deficit.goal.toLoseKg)} kg × 7 700 ≈ ${fmtNum(Math.round(deficit.goal.kcal / 100) * 100, 0)} kcal. Le reste du poids perdu (eau, glycogène) coûte bien moins de calories.`
+                    : ''
+                }`}
               />
             </li>
           )}

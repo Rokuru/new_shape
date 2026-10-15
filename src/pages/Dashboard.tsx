@@ -13,6 +13,7 @@ import { goalProjection } from '../lib/goal';
 import { ffmiReliable } from '../components/FfmiInfo';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import { WeeklyReportCard } from '../components/WeeklyReport';
+import DeficitCard from '../components/DeficitCard';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -209,6 +210,8 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           />
         )}
       </div>
+
+      <DeficitCard go={go} />
 
       <WeeklyReportCard />
 
