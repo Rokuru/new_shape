@@ -11,7 +11,11 @@ export interface DayActivity {
   kcal?: number;
   /** Calories dans la cible : au moins le minimum de sécurité, sans dépasser l'objectif. */
   kcalOk: boolean;
+  /** Calories entre le minimum de sécurité et la maintenance (l'objectif sans le déficit). */
+  kcalKept: boolean;
   level: 0 | 1 | 2 | 3;
+  /** Flamme bleue : ni séance, ni marche, ni calories dans la cible, mais pas au-dessus de la maintenance : la série continue. */
+  blue: boolean;
 }
 
 /** Minimum de sécurité : 1 500 kcal (hommes) / 1 200 kcal (femmes), comme pour la cible calorique. */
@@ -19,14 +23,23 @@ export const kcalMin = (sex: Sex) => (sex === 'female' ? 1200 : 1500);
 
 /**
  * Niveau de flamme par jour : +1 pour une séance, +1 pour une marche, +1 si les calories notées
- * sont entre le minimum et l'objectif. Un jour sans rien n'apparaît pas.
+ * sont entre le minimum et l'objectif. Sans aucun de ces critères, flamme bleue si les calories notées
+ * restent entre le minimum et la maintenance : la série continue. Un jour sans rien n'apparaît pas.
  */
-export function activityByDay(opts: { workouts: Workout[]; cardio: CardioEntry[]; food: FoodEntry[]; sex: Sex; kcalTarget?: number }): Map<string, DayActivity> {
-  const { workouts, cardio, food, sex, kcalTarget } = opts;
+export function activityByDay(opts: {
+  workouts: Workout[];
+  cardio: CardioEntry[];
+  food: FoodEntry[];
+  sex: Sex;
+  kcalTarget?: number;
+  /** Maintenance de l'onglet Nutrition (objectif sans le déficit), plafond de la flamme bleue. */
+  kcalMaintenance?: number;
+}): Map<string, DayActivity> {
+  const { workouts, cardio, food, sex, kcalTarget, kcalMaintenance } = opts;
   const days = new Map<string, DayActivity>();
   const get = (day: string) => {
     let d = days.get(day);
-    if (!d) days.set(day, (d = { sport: false, extra: false, kcalOk: false, level: 0 }));
+    if (!d) days.set(day, (d = { sport: false, extra: false, kcalOk: false, kcalKept: false, level: 0, blue: false }));
     return d;
   };
   for (const w of workouts) if (w.finished) get(dayKey(w.date)).sport = true;
@@ -37,17 +50,22 @@ export function activityByDay(opts: { workouts: Workout[]; cardio: CardioEntry[]
   }
   for (const d of days.values()) {
     d.kcalOk = kcalTarget !== undefined && d.kcal !== undefined && d.kcal >= kcalMin(sex) && d.kcal <= kcalTarget;
+    d.kcalKept = kcalMaintenance !== undefined && d.kcal !== undefined && d.kcal >= kcalMin(sex) && d.kcal <= kcalMaintenance;
     d.level = ((d.sport ? 1 : 0) + (d.extra ? 1 : 0) + (d.kcalOk ? 1 : 0)) as DayActivity['level'];
+    d.blue = d.level === 0 && d.kcalKept;
   }
   return days;
 }
 
+/** Jour qui compte pour la série : au moins une flamme, ou une flamme bleue. */
+export const isLit = (d: DayActivity | undefined) => !!d && (d.level > 0 || d.blue);
+
 /**
- * Série en cours : jours consécutifs avec au moins une flamme.
+ * Série en cours : jours consécutifs avec au moins une flamme (orange ou bleue).
  * Aujourd'hui ne casse pas la série tant que la journée n'est pas finie.
  */
 export function currentStreak(days: Map<string, DayActivity>, today: string): number {
-  const lit = (day: string) => (days.get(day)?.level ?? 0) > 0;
+  const lit = (day: string) => isLit(days.get(day));
   let day = lit(today) ? today : addDays(today, -1);
   let n = 0;
   while (lit(day)) {

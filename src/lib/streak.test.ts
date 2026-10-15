@@ -46,6 +46,49 @@ describe('flammes du calendrier', () => {
   });
 });
 
+describe('flamme bleue : série maintenue par les calories', () => {
+  // Objectif 2 420 kcal (avec le déficit), maintenance 3 000 kcal (sans le déficit), minimum 1 500 kcal.
+  const days = activityByDay({
+    workouts: [w('2026-10-05T18:00:00')],
+    cardio: [],
+    food: [
+      { id: 'a', date: '2026-10-05', at: '', kcal: 3600 }, // séance + surplus
+      { id: 'b', date: '2026-10-06', at: '', kcal: 2800 }, // au-dessus de l'objectif, sous la maintenance
+      { id: 'c', date: '2026-10-07', at: '', kcal: 2300 }, // dans la cible
+      { id: 'd', date: '2026-10-08', at: '', kcal: 3300 }, // au-dessus de la maintenance
+      { id: 'e', date: '2026-10-09', at: '', kcal: 1200 }, // sous le minimum
+      { id: 'f', date: '2026-10-10', at: '', kcal: 3000 }, // pile la maintenance
+    ],
+    sex: 'male',
+    kcalTarget: 2420,
+    kcalMaintenance: 3000,
+  });
+
+  it('bleue sans séance ni marche si les calories restent entre le minimum et la maintenance', () => {
+    expect(days.get('2026-10-06')).toMatchObject({ level: 0, kcalOk: false, kcalKept: true, blue: true });
+    expect(days.get('2026-10-10')).toMatchObject({ level: 0, blue: true });
+    // Dans la cible : la flamme orange habituelle, pas de bleue.
+    expect(days.get('2026-10-07')).toMatchObject({ level: 1, kcalOk: true, blue: false });
+    // Au-dessus de la maintenance ou sous le minimum : pas de flamme.
+    expect(days.get('2026-10-08')).toMatchObject({ level: 0, kcalKept: false, blue: false });
+    expect(days.get('2026-10-09')).toMatchObject({ level: 0, kcalKept: false, blue: false });
+    // Une séance garde sa flamme orange, même en surplus.
+    expect(days.get('2026-10-05')).toMatchObject({ sport: true, level: 1, kcalKept: false, blue: false });
+  });
+
+  it('la série continue avec une flamme bleue et s’arrête au-dessus de la maintenance ou sous le minimum', () => {
+    expect(currentStreak(days, '2026-10-07')).toBe(3); // 5 (séance), 6 (bleue), 7 (cible)
+    expect(currentStreak(days, '2026-10-08')).toBe(3); // la journée en cours ne casse pas encore la série
+    expect(currentStreak(days, '2026-10-09')).toBe(0); // le 8, au-dessus de la maintenance, l'a cassée
+    expect(currentStreak(days, '2026-10-10')).toBe(1); // le 9, sous le minimum, aussi ; le 10 repart en bleu
+  });
+
+  it('sans maintenance connue : pas de flamme bleue', () => {
+    const d = activityByDay({ workouts: [], cardio: [], food: [{ id: 'f', date: '2026-10-06', at: '', kcal: 2800 }], sex: 'male', kcalTarget: 2420 });
+    expect(d.get('2026-10-06')).toMatchObject({ level: 0, blue: false });
+  });
+});
+
 describe('grille du mois', () => {
   it('commence le lundi et complète les semaines', () => {
     const g = monthGrid(2026, 9); // octobre 2026 : le 1er est un jeudi

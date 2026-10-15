@@ -2365,6 +2365,10 @@ table.compare tr.group th {
 .flame.lvl3 {
   filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.6));
 }
+/* Flamme bleue : série maintenue par les calories (sous la maintenance), sans séance ni marche */
+.flame.blue path {
+  fill: #3b82f6;
+}
 .cal-head {
   display: flex;
   align-items: center;

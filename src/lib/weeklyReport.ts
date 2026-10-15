@@ -334,10 +334,13 @@ export function weeklyReport(data: ReportData, weekStart: string, today: string)
   }
   const sportKcal = week.reduce((s, w) => s + workoutKcal(w, bmr), 0) + walkStats.reduce((s, x) => s + x.s.kcal, 0);
   line(`- Dépense sportive (au-delà du repos) : ${n(sportKcal / days.length, 0)} kcal/jour en moyenne cette semaine.`);
-  const flames = activityByDay({ workouts: finished, cardio: data.cardio, food: data.food, sex: profile.sex, kcalTarget: t?.calories });
+  const flames = activityByDay({ workouts: finished, cardio: data.cardio, food: data.food, sex: profile.sex, kcalTarget: t?.calories, kcalMaintenance: t?.tdee });
   const lit = days.filter((d) => (flames.get(d)?.level ?? 0) > 0).length;
+  const kept = days.filter((d) => flames.get(d)?.blue).length;
   const inTarget = days.filter((d) => flames.get(d)?.kcalOk).length;
-  line(`- Régularité : ${lit}/${days.length} jours actifs (séance, marche ou calories dans la cible) · ${logged.length ? `${inTarget} jour${inTarget > 1 ? 's' : ''} dans la cible calorique` : 'calories non notées'} · ${partial ? 'série en cours' : `série au ${fmtDay(last)}`} : ${plural(currentStreak(flames, last), 'jour')}.`);
+  line(
+    `- Régularité : ${lit}/${days.length} jours actifs (séance, marche ou calories dans la cible)${kept ? ` + ${plural(kept, 'jour')} maintenu${kept > 1 ? 's' : ''} par les calories (sous la maintenance, flamme bleue)` : ''} · ${logged.length ? `${inTarget} jour${inTarget > 1 ? 's' : ''} dans la cible calorique` : 'calories non notées'} · ${partial ? 'série en cours' : `série au ${fmtDay(last)}`} : ${plural(currentStreak(flames, last), 'jour')}.`,
+  );
 
   // ---------- Semaine précédente ----------
   line();
