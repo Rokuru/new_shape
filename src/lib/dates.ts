@@ -38,3 +38,6 @@ export function daysBetween(from: string, to: string): number {
   };
   return Math.round((utc(to) - utc(from)) / 86_400_000);
 }
+
+/** « 1 octobre » → « 1er octobre », « jeu. 1 oct. » → « jeu. 1er oct. » (premier du mois). */
+export const firstOfMonth = (s: string) => s.replace(/(^|\s)1(?=\s|$)/, '$11er');

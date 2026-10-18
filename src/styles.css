@@ -2643,6 +2643,24 @@ details.session-item > summary::before {
 .report-cta h2 {
   margin: 0;
 }
+/* Bilan : semaine, depuis une date ou depuis le début */
+.report-mode {
+  margin-bottom: 10px;
+}
+.report-since {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0 0 10px;
+}
+.report-since .field {
+  flex: 1 1 180px;
+  margin: 0;
+}
+.report-since .chips {
+  flex-basis: 100%;
+}
 .week-nav {
   display: flex;
   align-items: center;

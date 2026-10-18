@@ -3,7 +3,8 @@ import type { Tab } from '../App';
 import { useToday } from '../hooks/useToday';
 import { deficitSummary, KCAL_PER_KG, type DeficitSummary } from '../lib/deficit';
 import { useStore } from '../lib/store';
-import DeficitStartSheet, { firstOfMonth } from './DeficitStartSheet';
+import { firstOfMonth } from '../lib/dates';
+import DeficitStartSheet from './DeficitStartSheet';
 import { fmtDate, fmtNum, Icon } from './ui';
 
 const r10 = (n: number) => Math.round(n / 10) * 10;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dayKey, daysBetween, localDate } from './dates';
+import { addDays, dayKey, daysBetween, firstOfMonth, localDate } from './dates';
 import { dailyTotals } from './cardio';
 import { activityAverage } from './energy';
 import { bodyweightAt } from './calc';
@@ -110,5 +110,15 @@ describe('séances enregistrées après minuit', () => {
     // La séance du 2 octobre à 00 h 30 (stockée « 2026-10-01T22:30Z ») est bien dans la fenêtre.
     const withoutLast = activityAverage({ workouts: workouts.slice(0, -1), cardio: [], profile }, 80, now);
     expect(a.training).toBeGreaterThan(withoutLast.training);
+  });
+});
+
+describe('premier du mois', () => {
+  it('« 1 » devient « 1er », les autres jours ne changent pas', () => {
+    expect(firstOfMonth('jeudi 1 octobre 2026')).toBe('jeudi 1er octobre 2026');
+    expect(firstOfMonth('jeu. 1 oct.')).toBe('jeu. 1er oct.');
+    expect(firstOfMonth('1')).toBe('1er');
+    expect(firstOfMonth('11 oct.')).toBe('11 oct.');
+    expect(firstOfMonth('mer. 21 oct.')).toBe('mer. 21 oct.');
   });
 });
