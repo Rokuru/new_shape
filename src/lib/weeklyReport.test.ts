@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PROFILE } from './store';
 import type { BodyEntry, CardioEntry, FoodEntry, Profile, Workout } from './types';
-import { defaultReportWeek, setText, weekStartOf, weeklyReport as rawReport, type ReportData } from './weeklyReport';
+import { getExercise } from '../data/exercises';
+import { defaultReportWeek, firstDataDay, periodReport as rawPeriod, setText, weekStartOf, weeklyReport as rawReport, type ReportData } from './weeklyReport';
 
 // Espaces fines insécables des nombres français (« 2 100 ») ramenées à des espaces simples pour les assertions.
 const weeklyReport = (...args: Parameters<typeof rawReport>) => rawReport(...args).replace(/[\u202f\u00a0]/g, ' ');
+const periodReport = (...args: Parameters<typeof rawPeriod>) => rawPeriod(...args).replace(/[\u202f\u00a0]/g, ' ');
 
 const profile: Profile = { ...DEFAULT_PROFILE, name: 'Vincent', sex: 'male', birthYear: 1993, heightCm: 178, goal: 'cut', daysPerWeek: 3, priorities: ['shoulders'], targetWeightKg: 95 };
 
@@ -86,13 +88,13 @@ describe('bilan de la semaine', () => {
 
   it('corps : pesées, tendance, composition, mensurations et balance', () => {
     const r = weeklyReport(data, '2026-09-28', '2026-10-08');
-    expect(r).toContain('Pesées : lun. 28 sept. 117,9 kg · jeu. 1 oct. 117,2 kg');
+    expect(r).toContain('Pesées : lun. 28 sept. 117,9 kg · jeu. 1er oct. 117,2 kg');
     expect(r).toMatch(/Poids lissé \(tendance\) : [\d,]+ kg fin de semaine précédente → [\d,]+ kg \(−[\d,]+ kg\)/);
-    expect(r).toContain('Masse grasse : 33,2 % (balance à impédancemètre, mesure du jeu. 1 oct.)');
+    expect(r).toContain('Masse grasse : 33,2 % (balance à impédancemètre, mesure du jeu. 1er oct.)');
     expect(r).toContain('Mesure précédente : 33,6 % le ven. 25 sept.\n');
     expect(r).not.toContain('..');
-    expect(r).toContain('Mensurations du jeu. 1 oct. : taille 112 cm');
-    expect(r).toContain('Balance du jeu. 1 oct. : muscle 74,2 kg, graisse viscérale 14');
+    expect(r).toContain('Mensurations du jeu. 1er oct. : taille 112 cm');
+    expect(r).toContain('Balance du jeu. 1er oct. : muscle 74,2 kg, graisse viscérale 14');
   });
 
   it('nutrition : cible de l’app, tableau par jour et moyennes des jours notés', () => {
@@ -148,7 +150,7 @@ describe('bilan de la semaine', () => {
     expect(r).toContain('1 séance sur 3 prévues');
     expect(r).toContain('Jours notés : 2/3');
     expect(r).toContain('la semaine en cours ne compte que 3 jours');
-    expect(r).not.toContain('jeu. 1 oct.');
+    expect(r).not.toContain('jeu. 1er oct.');
   });
 
   it('sans aucune donnée : un bilan lisible, sans plantage', () => {
@@ -160,5 +162,45 @@ describe('bilan de la semaine', () => {
     expect(r).toContain('calories non notées');
     expect(r).not.toContain('NaN');
     expect(r).not.toContain('undefined');
+  });
+});
+
+describe('bilan sur une période libre', () => {
+  const r = periodReport(data, '2026-09-21', '2026-10-08', '2026-10-08');
+
+  it('en-tête, mission sur toute la période, sans comparaison hebdomadaire', () => {
+    expect(r).toContain('# Bilan du lundi 21 septembre au jeudi 8 octobre 2026 (18 jours)');
+    expect(r).toContain("*Données jusqu'au jeudi 8 octobre inclus (journée en cours).*");
+    expect(r).toContain('Voici mes données du lundi 21 septembre au jeudi 8 octobre (18 jours, soit 2,6 semaines)');
+    expect(r).toContain('Analyse toute la période');
+    expect(r).not.toContain('## Comparaison avec la semaine précédente');
+  });
+
+  it('résumé semaine par semaine : poids, séances, séries, marche, repas, calories, protéines', () => {
+    expect(r).toContain('## Semaine par semaine');
+    expect(r).toMatch(/\| 21 – 27 sept\. \| [\d,]+ kg \| 1 \| 4 \| [^|]+ \| 1\/7 j \| 2 400 kcal \| — \| — \|/);
+    expect(r).toMatch(/\| 28 sept\. – 4 oct\. \| [\d,]+ kg \| 2 \| 6 \| 1 h 15 \| 2\/7 j \| 2 075 kcal \| 170 g \| — \|/);
+    expect(r).toMatch(/\| 5 – 8 oct\. \| — \| 0 \| 0 \| — \| 0\/4 j \| — \| — \| — \|/);
+  });
+
+  it('corps : tendance du début à la fin de la période', () => {
+    expect(r).toMatch(/Poids lissé \(tendance\) : [\d,]+ kg le lun\. 21 sept\. → [\d,]+ kg le jeu\. 1er oct\. \(−[\d,]+ kg, soit −[\d,]+ kg\/semaine en moyenne\)\./);
+  });
+
+  it('entraînement : progression de la première à la dernière séance, volume moyen par semaine', () => {
+    expect(r).toContain('3 séances en 2,6 semaines (3 prévues par semaine)');
+    expect(r).toContain(
+      `- ${getExercise('bench').name} : 98,2 kg le mar. 22 sept. (77,5×8) → 99 kg le jeu. 1er oct. (82,5×6 @1), +0,8 kg ; meilleur : 101,3 kg le lun. 28 sept. (80×8 @2) · 3 séances`,
+    );
+    expect(r).toContain('### Volume moyen par semaine (séries dures sur 2,6 semaines ; muscle secondaire compté pour ½)');
+    expect(r).toContain('| Muscle | Séries / semaine | Cible du profil |');
+    expect(r).toMatch(/plus longue série de la période : \d+ jours?\./);
+  });
+
+  it('depuis le début : de la première donnée à aujourd’hui', () => {
+    expect(firstDataDay(data)).toBe('2026-09-21');
+    expect(periodReport(data, firstDataDay(data)!, '2026-10-08', '2026-10-08')).toBe(r);
+    // Fin après aujourd'hui : arrêtée à aujourd'hui.
+    expect(periodReport(data, '2026-09-21', '2026-12-31', '2026-10-08')).toBe(r);
   });
 });

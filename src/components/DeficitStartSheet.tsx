@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useToday } from '../hooks/useToday';
-import { addDays } from '../lib/dates';
+import { addDays, firstOfMonth } from '../lib/dates';
 import { deficitStart, kcalGoal } from '../lib/deficit';
 import { useStore } from '../lib/store';
 import Sheet from './Sheet';
 import { fmtDate, fmtNum } from './ui';
 
-/** « 1 octobre » → « 1er octobre ». */
-export const firstOfMonth = (s: string) => s.replace(/(^|\s)1 /, '$11er ');
 const longDate = (d: string) => firstOfMonth(fmtDate(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
 
 /** Départ du compteur « Calories à perdre », indépendant de la date de départ du plan. */
