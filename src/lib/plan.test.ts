@@ -198,7 +198,9 @@ describe('plan appliqué au profil', () => {
     const p1 = { ...tpl.phases[0], id: pid(0) };
     program.startWorkout({ id: pid(0), name: 'P1', author: '', description: '', level: ['beginner'], goals: ['cut'], daysPerWeek: 2, progression: '', days: p1.days }, 0);
     const w = useStore.getState().activeWorkout!;
-    expect(w.exercises.map((e) => e.sets.length)).toEqual([2, 2, 2, 2, 2, 2]);
+    // 2 séries de travail partout, précédées d'un échauffement (sauf le gainage, sans charge).
+    expect(w.exercises.map((e) => e.sets.filter((x) => !x.warmup).length)).toEqual([2, 2, 2, 2, 2, 2]);
+    expect(w.exercises.map((e) => e.sets[0].warmup === true)).toEqual([true, true, true, true, true, false]);
     expect(w.exercises[0].target).toMatchObject({ sets: 2, repMin: 12, repMax: 15 });
   });
 

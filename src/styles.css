@@ -37,6 +37,10 @@
   --accent-soft: #e8efff;
   --green-text: #047857;
   --green-soft: #e3f7ee;
+  /* Série d'échauffement (ambre) */
+  --warmup: #f59e0b;
+  --warmup-soft: #fdf1d8;
+  --warmup-ink: #8a4b06;
 
   /* Données (palette validée : contraste et daltonisme) */
   --series-1: #2563eb;
@@ -81,6 +85,8 @@
     --accent-soft: #13254a;
     --green-text: #6ee7b7;
     --green-soft: #0d2e26;
+    --warmup-soft: #33260c;
+    --warmup-ink: #fcd34d;
     --series-1: #3b82f6;
     --good: #22c55e;
     --critical: #f26d6d;
@@ -107,6 +113,8 @@
   --accent-soft: #13254a;
   --green-text: #6ee7b7;
   --green-soft: #0d2e26;
+  --warmup-soft: #33260c;
+  --warmup-ink: #fcd34d;
   --series-1: #3b82f6;
   --good: #22c55e;
   --critical: #f26d6d;
@@ -1002,6 +1010,56 @@ th.num {
 .set-row.done input,
 .set-row.done select {
   background: var(--green-soft);
+}
+/* Numéro de série : bouton qui marque (ou non) la série en échauffement */
+.set-num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.set-num > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: 700 0.95rem/1 var(--font-display);
+}
+.set-row.done .set-num > span {
+  background: var(--good-mark);
+  color: #fff;
+}
+.set-row.warmup .set-num > span {
+  background: var(--warmup-soft);
+  color: var(--warmup-ink);
+  box-shadow: inset 0 0 0 2px var(--warmup);
+}
+.set-row.warmup.done .set-num > span {
+  background: var(--warmup);
+  color: #2b1600;
+  box-shadow: none;
+}
+.set-row.warmup input,
+.set-row.warmup select {
+  background: var(--warmup-soft);
+}
+.warmup-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.warmup-legend .set-num > span {
+  background: var(--warmup-soft);
+  color: var(--warmup-ink);
+  box-shadow: inset 0 0 0 2px var(--warmup);
 }
 .check {
   width: 48px;
@@ -2258,6 +2316,17 @@ table.compare tr.group th {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+/* Petits écrans : le nom du repas garde sa place, les boutons passent sur une 2e ligne */
+@media (max-width: 480px) {
+  .food-row:not(.editing) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .food-row:not(.editing) > :last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
 .food-amount {
   display: flex;
   flex-direction: column;
@@ -2278,6 +2347,90 @@ table.compare tr.group th {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* Point du jour : 4 notes de 1 à 5 */
+.checkin-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 10px;
+  margin-bottom: 8px;
+}
+.checkin-label {
+  font-weight: 600;
+}
+.checkin-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  max-width: 320px;
+}
+.checkin-scale button {
+  min-height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-2);
+  font: 700 1rem/1 var(--font-display);
+  cursor: pointer;
+}
+.checkin-scale button.on {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
+.checkin-ends {
+  grid-column: 2;
+}
+@media (max-width: 359px) {
+  .checkin-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .checkin-ends {
+    grid-column: 1;
+  }
+}
+
+/* Repas favoris et copie de la veille */
+.food-favs {
+  margin: 0 0 12px;
+}
+.food-favs .chips {
+  margin-top: 6px;
+}
+.food-favs .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip.fav-remove {
+  border-color: var(--critical);
+  color: var(--critical);
+}
+.food-copy {
+  margin: 0 0 12px;
+}
+.fav-toggle {
+  color: var(--muted);
+}
+.fav-toggle.on {
+  color: var(--warmup);
+}
+.fav-toggle.on svg path {
+  fill: currentColor;
+}
+.check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.check-inline input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }
 .day-nav {
   display: flex;

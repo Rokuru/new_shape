@@ -1,4 +1,5 @@
 import { getExercise } from '../data/exercises';
+import { isWorkSet } from './calc';
 import type { LoggedExercise, LoggedSet, PlannedExercise, Workout } from './types';
 
 export interface Suggestion {
@@ -7,12 +8,12 @@ export interface Suggestion {
   reason: string;
 }
 
-/** Dernières performances d'un exercice, de la plus récente à la plus ancienne. */
+/** Dernières performances d'un exercice (au moins une série de travail), de la plus récente à la plus ancienne. */
 export function history(workouts: Workout[], exerciseId: string, excludeId?: string): { date: string; ex: LoggedExercise }[] {
   return workouts
     .filter((w) => w.finished && w.id !== excludeId)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .flatMap((w) => w.exercises.filter((e) => e.exerciseId === exerciseId && e.sets.some((s) => s.done)).map((ex) => ({ date: w.date, ex })));
+    .flatMap((w) => w.exercises.filter((e) => e.exerciseId === exerciseId && e.sets.some(isWorkSet)).map((ex) => ({ date: w.date, ex })));
 }
 
 const roundTo = (n: number, step: number) => (step > 0 ? Math.round(n / step) * step : n);
@@ -26,7 +27,8 @@ const roundTo = (n: number, step: number) => (step > 0 ? Math.round(n / step) * 
 export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[]): Suggestion | undefined {
   const last = past[0]?.ex;
   if (!last) return undefined;
-  const done = last.sets.filter((s) => s.done);
+  // L'échauffement ne compte pas : seules les séries de travail guident la progression.
+  const done = last.sets.filter(isWorkSet);
   if (done.length === 0) return undefined;
   const inc = getExercise(target.exerciseId).increment;
   const topWeight = Math.max(...done.map((s) => s.weight));
@@ -43,7 +45,7 @@ export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[])
     const hit = allSets && minReps >= target.repMax;
     if (hit) return { weight: topWeight + inc, reps: target.repMax, reason: `Séance réussie : +${inc} kg.` };
     const fails = past.slice(0, 3).filter(({ ex }) => {
-      const d = ex.sets.filter((s) => s.done);
+      const d = ex.sets.filter(isWorkSet);
       const w = Math.max(...d.map((s) => s.weight));
       return d.filter((s) => s.weight === w).some((s) => s.reps < target.repMax) && w === topWeight;
     }).length;
@@ -69,7 +71,7 @@ export function suggest(target: PlannedExercise, past: { ex: LoggedExercise }[])
  * et on complète jusqu'au nombre de séries prévu.
  */
 export function prefillSets(past: { ex: LoggedExercise }[], target?: PlannedExercise): LoggedSet[] {
-  const last = past[0]?.ex.sets.filter((s) => s.done) ?? [];
+  const last = past[0]?.ex.sets.filter(isWorkSet) ?? [];
   const fresh = (weight: number, reps: number): LoggedSet => ({ weight, reps, done: false });
   if (!target) return last.length ? last.map((s) => fresh(s.weight, s.reps)) : Array.from({ length: 3 }, () => fresh(0, 10));
   const sug = suggest(target, past);
@@ -78,4 +80,23 @@ export function prefillSets(past: { ex: LoggedExercise }[], target?: PlannedExer
   const sets = last.map((s) => (s.weight === top ? fresh(sug.weight, sug.reps) : fresh(s.weight, s.reps)));
   while (sets.length < target.sets) sets.push(fresh(sug.weight, sug.reps));
   return sets;
+}
+
+/**
+ * Série d'échauffement proposée avant les séries de travail : celle de la dernière fois, sinon environ 50 % de la
+ * charge de travail (arrondie à l'incrément) pour 6 à 12 répétitions. Pas pour le gainage ni le poids du corps.
+ */
+export function warmupFor(exerciseId: string, work: LoggedSet[], past: { ex: LoggedExercise }[]): LoggedSet | undefined {
+  const ex = getExercise(exerciseId);
+  if (ex.increment === 0 || ex.bodyweight) return undefined;
+  const prev = past[0]?.ex.sets.find((s) => s.warmup && s.done);
+  if (prev) return { weight: prev.weight, reps: prev.reps, done: false, warmup: true };
+  const top = Math.max(0, ...work.map((s) => s.weight));
+  return { weight: Math.round((top * 0.5) / ex.increment) * ex.increment, reps: Math.min(12, Math.max(6, work[0]?.reps ?? 10)), done: false, warmup: true };
+}
+
+/** Séries de travail précédées de l'échauffement proposé : la 1re série est en échauffement par défaut. */
+export function withWarmup(exerciseId: string, work: LoggedSet[], past: { ex: LoggedExercise }[]): LoggedSet[] {
+  const w = warmupFor(exerciseId, work, past);
+  return w ? [w, ...work] : work;
 }

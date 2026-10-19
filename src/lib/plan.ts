@@ -4,7 +4,7 @@
  */
 import { PLAN_TEMPLATES, type PlanPhase, type PlanTable, type PlanTemplate } from '../data/plans';
 import { getExercise } from '../data/exercises';
-import { bodyFatOf, bodyweightAt, computeBmr, setE1rm } from './calc';
+import { bodyFatOf, bodyweightAt, computeBmr, isWorkSet, setE1rm } from './calc';
 import { addDays, dayKey, daysBetween, parseLocalDate } from './dates';
 import type { BodyEntry, LoggedSet, Profile, Program, Workout } from './types';
 
@@ -280,7 +280,7 @@ export function trackingRows(
         for (const e of w.exercises)
           if (e.exerciseId === id)
             for (const s of e.sets) {
-              const v = s.done ? setE1rm(id, s.weight, s.reps, bodyweightAt(data.body, w.date)) : 0;
+              const v = isWorkSet(s) ? setE1rm(id, s.weight, s.reps, bodyweightAt(data.body, w.date)) : 0;
               if (v > best.v) best = { v, set: s };
             }
       }

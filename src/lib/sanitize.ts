@@ -3,7 +3,7 @@
  * Un fichier mal formé (ou piégé) ne doit ni faire planter l'app, ni injecter de lien dangereux :
  * on garde ce qui est valide, on borne les nombres et on écarte le reste, sans jamais lever d'erreur.
  */
-import type { BiaData, BodyEntry, CardioEntry, FoodEntry, Goal, Level, LoggedExercise, LoggedSet, PlannedExercise, Program, ProgramDay, ProgramStyle, Segment, Workout } from './types';
+import type { BiaData, BodyEntry, CardioEntry, Checkin, FoodEntry, FoodFavorite, Goal, Level, LoggedExercise, LoggedSet, PlannedExercise, Program, ProgramDay, ProgramStyle, Segment, Workout } from './types';
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -133,6 +133,7 @@ function loggedSet(v: unknown): LoggedSet | undefined {
   const s: LoggedSet = { weight: Math.round(clampNum(v.weight, 0, 1000, 0) * 100) / 100, reps: Math.round(clampNum(v.reps, 0, 1000, 0)), done: v.done === true };
   const rir = num(v.rir, 0, 10);
   if (rir !== undefined) s.rir = Math.round(rir);
+  if (v.warmup === true) s.warmup = true;
   return s;
 }
 
@@ -211,6 +212,46 @@ export function sanitizeFood(v: unknown): FoodEntry | undefined {
   return f;
 }
 
+export function sanitizeFavorite(v: unknown): FoodFavorite | undefined {
+  if (!isObj(v)) return undefined;
+  const fid = id(v.id);
+  const label = str(v.label, 60)?.trim();
+  const kcal = num(v.kcal, 0, 10000);
+  if (!fid || !label || kcal === undefined) return undefined;
+  const f: FoodFavorite = { id: fid, label, kcal: Math.round(kcal) };
+  const prot = num(v.proteinG, 0, 1000);
+  if (prot) f.proteinG = Math.round(prot * 10) / 10;
+  return f.kcal || f.proteinG ? f : undefined;
+}
+
+/** Note de 1 à 5 (entière). */
+const scale = (v: unknown) => {
+  const n = num(v, 1, 5);
+  return n === undefined ? undefined : Math.round(n);
+};
+
+export function sanitizeCheckin(v: unknown): Checkin | undefined {
+  if (!isObj(v)) return undefined;
+  const cid = id(v.id);
+  const date = day(v.date);
+  if (!cid || !date) return undefined;
+  const c: Checkin = { id: cid, date };
+  for (const k of ['sleep', 'energy', 'hunger', 'soreness'] as const) {
+    const s = scale(v[k]);
+    if (s !== undefined) c[k] = s;
+  }
+  const note = str(v.note, 500);
+  if (note) c.note = note;
+  return c;
+}
+
+/** Un seul point du jour par date : le dernier de la liste l'emporte. */
+export function oneCheckinPerDay(list: Checkin[]): Checkin[] {
+  const byDate = new Map<string, Checkin>();
+  for (const c of list) byDate.set(c.date, c);
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function programDay(v: unknown): ProgramDay | undefined {
   if (!isObj(v)) return undefined;
   const d: ProgramDay = { name: str(v.name, 100) ?? 'Séance', exercises: arr(v.exercises).slice(0, 40).map(planned).filter((x): x is PlannedExercise => !!x) };
@@ -267,6 +308,8 @@ export function sanitizeCollections(d: Obj) {
     customPrograms: uniqueById(arr(d.customPrograms).map(sanitizeProgram)).slice(0, 100),
     cardio: uniqueById(arr(d.cardio).map(sanitizeCardio)).sort((a, b) => a.date.localeCompare(b.date)),
     food: uniqueById(arr(d.food).map(sanitizeFood)),
+    foodFavorites: uniqueById(arr(d.foodFavorites).map(sanitizeFavorite)).slice(0, 60),
+    checkins: oneCheckinPerDay(uniqueById(arr(d.checkins).map(sanitizeCheckin))),
     friends: sanitizeLogins(d.friends),
     deleted: arr(d.deleted).filter((x): x is string => typeof x === 'string' && x.length <= 64).slice(-20000),
     share: isObj(d.share) ? { enabled: d.share.enabled === true, body: d.share.body === true } : { enabled: false, body: false },

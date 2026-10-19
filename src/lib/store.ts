@@ -4,8 +4,8 @@ import { persist } from 'zustand/middleware';
 import { PROGRAMS } from '../data/programs';
 import { getExercise, MUSCLES as MUSCLE_IDS } from '../data/exercises';
 import { suggestStretches } from '../data/stretches';
-import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, Muscle, Profile, Program, ProgramDay, Workout } from './types';
-import { history, prefillSets } from './progression';
+import type { BodyEntry, CardioEntry, Checkin, FoodEntry, FoodFavorite, LoggedExercise, Muscle, Profile, Program, ProgramDay, Workout } from './types';
+import { history, prefillSets, withWarmup } from './progression';
 import { adjustSets, PLAN_PROGRAMS, planAdjust, planProgramFor, planTemplate, type PlanAdjust } from './plan';
 import { currentComposition } from './calc';
 import { sanitizeCollections, sanitizeWorkout } from './sanitize';
@@ -99,6 +99,9 @@ interface State {
   /** Marche sur tapis (pas + inclinaison). */
   cardio: CardioEntry[];
   food: FoodEntry[];
+  foodFavorites: FoodFavorite[];
+  /** Point du jour (ressenti), un par date. */
+  checkins: Checkin[];
   /** Partage public de mes progrès (gist public), pour que mes amis me trouvent. */
   share: ShareSettings;
 
@@ -122,6 +125,13 @@ interface State {
   addCardio: (e: CardioEntry) => void;
   deleteCardio: (id: string) => void;
   addFood: (e: FoodEntry) => void;
+  /** Repas favori (remplace celui du même nom) et suppression. */
+  addFavorite: (f: FoodFavorite) => void;
+  removeFavorite: (id: string) => void;
+  /** Recopie les repas d'un jour sur un autre (mêmes heures). */
+  copyFoodDay: (from: string, to: string) => void;
+  /** Point du jour : crée ou complète celui de la date. */
+  setCheckin: (date: string, patch: Partial<Omit<Checkin, 'id' | 'date'>>) => void;
   updateFood: (e: FoodEntry) => void;
   deleteFood: (id: string) => void;
   setKcalAdjust: (n: number) => void;
@@ -146,13 +156,26 @@ export function activeMs(w: Pick<Workout, 'date' | 'pausedAt' | 'pausedMs'>, now
   return Math.max(0, now - new Date(w.date).getTime() - paused);
 }
 
+/** Copie de repas sur un autre jour : nouveaux identifiants, même heure de la journée (l'ordre est gardé). */
+export function copyMeals(entries: FoodEntry[], to: string): FoodEntry[] {
+  const [y, m, d] = to.split('-').map(Number);
+  return [...entries]
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .map((e) => {
+      const t = new Date(e.at);
+      return { ...e, id: uid(), date: to, at: new Date(y, m - 1, d, t.getHours(), t.getMinutes(), t.getSeconds()).toISOString() };
+    });
+}
+
 /** Programmes utilisables : les miens, la bibliothèque, et les phases des plans objectifs. */
 export const allPrograms = (custom: Program[]) => [...custom, ...PROGRAMS, ...PLAN_PROGRAMS];
 
 function buildExercises(day: ProgramDay, workouts: Workout[], adj?: PlanAdjust): LoggedExercise[] {
   return day.exercises.map((target) => {
-    const sets = adjustSets(target.exerciseId, prefillSets(history(workouts, target.exerciseId), target), adj);
-    return { exerciseId: target.exerciseId, target: adj ? { ...target, sets: sets.length } : target, sets };
+    const past = history(workouts, target.exerciseId);
+    // Séries de travail (ajustées par le plan), précédées d'une série d'échauffement.
+    const work = adjustSets(target.exerciseId, prefillSets(past, target), adj);
+    return { exerciseId: target.exerciseId, target: adj ? { ...target, sets: work.length } : target, sets: withWarmup(target.exerciseId, work, past) };
   });
 }
 
@@ -171,6 +194,8 @@ const initial = {
   friends: [] as string[],
   cardio: [] as CardioEntry[],
   food: [] as FoodEntry[],
+  foodFavorites: [] as FoodFavorite[],
+  checkins: [] as Checkin[],
   share: { enabled: false, body: false } as ShareSettings,
 };
 
@@ -248,6 +273,19 @@ export const useStore = create<State>()(
       cancelWorkout: () => set({ activeWorkout: undefined }),
       addCardio: (e) => set((s) => ({ cardio: [...s.cardio, e].sort((a, b) => a.date.localeCompare(b.date)) })),
       addFood: (e) => set((s) => ({ food: [...s.food, e] })),
+      addFavorite: (f) =>
+        set((s) => {
+          const same = s.foodFavorites.find((x) => x.label.toLowerCase() === f.label.toLowerCase());
+          return { foodFavorites: [...s.foodFavorites.filter((x) => x !== same), f].slice(-60), deleted: same ? [...s.deleted, same.id] : s.deleted };
+        }),
+      removeFavorite: (id) => set((s) => ({ foodFavorites: s.foodFavorites.filter((f) => f.id !== id), deleted: [...s.deleted, id] })),
+      copyFoodDay: (from, to) => set((s) => ({ food: [...s.food, ...copyMeals(s.food.filter((f) => f.date === from), to)] })),
+      setCheckin: (date, patch) =>
+        set((s) => {
+          const cur = s.checkins.find((c) => c.date === date) ?? { id: uid(), date };
+          const next: Checkin = { ...cur, ...patch };
+          return { checkins: [...s.checkins.filter((c) => c.date !== date), next].sort((a, b) => a.date.localeCompare(b.date)) };
+        }),
       updateFood: (e) => set((s) => ({ food: s.food.map((f) => (f.id === e.id ? e : f)) })),
       deleteFood: (id) => set((s) => ({ food: s.food.filter((f) => f.id !== id), deleted: [...s.deleted, id] })),
       deleteCardio: (id) => set((s) => ({ cardio: s.cardio.filter((c) => c.id !== id), deleted: [...s.deleted, id] })),
@@ -329,7 +367,24 @@ export const useStore = create<State>()(
 );
 
 /** Données synchronisées entre appareils (tout sauf la séance en cours). */
-export const SYNCED_KEYS = ['onboarded', 'profile', 'body', 'workouts', 'customPrograms', 'activeProgramId', 'nextDayIndex', 'kcalAdjust', 'kcalAdjustedAt', 'deleted', 'friends', 'share', 'cardio', 'food'] as const;
+export const SYNCED_KEYS = [
+  'onboarded',
+  'profile',
+  'body',
+  'workouts',
+  'customPrograms',
+  'activeProgramId',
+  'nextDayIndex',
+  'kcalAdjust',
+  'kcalAdjustedAt',
+  'deleted',
+  'friends',
+  'share',
+  'cardio',
+  'food',
+  'foodFavorites',
+  'checkins',
+] as const;
 export type SyncedData = Pick<State, (typeof SYNCED_KEYS)[number]>;
 
 export function pickSynced(s: SyncedData): SyncedData {

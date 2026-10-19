@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Tab } from '../App';
 import { EXERCISES, getExercise, MUSCLE_LABELS, MUSCLES } from '../data/exercises';
-import { computeBmr, tonnage } from '../lib/calc';
+import { computeBmr, isWorkSet, tonnage } from '../lib/calc';
 import { energyBasis, workoutKcal } from '../lib/energy';
-import { history, prefillSets, suggest } from '../lib/progression';
+import { history, prefillSets, suggest, withWarmup } from '../lib/progression';
 import { activeMs, allPrograms, useStore } from '../lib/store';
 import { planAdjust, planProgramId, planStatus } from '../lib/plan';
 import { useToday } from '../hooks/useToday';
@@ -14,6 +14,7 @@ import ActivityCard from '../components/ActivityCard';
 import CardioCard from '../components/CardioCard';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import NumField from '../components/NumField';
+import SetNumber from '../components/SetNumber';
 import StretchCard from '../components/StretchCard';
 import { getStretch, suggestStretches } from '../data/stretches';
 import WorkoutEditor, { DuplicateWorkout } from '../components/WorkoutEditor';
@@ -150,10 +151,7 @@ function MySessions({
                   <ExerciseLink id={e.exerciseId} />
                 </b>{' '}
                 :{' '}
-                {e.sets
-                  .filter((s) => s.done)
-                  .map((s) => `${fmtNum(s.weight)}×${s.reps}`)
-                  .join(', ')}
+                {setsSummary(e.sets)}
               </div>
             ))}
             {w.note && <div className="muted" style={{ marginBottom: 4 }}>📝 {w.note}</div>}
@@ -192,6 +190,14 @@ function useNow(ms = 1000) {
     return () => clearInterval(t);
   }, [ms]);
   return now;
+}
+
+/** « éch. 80×12 · 160×12, 160×11 » : séries validées, l'échauffement à part. */
+function setsSummary(sets: LoggedSet[]): string {
+  const fmt = (s: LoggedSet) => `${fmtNum(s.weight)}×${s.reps}`;
+  const warm = sets.filter((s) => s.done && s.warmup).map(fmt);
+  const work = sets.filter(isWorkSet).map(fmt);
+  return [warm.length ? `éch. ${warm.join(', ')}` : '', work.join(', ')].filter(Boolean).join(' · ');
 }
 
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, '0')}`;
@@ -265,11 +271,11 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
     if (done && workout.pausedAt) resumeWorkout();
     setEx(i, (e) => ({
       ...e,
-      // Propage la charge validée aux séries suivantes encore vides.
-      sets: e.sets.map((x, j) => (j === k ? { ...x, done } : j > k && !x.done && done && x.weight === 0 ? { ...x, weight: s.weight } : x)),
+      // Propage la charge validée aux séries de travail suivantes encore vides (jamais celle de l'échauffement).
+      sets: e.sets.map((x, j) => (j === k ? { ...x, done } : j > k && !x.done && done && !s.warmup && !x.warmup && x.weight === 0 ? { ...x, weight: s.weight } : x)),
     }));
-    // Repos 0 : circuit, on enchaîne sans minuteur.
-    const rest = ex.target?.restSec ?? 90;
+    // Repos 0 : circuit, on enchaîne sans minuteur. Après l'échauffement : 1 min au plus.
+    const rest = s.warmup ? Math.min(60, ex.target?.restSec ?? 60) : (ex.target?.restSec ?? 90);
     if (done && rest > 0) {
       unlockAudio();
       setRestEnd(Date.now() + rest * 1000);
@@ -337,6 +343,14 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
       )}
 
       <RestAlertSettings prefs={prefs} onChange={setPrefs} />
+      {workout.exercises.some((e) => e.sets.some((s) => s.warmup)) && (
+        <p className="small muted warmup-legend">
+          <span className="set-num" aria-hidden>
+            <span>É</span>
+          </span>
+          Série d’échauffement : hors progression, records et volume. Touche le numéro d’une série pour la marquer ou non.
+        </p>
+      )}
 
       {workout.exercises.map((ex, i) => (
         <ExerciseCard
@@ -346,7 +360,12 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
           currentId={workout.id}
           onSet={(k, p) => setSet(i, k, p)}
           onToggle={(k) => toggleDone(i, k)}
-          onAddSet={() => setEx(i, (e) => ({ ...e, sets: [...e.sets, { ...(e.sets.at(-1) ?? { weight: 0, reps: 10 }), done: false, rir: undefined }] }))}
+          onAddSet={() =>
+            setEx(i, (e) => {
+              const base = e.sets.filter((x) => !x.warmup).at(-1) ?? e.sets.at(-1) ?? { weight: 0, reps: 10 };
+              return { ...e, sets: [...e.sets, { weight: base.weight, reps: base.reps, done: false }] };
+            })
+          }
           onRemoveSet={() => setEx(i, (e) => ({ ...e, sets: e.sets.slice(0, -1) }))}
           onRemove={() => updateActive((w) => ({ ...w, exercises: w.exercises.filter((_, j) => j !== i) }))}
         />
@@ -373,7 +392,8 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
               disabled={!adding}
               onClick={() => {
                 // Mêmes séries que la dernière fois, une par une (charges et répétitions de chaque série).
-                updateActive((w) => ({ ...w, exercises: [...w.exercises, { exerciseId: adding, sets: prefillSets(history(workouts, adding)) }] }));
+                const past = history(workouts, adding);
+                updateActive((w) => ({ ...w, exercises: [...w.exercises, { exerciseId: adding, sets: withWarmup(adding, prefillSets(past), past) }] }));
                 setAdding('');
               }}
             >
@@ -488,7 +508,9 @@ function ExerciseCard({
           </h3>
           {t && (
             <div className="small secondary">
-              {t.sets} × {t.repMin === t.repMax ? t.repMin : `${t.repMin}–${t.repMax}`} · RIR {t.rir} · {t.restSec ? `repos ${t.restSec < 60 ? `${t.restSec} s` : `${fmtNum(t.restSec / 60)} min`}` : 'enchaîner sans repos'}
+              {t.sets} × {t.repMin === t.repMax ? t.repMin : `${t.repMin}–${t.repMax}`}
+              {ex.sets.some((s) => s.warmup) ? ' + échauffement' : ''} · RIR {t.rir} ·{' '}
+              {t.restSec ? `repos ${t.restSec < 60 ? `${t.restSec} s` : `${fmtNum(t.restSec / 60)} min`}` : 'enchaîner sans repos'}
               {t.note ? ` · ${t.note}` : ''}
             </div>
           )}
@@ -501,11 +523,7 @@ function ExerciseCard({
         <div className="hint">
           {last && (
             <div>
-              Dernière fois ({fmtDate(last.date)}) :{' '}
-              {last.ex.sets
-                .filter((s) => s.done)
-                .map((s) => `${fmtNum(s.weight)}×${s.reps}`)
-                .join(', ')}
+              Dernière fois ({fmtDate(last.date)}) : {setsSummary(last.ex.sets)}
             </div>
           )}
           {sug && (
@@ -526,25 +544,35 @@ function ExerciseCard({
         <span>RIR</span>
         <span />
       </div>
-      {ex.sets.map((s, k) => (
-        <div className={`set-row ${s.done ? 'done' : ''}`} key={k}>
-          <span className="muted small">{k + 1}</span>
-          {/* Charge 0–999 kg (2 décimales), répétitions entières 0–999 : jamais de valeur négative ou absurde. */}
-          <NumField aria-label={`Charge série ${k + 1}`} value={s.weight} max={999} decimals={2} onChange={(weight) => onSet(k, { weight })} />
-          <NumField aria-label={`Répétitions série ${k + 1}`} value={s.reps} max={999} decimals={0} onChange={(reps) => onSet(k, { reps })} />
-          <select aria-label={`RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => onSet(k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
-            <option value="">–</option>
-            {[0, 1, 2, 3, 4].map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-          <button className={`check ${s.done ? 'on' : ''}`} onClick={() => onToggle(k)} aria-label={s.done ? 'Annuler la série' : 'Valider la série'} aria-pressed={s.done}>
-            <Icon name="check" size={18} />
-          </button>
-        </div>
-      ))}
+      {ex.sets.map((s, k) => {
+        // Numéro parmi les séries de travail ; « É » pour l'échauffement.
+        const n = ex.sets.slice(0, k + 1).filter((x) => !x.warmup).length;
+        const name = s.warmup ? 'échauffement' : `série ${n}`;
+        return (
+          <div className={`set-row ${s.done ? 'done' : ''} ${s.warmup ? 'warmup' : ''}`} key={k}>
+            <SetNumber set={s} index={n} onToggle={() => onSet(k, { warmup: s.warmup ? undefined : true })} />
+            {/* Charge 0–999 kg (2 décimales), répétitions entières 0–999 : jamais de valeur négative ou absurde. */}
+            <NumField aria-label={`Charge ${name}`} value={s.weight} max={999} decimals={2} onChange={(weight) => onSet(k, { weight })} />
+            <NumField aria-label={`Répétitions ${name}`} value={s.reps} max={999} decimals={0} onChange={(reps) => onSet(k, { reps })} />
+            <select aria-label={`RIR ${name}`} value={s.rir ?? ''} onChange={(e) => onSet(k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
+              <option value="">–</option>
+              {[0, 1, 2, 3, 4].map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+            <button
+              className={`check ${s.done ? 'on' : ''}`}
+              onClick={() => onToggle(k)}
+              aria-label={s.done ? `Annuler ${s.warmup ? 'l’échauffement' : 'la série'}` : `Valider ${s.warmup ? 'l’échauffement' : 'la série'}`}
+              aria-pressed={s.done}
+            >
+              <Icon name="check" size={18} />
+            </button>
+          </div>
+        );
+      })}
       <div className="row">
         <button className="btn sm" onClick={onAddSet}>
           <Icon name="plus" size={14} /> Série

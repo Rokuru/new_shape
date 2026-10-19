@@ -115,6 +115,25 @@ export interface FoodEntry {
   label?: string;
 }
 
+/** Repas favori : ajouté en un geste dans « Mangé aujourd'hui ». */
+export interface FoodFavorite {
+  id: string;
+  label: string;
+  kcal: number;
+  proteinG?: number;
+}
+
+/** Point du jour, noté de 1 à 5 : sommeil et énergie (5 = au top), faim et courbatures (5 = fortes). */
+export interface Checkin {
+  id: string;
+  date: string; // AAAA-MM-JJ (jour local)
+  sleep?: number;
+  energy?: number;
+  hunger?: number;
+  soreness?: number;
+  note?: string;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -186,6 +205,8 @@ export interface LoggedSet {
   reps: number;
   rir?: number;
   done: boolean;
+  /** Série d'échauffement : hors progression, records, volume et tonnage. */
+  warmup?: boolean;
 }
 
 export interface LoggedExercise {

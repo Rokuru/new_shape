@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { addDays } from '../lib/dates';
-import { uid, useStore } from '../lib/store';
+import { copyMeals, uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
-import type { FoodEntry } from '../lib/types';
+import type { FoodEntry, FoodFavorite } from '../lib/types';
 import NumField from './NumField';
 import Sheet from './Sheet';
 import { fmtDate, fmtNum, Icon } from './ui';
@@ -12,24 +12,89 @@ const MAX_PROT = 300;
 const time = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const dayTotal = (food: FoodEntry[], day: string) => food.filter((f) => f.date === day).reduce((s, f) => s + f.kcal, 0);
 const dayProtein = (food: FoodEntry[], day: string) => food.filter((f) => f.date === day).reduce((s, f) => s + (f.proteinG ?? 0), 0);
+/** Heure d'une saisie : maintenant pour aujourd'hui, midi pour un jour passé (l'ordre de la journée est gardé). */
+const atFor = (day: string, todayKey: string) => (day === todayKey ? new Date().toISOString() : new Date(`${day}T12:00:00`).toISOString());
+const favLabel = (kcal: number, label?: string) => label?.trim() || `${fmtNum(kcal, 0)} kcal`;
+const sameFav = (f: FoodFavorite, label: string) => f.label.toLowerCase() === label.toLowerCase();
+
+/** Repas favoris : un geste pour les ajouter au jour affiché ; « Gérer » pour en retirer. */
+function FavoriteChips({ day }: { day: string }) {
+  const { foodFavorites, addFood, removeFavorite } = useStore();
+  const todayKey = useToday();
+  const [editing, setEditing] = useState(false);
+  const [msg, setMsg] = useState('');
+  if (!foodFavorites.length) return null;
+  const favs = [...foodFavorites].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+  const add = (f: FoodFavorite) => {
+    addFood({ id: uid(), date: day, at: atFor(day, todayKey), kcal: f.kcal, proteinG: f.proteinG, label: f.label });
+    setMsg(`Ajouté : ${f.label} (${fmtNum(f.kcal, 0)} kcal)`);
+    setTimeout(() => setMsg(''), 3000);
+  };
+  return (
+    <div className="food-favs">
+      <div className="spread">
+        <span className="small secondary">
+          <Icon name="star" size={14} /> Favoris {editing ? '· touche pour retirer' : '· touche pour ajouter'}
+        </span>
+        <button className="btn ghost sm" onClick={() => setEditing((v) => !v)}>
+          {editing ? 'Terminé' : 'Gérer'}
+        </button>
+      </div>
+      <div className="chips">
+        {favs.map((f) =>
+          editing ? (
+            <button key={f.id} type="button" className="chip fav-remove" onClick={() => removeFavorite(f.id)} aria-label={`Retirer ${f.label} des favoris`}>
+              <Icon name="x" size={14} /> {f.label}
+            </button>
+          ) : (
+            <button key={f.id} type="button" className="chip" onClick={() => add(f)} aria-label={`Ajouter ${f.label}`}>
+              {f.label} · {fmtNum(f.kcal, 0)} kcal{f.proteinG ? ` · ${fmtNum(f.proteinG, 1)} g` : ''}
+            </button>
+          ),
+        )}
+      </div>
+      {msg && (
+        <p className="small" role="status" style={{ margin: '6px 0 0' }}>
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** « Refaire hier » : recopie les repas de la veille sur un jour encore vide. */
+function CopyPreviousDay({ day }: { day: string }) {
+  const { food, copyFoodDay } = useStore();
+  const todayKey = useToday();
+  const prev = addDays(day, -1);
+  const prevEntries = food.filter((f) => f.date === prev);
+  if (food.some((f) => f.date === day) || !prevEntries.length) return null;
+  const total = prevEntries.reduce((s, f) => s + f.kcal, 0);
+  return (
+    <button className="btn block food-copy" onClick={() => copyFoodDay(prev, day)}>
+      <Icon name="refresh" size={16} /> {day === todayKey ? 'Refaire hier' : `Copier le ${fmtDate(prev, { weekday: 'long', day: 'numeric' })}`} ({prevEntries.length} repas · {fmtNum(total, 0)} kcal)
+    </button>
+  );
+}
 
 /** Saisie d'une prise : calories + libellé facultatif. */
 function AddForm({ day, compact }: { day: string; compact?: boolean }) {
-  const addFood = useStore((s) => s.addFood);
+  const { addFood, addFavorite } = useStore();
   const todayKey = useToday();
   const [kcal, setKcal] = useState(0);
   const [prot, setProt] = useState(0);
   const [label, setLabel] = useState('');
+  const [fav, setFav] = useState(false);
   const [msg, setMsg] = useState('');
   const add = () => {
     if (!kcal && !prot) return setMsg('Indique des calories (et/ou des protéines).');
     if (prot * 4 > kcal && kcal) return setMsg(`${fmtNum(prot, 1)} g de protéines font déjà ${fmtNum(prot * 4, 0)} kcal : vérifie les calories.`);
-    // Saisie d'un jour passé : heure fixée à midi pour garder l'ordre de la journée.
-    const at = day === todayKey ? new Date().toISOString() : new Date(`${day}T12:00:00`).toISOString();
-    addFood({ id: uid(), date: day, at, kcal, proteinG: prot || undefined, label: label.trim() || undefined });
+    addFood({ id: uid(), date: day, at: atFor(day, todayKey), kcal, proteinG: prot || undefined, label: label.trim() || undefined });
+    if (fav) addFavorite({ id: uid(), label: favLabel(kcal, label), kcal, proteinG: prot || undefined });
     setKcal(0);
     setProt(0);
     setLabel('');
+    setFav(false);
     setMsg('');
   };
   return (
@@ -51,13 +116,19 @@ function AddForm({ day, compact }: { day: string; compact?: boolean }) {
           <Icon name="plus" size={18} /> Ajouter
         </button>
       </div>
+      <label className="check-inline small">
+        <input type="checkbox" checked={fav} onChange={(e) => setFav(e.target.checked)} /> Enregistrer en favori
+      </label>
       {msg && <p className="field-error">{msg}</p>}
     </>
   );
 }
 
 function EntryRow({ e }: { e: FoodEntry }) {
-  const { updateFood, deleteFood } = useStore();
+  const { updateFood, deleteFood, addFood, foodFavorites, addFavorite, removeFavorite } = useStore();
+  const todayKey = useToday();
+  const name = favLabel(e.kcal, e.label);
+  const fav = foodFavorites.find((f) => sameFav(f, name));
   const [editing, setEditing] = useState(false);
   const [kcal, setKcal] = useState(e.kcal);
   const [prot, setProt] = useState(e.proteinG ?? 0);
@@ -93,6 +164,19 @@ function EntryRow({ e }: { e: FoodEntry }) {
         {e.proteinG ? <span className="small muted">{fmtNum(e.proteinG, 1)} g prot.</span> : null}
       </span>
       <span className="row" style={{ gap: 2, flexWrap: 'nowrap' }}>
+        <button
+          className={`btn ghost sm fav-toggle ${fav ? 'on' : ''}`}
+          aria-pressed={!!fav}
+          aria-label={fav ? `Retirer ${name} des favoris` : `Ajouter ${name} aux favoris`}
+          onClick={() => (fav ? removeFavorite(fav.id) : addFavorite({ id: uid(), label: name, kcal: e.kcal, proteinG: e.proteinG }))}
+        >
+          <Icon name="star" size={16} />
+        </button>
+        {e.date !== todayKey && (
+          <button className="btn ghost sm" aria-label={`Refaire ${name} aujourd’hui`} title="Refaire aujourd’hui" onClick={() => copyMeals([e], todayKey).forEach(addFood)}>
+            <Icon name="refresh" size={16} />
+          </button>
+        )}
         <button className="btn ghost sm" aria-label={`Modifier ${e.label ?? 'la ligne'}`} onClick={() => setEditing(true)}>
           <Icon name="edit" size={16} />
         </button>
@@ -138,6 +222,8 @@ function FoodHistory({ target, proteinTarget, onClose }: { target: number; prote
         </p>
       )}
       <h3>Ajouter {day === todayKey ? '' : `au ${fmtDate(day, { day: 'numeric', month: 'long' })}`}</h3>
+      <CopyPreviousDay day={day} />
+      <FavoriteChips day={day} />
       <AddForm day={day} compact />
       <h3>7 derniers jours</h3>
       <ul className="food-week">
@@ -204,6 +290,8 @@ export default function FoodLog({ target, proteinTarget }: { target: number; pro
           <span style={{ width: `${protPct}%` }} />
         </div>
       </div>
+      <CopyPreviousDay day={todayKey} />
+      <FavoriteChips day={todayKey} />
       <AddForm day={todayKey} />
       {open && <FoodHistory target={target} proteinTarget={proteinTarget} onClose={() => setOpen(false)} />}
     </div>

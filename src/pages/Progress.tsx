@@ -3,7 +3,7 @@ import { addDays, dayKey, localDate } from '../lib/dates';
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getExercise } from '../data/exercises';
-import { bestE1rm, bodyweightAt, setE1rm, startOfWeek, tonnage, weeklyVolume } from '../lib/calc';
+import { bestE1rm, bodyweightAt, isWorkSet, setE1rm, startOfWeek, tonnage, weeklyVolume } from '../lib/calc';
 import { useStore } from '../lib/store';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Legend } from '../components/ui';
 import VolumeBars from '../components/VolumeBars';
@@ -47,7 +47,7 @@ export default function ProgressPage() {
         for (const e of w.exercises)
           if (e.exerciseId === id)
             for (const s of e.sets) {
-              const v = s.done ? setE1rm(id, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
+              const v = isWorkSet(s) ? setE1rm(id, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
               if (v > best.v) best = { v, weight: s.weight, reps: s.reps, date: w.date };
             }
       return { id, ...best };

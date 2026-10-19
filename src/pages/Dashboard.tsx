@@ -1,7 +1,7 @@
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Tab } from '../App';
 import { getExercise } from '../data/exercises';
-import { bodyweightAt, currentComposition, initialComposition, setE1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
+import { bodyweightAt, currentComposition, initialComposition, isWorkSet, setE1rm, nutritionTargets, startOfWeek, weeklyRate, weightTrend } from '../lib/calc';
 import { allPrograms, useStore } from '../lib/store';
 import { biaTrend } from '../lib/bia';
 import { dailyTotals } from '../lib/cardio';
@@ -14,6 +14,7 @@ import { ffmiReliable } from '../components/FfmiInfo';
 import { ExerciseLink } from '../components/ExerciseInfo';
 import { WeeklyReportCard } from '../components/WeeklyReport';
 import DeficitCard from '../components/DeficitCard';
+import CheckinCard from '../components/CheckinCard';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Segmented, signed, Tile } from '../components/ui';
 
 export default function Dashboard({ go }: { go: (t: Tab) => void }) {
@@ -116,6 +117,8 @@ export default function Dashboard({ go }: { go: (t: Tab) => void }) {
           )}
         </div>
       </section>
+
+      <CheckinCard />
 
       <div className="tiles">
         <Tile
@@ -314,7 +317,7 @@ function recentPRs(workouts: ReturnType<typeof useStore.getState>['workouts'], b
     for (const ex of w.exercises) {
       let top = { v: 0, weight: 0, reps: 0 };
       for (const s of ex.sets) {
-        const v = s.done ? setE1rm(ex.exerciseId, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
+        const v = isWorkSet(s) ? setE1rm(ex.exerciseId, s.weight, s.reps, bodyweightAt(body, w.date)) : 0;
         if (v > top.v) top = { v, weight: s.weight, reps: s.reps };
       }
       const prev = best.get(ex.exerciseId);

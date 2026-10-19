@@ -15,6 +15,7 @@ import {
   currentComposition,
   GOAL_LABELS,
   initialComposition,
+  isWorkSet,
   nutritionTargets,
   setE1rm,
   tonnage,
@@ -30,7 +31,7 @@ import { weeklySetTarget } from './generator';
 import { planStatus } from './plan';
 import { deficitSummary } from './deficit';
 import { activityByDay, currentStreak, isLit } from './streak';
-import type { BodyEntry, CardioEntry, FoodEntry, LoggedExercise, LoggedSet, Profile, Program, Workout } from './types';
+import type { BodyEntry, CardioEntry, Checkin, FoodEntry, LoggedExercise, LoggedSet, Profile, Program, Workout } from './types';
 
 export interface ReportData {
   profile: Profile;
@@ -41,6 +42,8 @@ export interface ReportData {
   /** Programme actif, s'il y en a un. */
   program?: Program;
   kcalAdjust: number;
+  /** Point du jour (sommeil, énergie, faim, courbatures). */
+  checkins?: Checkin[];
 }
 
 /** Lundi de la semaine d'un jour AAAA-MM-JJ. */
@@ -70,7 +73,9 @@ export function setText(exerciseId: string, s: LoggedSet): string {
   return `${load ? `${load}×` : ''}${s.reps}${s.rir !== undefined ? ` @${s.rir}` : ''}`;
 }
 
-const doneSets = (e: LoggedExercise) => e.sets.filter((s) => s.done);
+/** Séries de travail validées (l'échauffement est listé à part et ne compte ni dans le volume, ni dans la progression). */
+const doneSets = (e: LoggedExercise) => e.sets.filter(isWorkSet);
+const warmups = (e: LoggedExercise) => e.sets.filter((s) => s.done && s.warmup);
 
 function bestOf(w: Workout, exerciseId: string, body: BodyEntry[]): { e1rm: number; set?: LoggedSet } {
   let best = { e1rm: 0 } as { e1rm: number; set?: LoggedSet };
@@ -91,7 +96,7 @@ Tu es mon coach : expert en musculation, nutrition sportive et recomposition cor
 2. **Corps** : l'évolution du poids et de la composition est-elle cohérente avec mon objectif et mes apports ? Le rythme est-il adapté ?
 3. **Entraînement** : progression exercice par exercice (charges, répétitions, RIR), exercices qui stagnent ou régressent, volume par muscle par rapport aux repères, régularité.
 4. **Nutrition** : calories et protéines par rapport à la cible, régularité du suivi, déficit ou surplus probable au vu de l'évolution du poids.
-5. **Activité et récupération** : marche, dépense, fatigue (d'après mes notes).
+5. **Activité et récupération** : marche, dépense, fatigue (d'après mon point du jour et mes notes).
 6. **Plan pour la semaine prochaine** : 3 à 5 actions précises et chiffrées, par ordre de priorité (charges et répétitions visées sur les exercices clés, calories, protéines, pas).
 7. **Ce qu'il te manque** : les données absentes ou douteuses que je devrais mieux noter.
 
@@ -105,7 +110,7 @@ Tu es mon coach : expert en musculation, nutrition sportive et recomposition cor
 2. **Corps** : l'évolution du poids et de la composition est-elle cohérente avec mon objectif et mes apports ? Le rythme est-il adapté et régulier d'une semaine à l'autre ?
 3. **Entraînement** : progression exercice par exercice sur la période (charges, répétitions, RIR), exercices qui stagnent ou régressent, volume moyen par muscle par rapport aux repères, régularité.
 4. **Nutrition** : calories et protéines par rapport à la cible semaine par semaine, régularité du suivi, déficit compté comparé à l'évolution réelle du poids.
-5. **Activité et récupération** : marche, dépense, fatigue (d'après mes notes).
+5. **Activité et récupération** : marche, dépense, fatigue (d'après mon point du jour et mes notes).
 6. **Plan pour les semaines à venir** : 3 à 5 actions précises et chiffrées, par ordre de priorité (charges et répétitions visées sur les exercices clés, calories, protéines, pas).
 7. **Ce qu'il te manque** : les données absentes ou douteuses que je devrais mieux noter.
 
@@ -370,16 +375,22 @@ function buildReport(data: ReportData, kind: 'week' | 'period', start: string, e
       0,
     )} kcal.`,
   );
-  if (week.length) line('- Notation : charge en kg × répétitions, « @2 » = 2 répétitions en réserve (RIR), PDC = poids du corps.');
+  if (week.length)
+    line(
+      `- Notation : charge en kg × répétitions, « @2 » = 2 répétitions en réserve (RIR), PDC = poids du corps${
+        week.some((w) => w.exercises.some((e) => warmups(e).length)) ? ' ; « échauffement » = séries d’échauffement, hors décompte des séries, du volume, du tonnage et de la progression' : ''
+      }.`,
+    );
   for (const w of week) {
     line();
     line(`### ${fmtDay(dayKey(w.date))} – ${w.dayName}${w.durationMin ? ` (${w.durationMin} min)` : ''}`);
     for (const e of w.exercises) {
       const sets = doneSets(e);
-      if (!sets.length) continue;
+      const warm = warmups(e);
+      if (!sets.length && !warm.length) continue;
       const tg = e.target;
       const goal = tg ? ` — prévu ${tg.sets}×${tg.repMin === tg.repMax ? tg.repMin : `${tg.repMin}–${tg.repMax}`} @${tg.rir}` : '';
-      line(`- ${getExercise(e.exerciseId).name} : ${sets.map((s) => setText(e.exerciseId, s)).join(', ')}${goal}`);
+      line(`- ${getExercise(e.exerciseId).name} : ${warm.length ? `échauffement ${warm.map((s) => setText(e.exerciseId, s)).join(', ')} ; ` : ''}${sets.map((s) => setText(e.exerciseId, s)).join(', ')}${goal}`);
     }
     const stretched = w.stretches?.filter((s) => s.done).length ?? 0;
     if (stretched) line(`- Étirements : ${plural(stretched, 'exercice')} fait${stretched > 1 ? 's' : ''}.`);
@@ -481,6 +492,27 @@ function buildReport(data: ReportData, kind: 'week' | 'period', start: string, e
       partial || (!isWeek && last === today) ? 'série en cours' : `série au ${fmtDay(last)}`
     } : ${plural(currentStreak(flames, last), 'jour')}${isWeek ? '' : ` · plus longue série de la période : ${plural(bestRun, 'jour')}`}.`,
   );
+
+  // ---------- Récupération (point du jour) ----------
+  line();
+  line('## Récupération (point du jour, de 1 à 5)');
+  const checks = (data.checkins ?? []).filter((c) => isIn(c.date, start, last)).sort((a, b) => a.date.localeCompare(b.date));
+  if (!checks.length) line(`- Aucun point du jour noté ${periodLabel}.`);
+  else {
+    line('- Échelle : sommeil et énergie, 5 = au top ; faim et courbatures, 5 = fortes.');
+    line();
+    line('| Jour | Sommeil | Énergie | Faim | Courbatures | Note |');
+    line('|---|---|---|---|---|---|');
+    const cell = (v?: number) => (v === undefined ? '—' : String(v));
+    for (const c of checks)
+      line(`| ${fmtDay(c.date)} | ${cell(c.sleep)} | ${cell(c.energy)} | ${cell(c.hunger)} | ${cell(c.soreness)} | ${c.note ? c.note.replace(/\|/g, '/').replace(/\s*\n\s*/g, ' ') : ''} |`);
+    line();
+    const avg = (k: 'sleep' | 'energy' | 'hunger' | 'soreness') => {
+      const v = checks.map((c) => c[k]).filter((x): x is number => x !== undefined);
+      return v.length ? n(v.reduce((s, x) => s + x, 0) / v.length) : '—';
+    };
+    line(`- Moyennes : sommeil ${avg('sleep')} · énergie ${avg('energy')} · faim ${avg('hunger')} · courbatures ${avg('soreness')} (${plural(checks.length, 'jour')} noté${checks.length > 1 ? 's' : ''} sur ${days.length}).`);
+  }
 
   // ---------- Semaine précédente ----------
   if (isWeek) {

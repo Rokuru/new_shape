@@ -20,6 +20,8 @@ const base: SyncedData = {
   share: { enabled: false, body: false },
   cardio: [],
   food: [],
+  foodFavorites: [],
+  checkins: [],
 };
 
 describe('fusion de deux appareils', () => {

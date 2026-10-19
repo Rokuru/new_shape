@@ -6,6 +6,7 @@ import { useToday } from '../hooks/useToday';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { ExerciseInfoButton, ExerciseLink } from './ExerciseInfo';
 import NumField from './NumField';
+import SetNumber from './SetNumber';
 import Sheet from './Sheet';
 import { fmtDate, Icon } from './ui';
 
@@ -76,8 +77,8 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
               <span />
             </div>
             {ex.sets.map((s, k) => (
-              <div className="set-row" key={k}>
-                <span className="muted small">{k + 1}</span>
+              <div className={`set-row ${s.warmup ? 'warmup' : ''}`} key={k}>
+                <SetNumber set={s} index={ex.sets.slice(0, k + 1).filter((x) => !x.warmup).length} onToggle={() => setSet(i, k, { warmup: s.warmup ? undefined : true })} />
                 <NumField aria-label={`${info.name} : charge série ${k + 1}`} value={s.weight} max={999} decimals={2} onChange={(weight) => setSet(i, k, { weight })} />
                 <NumField aria-label={`${info.name} : répétitions série ${k + 1}`} value={s.reps} max={999} decimals={0} onChange={(reps) => setSet(i, k, { reps })} />
                 <select aria-label={`${info.name} : RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => setSet(i, k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
@@ -93,7 +94,15 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
                 </button>
               </div>
             ))}
-            <button className="btn ghost sm" onClick={() => setEx(i, (e) => ({ ...e, sets: [...e.sets, { ...(e.sets.at(-1) ?? { weight: 0, reps: 10 }), done: true }] }))}>
+            <button
+              className="btn ghost sm"
+              onClick={() =>
+                setEx(i, (e) => {
+                  const base: LoggedSet = e.sets.filter((x) => !x.warmup).at(-1) ?? e.sets.at(-1) ?? { weight: 0, reps: 10, done: true };
+                  return { ...e, sets: [...e.sets, { weight: base.weight, reps: base.reps, rir: base.rir, done: true }] };
+                })
+              }
+            >
               <Icon name="plus" size={16} /> Série
             </button>
           </div>

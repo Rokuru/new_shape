@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { api, ApiError, fetchMe, type AppUser, type PasskeyInfo } from './api';
 import { pickSynced, SYNCED_KEYS, useStore, type SyncedData } from './store';
 import { publishShare, refreshFriends, useFriends, usePublish } from './share';
+import { oneCheckinPerDay } from './sanitize';
 
 /** Contenu enregistré sur le serveur : les données + la date de la dernière modification. */
 export interface SyncPayload {
@@ -69,6 +70,9 @@ export function mergeData(local: SyncedData, remote: SyncedData, localIsNewer: b
     workouts: unionById(newer.workouts, older.workouts, deleted).sort((a, b) => a.date.localeCompare(b.date)),
     cardio: unionById(newer.cardio ?? [], older.cardio ?? [], deleted).sort((a, b) => a.date.localeCompare(b.date)),
     food: unionById(newer.food ?? [], older.food ?? [], deleted),
+    foodFavorites: unionById(newer.foodFavorites ?? [], older.foodFavorites ?? [], deleted),
+    // Un point du jour par date : celui de la version la plus récente.
+    checkins: oneCheckinPerDay([...(older.checkins ?? []), ...(newer.checkins ?? [])].filter((c) => !deleted.has(c.id))),
     customPrograms: unionById(newer.customPrograms, older.customPrograms, deleted),
   };
 }
