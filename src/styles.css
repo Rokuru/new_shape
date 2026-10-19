@@ -1074,6 +1074,20 @@ th.num {
     background 0.15s,
     transform 0.15s;
 }
+.check.delete {
+  border-color: var(--critical);
+  color: var(--critical);
+}
+.check.delete:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.set-undo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
 .check.on {
   background: var(--good-mark);
   border-color: transparent;
