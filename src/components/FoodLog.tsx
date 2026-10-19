@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { addDays } from '../lib/dates';
+import { useMemo, useRef, useState } from 'react';
+import { addDays, firstOfMonth } from '../lib/dates';
+import { foodPeriod, mondayOf, type FoodDay, type FoodRange } from '../lib/foodHistory';
 import { copyMeals, uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import type { FoodEntry, FoodFavorite } from '../lib/types';
 import NumField from './NumField';
 import Sheet from './Sheet';
-import { fmtDate, fmtNum, Icon } from './ui';
+import { fmtDate, fmtNum, Icon, Segmented } from './ui';
 import { useConfirm } from './ConfirmDialog';
 
 const MAX_KCAL = 5000;
@@ -17,6 +18,12 @@ const dayProtein = (food: FoodEntry[], day: string) => food.filter((f) => f.date
 const atFor = (day: string, todayKey: string) => (day === todayKey ? new Date().toISOString() : new Date(`${day}T12:00:00`).toISOString());
 const favLabel = (kcal: number, label?: string) => label?.trim() || `${fmtNum(kcal, 0)} kcal`;
 const sameFav = (f: FoodFavorite, label: string) => f.label.toLowerCase() === label.toLowerCase();
+const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+const RANGES: { value: FoodRange; label: string }[] = [
+  { value: 7, label: '7 jours' },
+  { value: 30, label: '30 jours' },
+  { value: 'all', label: 'Tout' },
+];
 
 /** Repas favoris : un geste pour les ajouter au jour affiché ; « Gérer » pour en retirer. */
 function FavoriteChips({ day }: { day: string }) {
@@ -199,12 +206,37 @@ function FoodHistory({ target, proteinTarget, onClose }: { target: number; prote
   const food = useStore((s) => s.food);
   const todayKey = useToday();
   const [day, setDay] = useState(todayKey);
+  const [range, setRange] = useState<FoodRange>(7);
+  const topRef = useRef<HTMLDivElement>(null);
   const entries = food.filter((f) => f.date === day).sort((a, b) => a.at.localeCompare(b.at));
   const total = dayTotal(food, day);
-  const week = Array.from({ length: 7 }, (_, i) => addDays(todayKey, -i));
+  const period = useMemo(() => foodPeriod(food, todayKey, range, target), [food, todayKey, range, target]);
+  const pick = (d: string) => {
+    setDay(d);
+    // La liste peut couvrir des mois : on remonte voir les repas du jour choisi.
+    topRef.current?.closest('.sheet')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const row = (d: FoodDay) => (
+    <li key={d.date}>
+      <button className={`food-week-row ${d.date === day ? 'on' : ''}`} onClick={() => pick(d.date)}>
+        <span>{d.date === todayKey ? 'Aujourd’hui' : firstOfMonth(fmtDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' }))}</span>
+        <span className="food-week-bar">
+          <span style={{ width: `${Math.min(100, (d.kcal / target) * 100)}%` }} className={d.kcal > target ? 'over' : ''} />
+        </span>
+        <span className="small">
+          {d.kcal ? `${fmtNum(d.kcal, 0)} kcal` : '—'}
+          {d.proteinG ? <span className="muted"> · {fmtNum(d.proteinG, 1)} g</span> : null}
+        </span>
+      </button>
+    </li>
+  );
+  const weekLabel = (monday: string) =>
+    monday === mondayOf(todayKey)
+      ? 'Cette semaine'
+      : `Semaine du ${firstOfMonth(fmtDate(monday, { day: 'numeric', month: 'short', year: monday.slice(0, 4) !== todayKey.slice(0, 4) ? 'numeric' : undefined }))}`;
   return (
     <Sheet title="Mangé" kicker="Historique" onClose={onClose}>
-      <div className="day-nav">
+      <div className="day-nav" ref={topRef}>
         <button className="btn ghost sm" aria-label="Jour précédent" onClick={() => setDay(addDays(day, -1))}>
           ‹
         </button>
@@ -231,26 +263,33 @@ function FoodHistory({ target, proteinTarget, onClose }: { target: number; prote
       <CopyPreviousDay day={day} />
       <FavoriteChips day={day} />
       <AddForm day={day} compact />
-      <h3>7 derniers jours</h3>
-      <ul className="food-week">
-        {week.map((d) => {
-          const t = dayTotal(food, d);
-          return (
-            <li key={d}>
-              <button className={`food-week-row ${d === day ? 'on' : ''}`} onClick={() => setDay(d)}>
-                <span>{d === todayKey ? 'Aujourd’hui' : fmtDate(d, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                <span className="food-week-bar">
-                  <span style={{ width: `${Math.min(100, (t / target) * 100)}%` }} className={t > target ? 'over' : ''} />
+      <div className="food-hist-head">
+        <h3>Jour par jour</h3>
+        <Segmented value={range} options={RANGES} onChange={setRange} />
+      </div>
+      {period.logged > 0 && (
+        <p className="small secondary" style={{ margin: '0 0 8px' }}>
+          Moyenne sur {plural(period.logged, 'jour noté', 'jours notés')}, hors aujourd’hui : <b>{fmtNum(period.kcal, 0)} kcal</b> et <b>{fmtNum(period.proteinG, 0)} g</b> de protéines par
+          jour · {period.over ? plural(period.over, 'jour', 'jours') : 'aucun jour'} au-dessus de la cible ({fmtNum(target, 0)} kcal).
+        </p>
+      )}
+      {range === 7 ? (
+        <ul className="food-week">{period.days.map(row)}</ul>
+      ) : (
+        period.weeks.map((w) => (
+          <section key={w.monday} className="food-week-group" aria-label={weekLabel(w.monday)}>
+            <div className="food-week-head small">
+              <b>{weekLabel(w.monday)}</b>
+              {w.kcal !== undefined && (
+                <span className="muted">
+                  moy. {fmtNum(w.kcal, 0)} kcal · {fmtNum(w.proteinG, 0)} g
                 </span>
-                <span className="small">
-                  {t ? `${fmtNum(t, 0)} kcal` : '—'}
-                  {dayProtein(food, d) ? <span className="muted"> · {fmtNum(dayProtein(food, d), 1)} g</span> : null}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+              )}
+            </div>
+            <ul className="food-week">{w.days.map(row)}</ul>
+          </section>
+        ))
+      )}
     </Sheet>
   );
 }
