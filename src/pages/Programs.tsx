@@ -19,6 +19,7 @@ import PlanCard from '../components/PlanCard';
 import { safeUrl } from '../lib/sanitize';
 import { EXERCISES, getExercise } from '../data/exercises';
 import { getStretch, suggestStretches } from '../data/stretches';
+import { useConfirm } from '../components/ConfirmDialog';
 
 /** Programme issu du générateur et jamais modifié à la main (drapeau, ou auteur pour les versions précédentes). */
 const isGenerated = (p: Program) => p.generated ?? p.author === 'Généré à partir de ton profil';
@@ -35,6 +36,7 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
   const [swapping, setSwapping] = useState<{ d: number; j: number }>();
   const previous = customPrograms.find(isGenerated);
   const [keepOld, setKeepOld] = useState(false);
+  const ask = useConfirm();
 
   // Suppression annulable pendant quelques secondes.
   const [undo, setUndo] = useState<{ program: Program; wasActive: boolean; nextDayIndex: number }>();
@@ -93,7 +95,17 @@ export default function ProgramsPage({ go }: { go: (t: Tab) => void }) {
         <div className="row" style={{ marginTop: 12 }}>
           <button
             className="btn primary"
-            onClick={() => {
+            onClick={async () => {
+              if (
+                previous &&
+                !keepOld &&
+                !(await ask({
+                  title: `Remplacer « ${previous.name} » ?`,
+                  message: 'Le nouveau programme prend sa place et devient actif ; tes séances déjà faites restent. Coche « Garder aussi » pour conserver les deux.',
+                  confirmLabel: 'Remplacer',
+                }))
+              )
+                return;
               const p = previous && !keepOld ? { ...shown, id: previous.id } : shown;
               saveCustomProgram(p);
               activateProgram(p.id);
@@ -257,6 +269,7 @@ function ProgramCard({
   onCopy?: () => void;
 }) {
   const st = programStats(program);
+  const ask = useConfirm();
   return (
     <div className="card" id={`prog-${program.id}`} style={active ? { borderColor: 'var(--accent)' } : undefined}>
       {/* Titre et boutons côte à côte s'il y a la place, sinon les boutons passent dessous (iPhone). */}
@@ -286,7 +299,10 @@ function ProgramCard({
             </button>
           )}
           {onDelete && (
-            <button className="btn sm danger" onClick={onDelete}>
+            <button
+              className="btn sm danger"
+              onClick={async () => (await ask({ title: `Supprimer « ${program.name} » ?`, message: 'Le programme est supprimé ; tes séances déjà faites restent.' })) && onDelete()}
+            >
               <Icon name="trash" size={16} /> Supprimer
             </button>
           )}

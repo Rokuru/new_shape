@@ -6,6 +6,7 @@ import ProfileForm from '../components/ProfileForm';
 import { logout, useAuth } from '../lib/sync';
 import { exportData, today, useStore } from '../lib/store';
 import { Segmented } from '../components/ui';
+import { useConfirm } from '../components/ConfirmDialog';
 
 type Theme = 'auto' | 'light' | 'dark';
 
@@ -24,6 +25,7 @@ export function applyTheme(t: Theme) {
 
 export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
   const { profile, setProfile, importData, reset } = useStore();
+  const ask = useConfirm();
   const connected = useAuth((s) => Boolean(s.user));
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [msg, setMsg] = useState('');
@@ -50,7 +52,14 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
   const upload = async (file?: File) => {
     if (!file) return;
     try {
-      importData(JSON.parse(await file.text()));
+      const data: unknown = JSON.parse(await file.text());
+      const ok = await ask({
+        title: 'Remplacer tes données par ce fichier ?',
+        message: `Tes séances, mesures, repas et réglages actuels sont remplacés par ceux de « ${file.name} ». Exporte-les d’abord si tu veux les garder.`,
+        confirmLabel: 'Importer et remplacer',
+      });
+      if (!ok) return;
+      importData(data);
       setMsg('Données restaurées ✓');
     } catch (e) {
       setMsg(`Erreur : ${(e as Error).message}`);
@@ -95,15 +104,24 @@ export default function ProfilePage({ go }: { go: (t: Tab) => void }) {
           </button>
           <label className="btn">
             Importer
-            <input type="file" accept="application/json" hidden onChange={(e) => upload(e.target.files?.[0])} />
+            <input
+              type="file"
+              accept="application/json"
+              hidden
+              onChange={(e) => {
+                void upload(e.target.files?.[0]);
+                // Le même fichier doit pouvoir être rechoisi après un « Annuler ».
+                e.target.value = '';
+              }}
+            />
           </label>
           <button
             className="btn danger ghost"
-            onClick={() => {
+            onClick={async () => {
               if (connected) {
                 // Effacer en étant connecté viderait aussi le compte : on se déconnecte d'abord.
-                if (confirm('Effacer les données de cet appareil et se déconnecter ? Elles restent sauvegardées sur ton compte.')) void logout(true);
-              } else if (confirm('Effacer toutes les données ? Cette action est irréversible.')) reset();
+                if (await ask({ title: 'Effacer les données de cet appareil ?', message: 'Tu seras déconnecté. Elles restent sauvegardées sur ton compte.', confirmLabel: 'Effacer et se déconnecter' })) void logout(true);
+              } else if (await ask({ title: 'Effacer toutes les données ?', message: 'Séances, mesures, repas et réglages : cette action est irréversible.', confirmLabel: 'Tout effacer' })) reset();
             }}
           >
             Tout effacer

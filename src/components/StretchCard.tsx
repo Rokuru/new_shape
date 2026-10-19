@@ -5,6 +5,7 @@ import { beep, unlockAudio } from '../lib/restAlert';
 import MuscleMap from './MuscleMap';
 import Sheet from './Sheet';
 import { Icon } from './ui';
+import { useConfirm } from './ConfirmDialog';
 
 type Item = { id: string; done: boolean };
 
@@ -39,6 +40,7 @@ export function StretchSheet({ id, onClose }: { id: string; onClose: () => void 
 
 /** Partie étirements de la séance en cours : minuteur de maintien, coche, ajout ou retrait. */
 export default function StretchCard({ items, onChange }: { items: Item[]; onChange: (items: Item[]) => void }) {
+  const ask = useConfirm();
   const [info, setInfo] = useState<string>();
   const [timer, setTimer] = useState<{ id: string; end: number }>();
   const [now, setNow] = useState(Date.now());
@@ -102,7 +104,7 @@ export default function StretchCard({ items, onChange }: { items: Item[]; onChan
                 </>
               )}
             </button>
-            <button type="button" className="btn ghost sm" aria-label={`Retirer ${s.name}`} onClick={() => onChange(items.filter((x) => x.id !== id))}>
+            <button type="button" className="btn ghost sm" aria-label={`Retirer ${s.name}`} onClick={async () => (await ask({ title: `Retirer « ${s.name} » ?`, message: 'Il est retiré des étirements de cette séance.', confirmLabel: 'Retirer' })) && onChange(items.filter((x) => x.id !== id))}>
               <Icon name="x" size={14} />
             </button>
           </div>

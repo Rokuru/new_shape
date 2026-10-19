@@ -9,6 +9,7 @@ import { syncNow, useAuth } from '../lib/sync';
 import { LEVEL_LABELS } from '../components/ProfileForm';
 import { GitHubMark } from '../components/AccountCard';
 import { ChartTooltip, Empty, fmtDate, fmtNum, Icon, Legend, Segmented } from '../components/ui';
+import { useConfirm } from '../components/ConfirmDialog';
 
 export default function FriendsPage({ go }: { go: (t: Tab) => void }) {
   const { user } = useAuth();
@@ -86,6 +87,7 @@ function Avatar({ url, size = 36 }: { url?: string; size?: number }) {
 
 function ShareCard() {
   const { share, setShare } = useStore();
+  const ask = useConfirm();
   const { publishedAt, error } = usePublish();
   const { user } = useAuth();
   const set = (p: Partial<typeof share>) => {
@@ -100,8 +102,17 @@ function ShareCard() {
           className={`btn sm ${share.enabled ? 'primary' : ''}`}
           role="switch"
           aria-checked={share.enabled}
-          onClick={() => {
-            if (!share.enabled && !confirm('Tes progrès (charges, séances et, si tu le choisis, ton poids) seront visibles par tes amis mutuels : ceux que tu as ajoutés et qui t’ont ajouté. Continuer ?')) return;
+          onClick={async () => {
+            if (
+              !share.enabled &&
+              !(await ask({
+                title: 'Partager tes progrès ?',
+                message: 'Tes charges, tes séances et, si tu le choisis, ton poids seront visibles par tes amis mutuels : ceux que tu as ajoutés et qui t’ont ajouté.',
+                confirmLabel: 'Partager',
+                safe: true,
+              }))
+            )
+              return;
             set({ enabled: !share.enabled });
           }}
         >
@@ -215,6 +226,7 @@ function AddFriend({ onAdded }: { onAdded: (login: string) => void }) {
 
 function FriendRow({ login, entry, active, onSelect }: { login: string; entry?: FriendEntry; active: boolean; onSelect: () => void }) {
   const { removeFriend } = useStore();
+  const ask = useConfirm();
   const s = entry?.share;
   const mutual = entry?.mutual;
   const thisWeek = s?.weekly.at(-1)?.sessions;
@@ -239,7 +251,7 @@ function FriendRow({ login, entry, active, onSelect }: { login: string; entry?: 
           </div>
         </div>
       </button>
-      <button className="btn ghost sm" aria-label={`Retirer @${login}`} onClick={() => confirm(`Ne plus suivre @${login} ?`) && removeFriend(login)}>
+      <button className="btn ghost sm" aria-label={`Retirer @${login}`} onClick={async () => (await ask({ title: `Ne plus suivre @${login} ?`, message: 'Tu ne verras plus ses progrès.', confirmLabel: 'Ne plus suivre' })) && removeFriend(login)}>
         <Icon name="x" size={16} />
       </button>
     </div>

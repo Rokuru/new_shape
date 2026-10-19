@@ -16,6 +16,7 @@ import { checkpoints, expectedWeight, goalMath, holidayWeeks, nextMonday, phaseD
 import { useStore } from '../lib/store';
 import { dayToTime, timeAxis } from '../lib/timeAxis';
 import type { LoggedSet } from '../lib/types';
+import { useConfirm } from '../components/ConfirmDialog';
 
 const r10 = (n: number) => Math.round(n / 10) * 10;
 const r50 = (n: number) => Math.round(n / 50) * 50;
@@ -62,6 +63,7 @@ function Bullets({ items }: { items: string[] }) {
 
 export default function PlanPage({ go }: { go: (t: Tab) => void }) {
   const { profile, body, workouts, cardio, kcalAdjust, activeProgramId, removePlan } = useStore();
+  const ask = useConfirm();
   const today = useToday();
   const [applying, setApplying] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
@@ -422,8 +424,8 @@ export default function PlanPage({ go }: { go: (t: Tab) => void }) {
       {applied ? (
         <button
           className="btn danger ghost block"
-          onClick={() => {
-            if (confirm('Retirer ce plan de ton profil ? Tes séances et mesures restent, seul le suivi du plan s’arrête.')) {
+          onClick={async () => {
+            if (await ask({ title: 'Retirer ce plan de ton profil ?', message: 'Tes séances et mesures restent, seul le suivi du plan s’arrête.', confirmLabel: 'Retirer le plan' })) {
               removePlan();
               go('profile');
             }

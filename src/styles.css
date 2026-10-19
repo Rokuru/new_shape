@@ -1122,6 +1122,9 @@ th.num {
   font-variant-numeric: tabular-nums;
   box-shadow: 0 14px 34px rgba(2, 6, 23, 0.45);
 }
+.timer-space {
+  height: 56px;
+}
 .timer::before {
   content: '';
   width: 10px;
@@ -1641,6 +1644,29 @@ details[open] > summary::before {
 }
 .sheet-backdrop.over {
   z-index: 60;
+}
+/* Pop-up de confirmation : au-dessus de toute autre fenêtre */
+.sheet-backdrop.alert {
+  z-index: 70;
+}
+.sheet.alert {
+  max-width: 460px;
+}
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.btn.danger-solid {
+  /* Rouge foncé fixe : texte blanc lisible en clair comme en sombre */
+  background: #c62828;
+  border-color: transparent;
+  color: #fff;
+}
+.btn.danger-solid:hover {
+  filter: brightness(1.08);
+  background: #c62828;
 }
 .ex-link:hover {
   color: var(--accent-text);

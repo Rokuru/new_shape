@@ -8,7 +8,8 @@ import { ExerciseInfoButton, ExerciseLink } from './ExerciseInfo';
 import NumField from './NumField';
 import SetNumber from './SetNumber';
 import Sheet from './Sheet';
-import { fmtDate, Icon } from './ui';
+import { fmtDate, fmtNum, Icon } from './ui';
+import { useConfirm } from './ConfirmDialog';
 
 /** Remplace le jour d'une date ISO en gardant l'heure locale de la séance. */
 export function withDay(iso: string, day: string): string {
@@ -21,6 +22,7 @@ export function withDay(iso: string, day: string): string {
 /** Modification d'une séance terminée : date, durée, séries (charge, reps, RIR), exercices, note. */
 export default function WorkoutEditor({ workout, onClose }: { workout: Workout; onClose: () => void }) {
   const updateWorkout = useStore((s) => s.updateWorkout);
+  const ask = useConfirm();
   const todayKey = useToday();
   // Seules les séries validées comptent dans une séance terminée : on n'édite que celles-là.
   const [exercises, setExercises] = useState<LoggedExercise[]>(() =>
@@ -65,7 +67,7 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
               <h3 style={{ margin: 0 }}>
                 <ExerciseLink id={ex.exerciseId} />
               </h3>
-              <button className="btn ghost sm" aria-label={`Retirer ${info.name}`} onClick={() => setExercises((xs) => xs.filter((_, j) => j !== i))}>
+              <button className="btn ghost sm" aria-label={`Retirer ${info.name}`} onClick={async () => (await ask({ title: `Retirer ${info.name} ?`, message: 'Ses séries seront retirées de la séance une fois enregistrée.', confirmLabel: 'Retirer' })) && setExercises((xs) => xs.filter((_, j) => j !== i))}>
                 <Icon name="trash" size={16} />
               </button>
             </div>
@@ -76,24 +78,30 @@ export default function WorkoutEditor({ workout, onClose }: { workout: Workout; 
               <span>RIR</span>
               <span />
             </div>
-            {ex.sets.map((s, k) => (
-              <div className={`set-row ${s.warmup ? 'warmup' : ''}`} key={k}>
-                <SetNumber set={s} index={ex.sets.slice(0, k + 1).filter((x) => !x.warmup).length} onToggle={() => setSet(i, k, { warmup: s.warmup ? undefined : true })} />
-                <NumField aria-label={`${info.name} : charge série ${k + 1}`} value={s.weight} max={999} decimals={2} onChange={(weight) => setSet(i, k, { weight })} />
-                <NumField aria-label={`${info.name} : répétitions série ${k + 1}`} value={s.reps} max={999} decimals={0} onChange={(reps) => setSet(i, k, { reps })} />
-                <select aria-label={`${info.name} : RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => setSet(i, k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
-                  <option value="">–</option>
-                  {[0, 1, 2, 3, 4].map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                <button className="btn ghost sm" aria-label={`Supprimer la série ${k + 1}`} onClick={() => setEx(i, (e) => ({ ...e, sets: e.sets.filter((_, j) => j !== k) }))}>
-                  <Icon name="x" size={16} />
-                </button>
-              </div>
-            ))}
+            {ex.sets.map((s, k) => {
+              // Numéro affiché : rang parmi les séries de travail (l'échauffement est « É »).
+              const n = ex.sets.slice(0, k + 1).filter((x) => !x.warmup).length;
+              const label = s.warmup ? 'l’échauffement' : `la série ${n}`;
+              const load = info.bodyweight ? `PDC${s.weight ? ` + ${fmtNum(s.weight)} kg` : ''}` : `${fmtNum(s.weight)} kg`;
+              return (
+                <div className={`set-row ${s.warmup ? 'warmup' : ''}`} key={k}>
+                  <SetNumber set={s} index={n} onToggle={() => setSet(i, k, { warmup: s.warmup ? undefined : true })} />
+                  <NumField aria-label={`${info.name} : charge série ${k + 1}`} value={s.weight} max={999} decimals={2} onChange={(weight) => setSet(i, k, { weight })} />
+                  <NumField aria-label={`${info.name} : répétitions série ${k + 1}`} value={s.reps} max={999} decimals={0} onChange={(reps) => setSet(i, k, { reps })} />
+                  <select aria-label={`${info.name} : RIR série ${k + 1}`} value={s.rir ?? ''} onChange={(e) => setSet(i, k, { rir: e.target.value === '' ? undefined : Number(e.target.value) })}>
+                    <option value="">–</option>
+                    {[0, 1, 2, 3, 4].map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <button className="btn ghost sm" aria-label={`Supprimer ${label}`} onClick={async () => (await ask({ title: `Supprimer ${label} ?`, message: `${info.name} : ${load} × ${s.reps}.` })) && setEx(i, (e) => ({ ...e, sets: e.sets.filter((_, j) => j !== k) }))}>
+                    <Icon name="x" size={16} />
+                  </button>
+                </div>
+              );
+            })}
             <button
               className="btn ghost sm"
               onClick={() =>
