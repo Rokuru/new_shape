@@ -30,6 +30,8 @@ export function legacyToSynced(raw: unknown, keepShare: SyncedData['share']): Sy
     friends: c.friends,
     cardio: c.cardio,
     food: c.food,
+    foodFavorites: c.foodFavorites,
+    checkins: c.checkins,
     // Un transfert ne doit jamais activer le partage : on garde le réglage d'ici.
     share: keepShare,
   };

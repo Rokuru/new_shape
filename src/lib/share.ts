@@ -1,7 +1,7 @@
 import { addDays, dayKey, localDate, parseLocalDate } from './dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { bodyFatOf, bodyweightAt, bestE1rm, startOfWeek, tonnage, weightTrend } from './calc';
+import { bodyFatOf, bodyweightAt, bestE1rm, isWorkSet, startOfWeek, tonnage, weightTrend } from './calc';
 import { api, ApiError, type AppUser } from './api';
 import type { useStore } from './store';
 import type { Goal, Level, Sex } from './types';
@@ -79,7 +79,7 @@ export function buildShare(s: Pick<AppState, 'profile' | 'workouts' | 'body' | '
       durationMin: w.durationMin,
       tonnage: Math.round(tonnage(w)),
       top: w.exercises.slice(0, 4).map((e) => {
-        const best = e.sets.filter((x) => x.done).sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
+        const best = e.sets.filter(isWorkSet).sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
         return { id: e.exerciseId, weight: best?.weight ?? 0, reps: best?.reps ?? 0 };
       }),
     }));

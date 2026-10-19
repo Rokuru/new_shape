@@ -81,7 +81,7 @@ export function WeeklyReportCard() {
 }
 
 export default function WeeklyReportSheet({ onClose }: { onClose: () => void }) {
-  const { profile, body, workouts, cardio, food, customPrograms, activeProgramId, kcalAdjust } = useStore();
+  const { profile, body, workouts, cardio, food, checkins, customPrograms, activeProgramId, kcalAdjust } = useStore();
   const today = useToday();
   const hasData = (from: string) => {
     const to = addDays(from, 6);
@@ -115,9 +115,9 @@ export default function WeeklyReportSheet({ onClose }: { onClose: () => void }) 
   const from = mode === 'week' ? start : mode === 'since' ? (sinceOk ? since : today) : (first ?? today);
   const end = mode === 'week' ? addDays(start, 6) : today;
   const text = useMemo(() => {
-    const data = { profile, body, workouts, cardio, food, program, kcalAdjust };
+    const data = { profile, body, workouts, cardio, food, checkins, program, kcalAdjust };
     return mode === 'week' ? weeklyReport(data, start, today) : periodReport(data, from, today, today);
-  }, [profile, body, workouts, cardio, food, program, kcalAdjust, mode, start, from, today]);
+  }, [profile, body, workouts, cardio, food, checkins, program, kcalAdjust, mode, start, from, today]);
 
   const canPrev = first !== undefined && start > weekStartOf(first);
   const inWeek = (d: string) => d >= from && d <= end;

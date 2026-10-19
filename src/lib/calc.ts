@@ -1,8 +1,11 @@
 import { dayKey } from './dates';
 import { getExercise, MUSCLES } from '../data/exercises';
-import type { ActivityLevel, BmrMethod, BodyEntry, Goal, Muscle, Profile, Workout } from './types';
+import type { ActivityLevel, BmrMethod, BodyEntry, Goal, LoggedSet, Muscle, Profile, Workout } from './types';
 
 export const round = (n: number, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
+
+/** Série de travail validée : l'échauffement ne compte ni dans les records, ni dans le volume, ni dans le tonnage. */
+export const isWorkSet = (s: LoggedSet) => s.done && !s.warmup;
 
 export function ageFrom(birthYear: number, now = new Date()): number {
   return now.getFullYear() - birthYear;
@@ -362,13 +365,13 @@ export function bestE1rm(w: Workout, exerciseId: string, bodyweightKg?: number):
   let best = 0;
   for (const ex of w.exercises) {
     if (ex.exerciseId !== exerciseId) continue;
-    for (const s of ex.sets) if (s.done) best = Math.max(best, setE1rm(exerciseId, s.weight, s.reps, bodyweightKg));
+    for (const s of ex.sets) if (isWorkSet(s)) best = Math.max(best, setE1rm(exerciseId, s.weight, s.reps, bodyweightKg));
   }
   return best;
 }
 
 export function tonnage(w: Workout): number {
-  return w.exercises.reduce((sum, ex) => sum + ex.sets.reduce((s, set) => s + (set.done ? set.weight * set.reps : 0), 0), 0);
+  return w.exercises.reduce((sum, ex) => sum + ex.sets.reduce((s, set) => s + (isWorkSet(set) ? set.weight * set.reps : 0), 0), 0);
 }
 
 /**
@@ -404,7 +407,7 @@ export function weeklyVolume(workouts: Workout[], now = new Date()): Record<Musc
   const cutoff = now.getTime() - 7 * DAY;
   const items = workouts
     .filter((w) => w.finished && new Date(w.date).getTime() >= cutoff)
-    .flatMap((w) => w.exercises.map((e) => ({ exerciseId: e.exerciseId, sets: e.sets.filter((s) => s.done).length })));
+    .flatMap((w) => w.exercises.map((e) => ({ exerciseId: e.exerciseId, sets: e.sets.filter(isWorkSet).length })));
   return volumeFromSets(items);
 }
 
