@@ -6,6 +6,7 @@ import type { FoodEntry, FoodFavorite } from '../lib/types';
 import NumField from './NumField';
 import Sheet from './Sheet';
 import { fmtDate, fmtNum, Icon } from './ui';
+import { useConfirm } from './ConfirmDialog';
 
 const MAX_KCAL = 5000;
 const MAX_PROT = 300;
@@ -20,6 +21,7 @@ const sameFav = (f: FoodFavorite, label: string) => f.label.toLowerCase() === la
 /** Repas favoris : un geste pour les ajouter au jour affiché ; « Gérer » pour en retirer. */
 function FavoriteChips({ day }: { day: string }) {
   const { foodFavorites, addFood, removeFavorite } = useStore();
+  const ask = useConfirm();
   const todayKey = useToday();
   const [editing, setEditing] = useState(false);
   const [msg, setMsg] = useState('');
@@ -43,7 +45,7 @@ function FavoriteChips({ day }: { day: string }) {
       <div className="chips">
         {favs.map((f) =>
           editing ? (
-            <button key={f.id} type="button" className="chip fav-remove" onClick={() => removeFavorite(f.id)} aria-label={`Retirer ${f.label} des favoris`}>
+            <button key={f.id} type="button" className="chip fav-remove" onClick={async () => (await ask({ title: `Retirer « ${f.label} » des favoris ?`, message: 'Les repas déjà notés ne changent pas.', confirmLabel: 'Retirer' })) && removeFavorite(f.id)} aria-label={`Retirer ${f.label} des favoris`}>
               <Icon name="x" size={14} /> {f.label}
             </button>
           ) : (
@@ -126,6 +128,7 @@ function AddForm({ day, compact }: { day: string; compact?: boolean }) {
 
 function EntryRow({ e }: { e: FoodEntry }) {
   const { updateFood, deleteFood, addFood, foodFavorites, addFavorite, removeFavorite } = useStore();
+  const ask = useConfirm();
   const todayKey = useToday();
   const name = favLabel(e.kcal, e.label);
   const fav = foodFavorites.find((f) => sameFav(f, name));
@@ -168,7 +171,10 @@ function EntryRow({ e }: { e: FoodEntry }) {
           className={`btn ghost sm fav-toggle ${fav ? 'on' : ''}`}
           aria-pressed={!!fav}
           aria-label={fav ? `Retirer ${name} des favoris` : `Ajouter ${name} aux favoris`}
-          onClick={() => (fav ? removeFavorite(fav.id) : addFavorite({ id: uid(), label: name, kcal: e.kcal, proteinG: e.proteinG }))}
+          onClick={async () => {
+            if (!fav) return addFavorite({ id: uid(), label: name, kcal: e.kcal, proteinG: e.proteinG });
+            if (await ask({ title: `Retirer « ${fav.label} » des favoris ?`, message: 'Les repas déjà notés ne changent pas.', confirmLabel: 'Retirer' })) removeFavorite(fav.id);
+          }}
         >
           <Icon name="star" size={16} />
         </button>
@@ -180,7 +186,7 @@ function EntryRow({ e }: { e: FoodEntry }) {
         <button className="btn ghost sm" aria-label={`Modifier ${e.label ?? 'la ligne'}`} onClick={() => setEditing(true)}>
           <Icon name="edit" size={16} />
         </button>
-        <button className="btn ghost sm danger" aria-label={`Supprimer ${e.label ?? 'la ligne'}`} onClick={() => confirm(`Supprimer ${fmtNum(e.kcal, 0)} kcal${e.label ? ` (${e.label})` : ''} ?`) && deleteFood(e.id)}>
+        <button className="btn ghost sm danger" aria-label={`Supprimer ${e.label ?? 'la ligne'}`} onClick={async () => (await ask({ title: `Supprimer ${e.label ? `« ${e.label} »` : 'ce repas'} ?`, message: `${fmtNum(e.kcal, 0)} kcal${e.proteinG ? `, ${fmtNum(e.proteinG, 1)} g de protéines` : ''}.` })) && deleteFood(e.id)}>
           <Icon name="trash" size={16} />
         </button>
       </span>

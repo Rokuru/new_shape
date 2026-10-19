@@ -6,6 +6,7 @@ import type { PlannedExercise, Program, ProgramDay } from '../lib/types';
 import NumField from './NumField';
 import Sheet from './Sheet';
 import { Icon } from './ui';
+import { useConfirm } from './ConfirmDialog';
 
 const newExercise = (exerciseId: string): PlannedExercise => {
   const ex = getExercise(exerciseId);
@@ -62,6 +63,7 @@ function ExerciseSelect({ value, onChange, label }: { value: string; onChange: (
 
 /** Éditeur de programme personnel : nom, séances, exercices (séries, répétitions, RIR, repos, ordre) et étirements. */
 export default function ProgramEditor({ initial, isNew, onClose, onDelete }: { initial: Program; isNew: boolean; onClose: () => void; onDelete?: () => void }) {
+  const ask = useConfirm();
   const { saveCustomProgram, activateProgram, activeProgramId } = useStore();
   const [p, setP] = useState(initial);
   const [activate, setActivate] = useState(isNew);
@@ -105,7 +107,11 @@ export default function ProgramEditor({ initial, isNew, onClose, onDelete }: { i
           <div key={i} className="edit-ex">
             <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
               <input aria-label={`Nom de la séance ${i + 1}`} value={d.name} onChange={(e) => setDay(i, (x) => ({ ...x, name: e.target.value }))} style={{ fontWeight: 700 }} />
-              <button className="btn ghost sm" aria-label={`Supprimer ${d.name}`} onClick={() => confirm(`Supprimer « ${d.name} » ?`) && setP((x) => ({ ...x, days: x.days.filter((_, j) => j !== i) }))}>
+              <button
+                className="btn ghost sm"
+                aria-label={`Supprimer ${d.name}`}
+                onClick={async () => (await ask({ title: `Supprimer « ${d.name} » ?`, message: 'La séance et ses exercices sont retirés du programme.' })) && setP((x) => ({ ...x, days: x.days.filter((_, j) => j !== i) }))}
+              >
                 <Icon name="trash" size={16} />
               </button>
             </div>
@@ -120,7 +126,14 @@ export default function ProgramEditor({ initial, isNew, onClose, onDelete }: { i
                   <button className="btn ghost sm" aria-label="Descendre" disabled={k === d.exercises.length - 1} onClick={() => setDay(i, (x) => ({ ...x, exercises: move(x.exercises, k, k + 1) }))}>
                     ↓
                   </button>
-                  <button className="btn ghost sm" aria-label={`Retirer ${getExercise(e.exerciseId).name}`} onClick={() => setDay(i, (x) => ({ ...x, exercises: x.exercises.filter((_, j) => j !== k) }))}>
+                  <button
+                    className="btn ghost sm"
+                    aria-label={`Retirer ${getExercise(e.exerciseId).name}`}
+                    onClick={async () =>
+                      (await ask({ title: `Retirer ${getExercise(e.exerciseId).name} ?`, message: `Il est retiré de « ${d.name} ».`, confirmLabel: 'Retirer' })) &&
+                      setDay(i, (x) => ({ ...x, exercises: x.exercises.filter((_, j) => j !== k) }))
+                    }
+                  >
                     <Icon name="x" size={16} />
                   </button>
                 </div>
@@ -232,7 +245,8 @@ export default function ProgramEditor({ initial, isNew, onClose, onDelete }: { i
         <button
           className="btn block danger"
           style={{ marginTop: 20 }}
-          onClick={() => {
+          onClick={async () => {
+            if (!(await ask({ title: `Supprimer « ${p.name} » ?`, message: 'Le programme est supprimé ; tes séances déjà faites restent.' }))) return;
             onClose();
             onDelete();
           }}

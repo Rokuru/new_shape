@@ -7,7 +7,7 @@ import { history, prefillSets, suggest, withWarmup } from '../lib/progression';
 import { activeMs, allPrograms, useStore } from '../lib/store';
 import { planAdjust, planProgramId, planStatus } from '../lib/plan';
 import { useToday } from '../hooks/useToday';
-import { dayKey } from '../lib/dates';
+import { dayKey, firstOfMonth } from '../lib/dates';
 import type { LoggedExercise, LoggedSet, Workout } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon } from '../components/ui';
 import ActivityCard from '../components/ActivityCard';
@@ -19,6 +19,7 @@ import StretchCard from '../components/StretchCard';
 import { getStretch, suggestStretches } from '../data/stretches';
 import WorkoutEditor, { DuplicateWorkout } from '../components/WorkoutEditor';
 import { loadPrefs, loadRestEnd, notifySupported, requestNotify, restDone, savePrefs, saveRestEnd, unlockAudio, type RestAlertPrefs } from '../lib/restAlert';
+import { useConfirm } from '../components/ConfirmDialog';
 
 export default function WorkoutPage({ go }: { go: (t: Tab) => void }) {
   const { activeWorkout, customPrograms, activeProgramId, nextDayIndex, startWorkout, workouts, deleteWorkout, profile } = useStore();
@@ -113,6 +114,7 @@ function MySessions({
   onDelete: (id: string) => void;
 }) {
   const { profile, body } = useStore();
+  const ask = useConfirm();
   const [limit, setLimit] = useState(8);
   const basis = energyBasis(body, profile);
   const bmr = computeBmr(profile, basis.weightKg, basis.bodyFatPct).bmr;
@@ -164,8 +166,8 @@ function MySessions({
               </button>
               <button
                 className="btn danger ghost sm"
-                onClick={() => {
-                  if (confirm('Supprimer cette séance ?')) onDelete(w.id);
+                onClick={async () => {
+                  if (await ask({ title: 'Supprimer cette séance ?', message: `${w.dayName} du ${firstOfMonth(fmtDate(dayKey(w.date), { weekday: 'long', day: 'numeric', month: 'long' }))} : séries et notes.` })) onDelete(w.id);
                 }}
               >
                 <Icon name="trash" size={16} /> Supprimer
@@ -210,6 +212,7 @@ function pausedSince(iso: string): string {
 
 function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void }) {
   const { updateActive, finishWorkout, cancelWorkout, pauseWorkout, resumeWorkout, workouts, customPrograms, profile } = useStore();
+  const ask = useConfirm();
   // Consigne de la séance (cardio après, circuit) et ajustement du plan objectif appliqué au démarrage.
   const dayNote = allPrograms(customPrograms)
     .find((p) => p.id === workout.programId)
@@ -366,7 +369,8 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
               return { ...e, sets: [...e.sets, { weight: base.weight, reps: base.reps, done: false }] };
             })
           }
-          onRemoveSet={() => setEx(i, (e) => ({ ...e, sets: e.sets.slice(0, -1) }))}
+          onDeleteSet={(k) => setEx(i, (e) => ({ ...e, sets: e.sets.filter((_, j) => j !== k) }))}
+          onRestoreSet={(k, set) => setEx(i, (e) => ({ ...e, sets: [...e.sets.slice(0, k), set, ...e.sets.slice(k)] }))}
           onRemove={() => updateActive((w) => ({ ...w, exercises: w.exercises.filter((_, j) => j !== i) }))}
         />
       ))}
@@ -416,19 +420,23 @@ function ActiveWorkout({ workout, go }: { workout: Workout; go: (t: Tab) => void
 
       <button
         className="btn danger ghost block"
-        onClick={() => {
-          if (confirm('Abandonner cette séance ? Les séries ne seront pas enregistrées.')) cancelWorkout();
+        onClick={async () => {
+          if (await ask({ title: 'Abandonner la séance ?', message: 'Les séries ne seront pas enregistrées.', confirmLabel: 'Abandonner' })) cancelWorkout();
         }}
       >
         Abandonner la séance
       </button>
 
       {remaining !== undefined && remaining > 0 && (
-        <div className="timer" role="timer" aria-live="polite">
-          Repos {mmss(remaining)}
-          <button onClick={() => setRestEnd((r) => (r ?? Date.now()) + 30000)}>+30 s</button>
-          <button onClick={() => setRestEnd(undefined)}>Passer</button>
-        </div>
+        <>
+          {/* Place pour le minuteur fixé en bas : la fin de la page (« Abandonner la séance ») reste atteignable. */}
+          <div className="timer-space" aria-hidden="true" />
+          <div className="timer" role="timer" aria-live="polite">
+            Repos {mmss(remaining)}
+            <button onClick={() => setRestEnd((r) => (r ?? Date.now()) + 30000)}>+30 s</button>
+            <button onClick={() => setRestEnd(undefined)}>Passer</button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -481,7 +489,8 @@ function ExerciseCard({
   onSet,
   onToggle,
   onAddSet,
-  onRemoveSet,
+  onDeleteSet,
+  onRestoreSet,
   onRemove,
 }: {
   ex: LoggedExercise;
@@ -490,10 +499,21 @@ function ExerciseCard({
   onSet: (k: number, p: Partial<LoggedSet>) => void;
   onToggle: (k: number) => void;
   onAddSet: () => void;
-  onRemoveSet: () => void;
+  /** Supprime la série k (n'importe laquelle) ; onRestoreSet la remet à sa place (« Annuler »). */
+  onDeleteSet: (k: number) => void;
+  onRestoreSet: (k: number, set: LoggedSet) => void;
   onRemove: () => void;
 }) {
   const info = getExercise(ex.exerciseId);
+  const ask = useConfirm();
+  // Mode suppression : une corbeille remplace la coche de chaque série.
+  const [deleting, setDeleting] = useState(false);
+  const [undo, setUndo] = useState<{ k: number; set: LoggedSet; label: string }>();
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(undefined), 8000);
+    return () => clearTimeout(t);
+  }, [undo]);
   const past = history(workouts, ex.exerciseId, currentId);
   const last = past[0];
   const sug = ex.target ? suggest(ex.target, past) : undefined;
@@ -515,7 +535,19 @@ function ExerciseCard({
             </div>
           )}
         </div>
-        <button className="btn ghost sm" onClick={onRemove} aria-label={`Retirer ${info.name}`}>
+        <button
+          className="btn ghost sm"
+          onClick={async () => {
+            const done = ex.sets.filter((s) => s.done).length;
+            const ok = await ask({
+              title: `Retirer ${info.name} de la séance ?`,
+              message: done ? `${done} série${done > 1 ? 's' : ''} déjà validée${done > 1 ? 's' : ''} ser${done > 1 ? 'ont' : 'a'} perdue${done > 1 ? 's' : ''}.` : 'Ses séries prévues sont retirées.',
+              confirmLabel: 'Retirer',
+            });
+            if (ok) onRemove();
+          }}
+          aria-label={`Retirer ${info.name}`}
+        >
           <Icon name="x" size={16} />
         </button>
       </div>
@@ -562,24 +594,65 @@ function ExerciseCard({
                 </option>
               ))}
             </select>
-            <button
-              className={`check ${s.done ? 'on' : ''}`}
-              onClick={() => onToggle(k)}
-              aria-label={s.done ? `Annuler ${s.warmup ? 'l’échauffement' : 'la série'}` : `Valider ${s.warmup ? 'l’échauffement' : 'la série'}`}
-              aria-pressed={s.done}
-            >
-              <Icon name="check" size={18} />
-            </button>
+            {deleting ? (
+              <button
+                className="check delete"
+                disabled={ex.sets.length <= 1}
+                aria-label={`Supprimer ${s.warmup ? 'l’échauffement' : `la série ${n}`}`}
+                onClick={async () => {
+                  const load = info.bodyweight ? `PDC${s.weight ? ` + ${fmtNum(s.weight)} kg` : ''}` : `${fmtNum(s.weight)} kg`;
+                  const ok = await ask({
+                    title: `Supprimer ${s.warmup ? 'l’échauffement' : `la série ${n}`} ?`,
+                    message: `${info.name} : ${load} × ${s.reps}${s.done ? ', série déjà validée' : ''}.`,
+                  });
+                  if (!ok) return;
+                  setUndo({ k, set: s, label: s.warmup ? 'Échauffement supprimé' : `Série ${n} supprimée` });
+                  onDeleteSet(k);
+                }}
+              >
+                <Icon name="trash" size={18} />
+              </button>
+            ) : (
+              <button
+                className={`check ${s.done ? 'on' : ''}`}
+                onClick={() => onToggle(k)}
+                aria-label={s.done ? `Annuler ${s.warmup ? 'l’échauffement' : 'la série'}` : `Valider ${s.warmup ? 'l’échauffement' : 'la série'}`}
+                aria-pressed={s.done}
+              >
+                <Icon name="check" size={18} />
+              </button>
+            )}
           </div>
         );
       })}
+      {deleting && <p className="small muted" style={{ margin: '0 0 8px' }}>Touche la corbeille de la série à supprimer, même déjà validée.</p>}
+      {undo && (
+        <p className="small set-undo" role="status">
+          {undo.label}
+          <button
+            className="btn ghost sm"
+            onClick={() => {
+              onRestoreSet(undo.k, undo.set);
+              setUndo(undefined);
+            }}
+          >
+            Annuler
+          </button>
+        </p>
+      )}
       <div className="row">
         <button className="btn sm" onClick={onAddSet}>
           <Icon name="plus" size={14} /> Série
         </button>
-        {ex.sets.length > 1 && (
-          <button className="btn sm ghost" onClick={onRemoveSet}>
-            Retirer une série
+        {(ex.sets.length > 1 || deleting) && (
+          <button className={`btn sm ${deleting ? 'primary' : 'ghost'}`} onClick={() => setDeleting((v) => !v)} aria-pressed={deleting}>
+            {deleting ? (
+              'Terminé'
+            ) : (
+              <>
+                <Icon name="trash" size={14} /> Supprimer des séries
+              </>
+            )}
           </button>
         )}
       </div>

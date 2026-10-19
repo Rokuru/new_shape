@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AVATAR_PRESETS, deletePasskey, loginWithPasskey, passkeySupported, prepareAvatar, registerPasskey, setAvatar, startGithub, type AvatarChoice } from '../lib/api';
 import { afterSignIn, deleteAccount, logout, refreshSession, syncNow, useAuth } from '../lib/sync';
 import { Icon } from './ui';
+import { useConfirm } from './ConfirmDialog';
 
 function ago(iso?: string | null) {
   if (!iso) return '';
@@ -119,6 +120,7 @@ function SignedOut({ compact, error, notice }: { compact?: boolean; error?: stri
 function SignedIn() {
   const { user, passkeys = [], githubConfigured, notice } = useAuth();
   const { busy, msg, run } = useAction();
+  const ask = useConfirm();
   if (!user) return null;
   const canPasskey = passkeySupported();
   const onlyMethod = !user.github && passkeys.length <= 1;
@@ -144,9 +146,14 @@ function SignedIn() {
         </button>
         <button
           className="btn sm ghost"
-          onClick={() => {
-            const clear = confirm('Se déconnecter.\n\nOK : effacer aussi les données de cet appareil (elles restent sauvegardées sur ton compte).\nAnnuler : les garder ici.');
-            void logout(clear);
+          onClick={async () => {
+            const a = await ask({
+              title: 'Se déconnecter ?',
+              message: 'Tes données restent sauvegardées sur ton compte. Tu peux aussi les effacer de cet appareil.',
+              confirmLabel: 'Se déconnecter et effacer cet appareil',
+              altLabel: 'Se déconnecter en gardant les données',
+            });
+            if (a) void logout(a === true);
           }}
         >
           Se déconnecter
@@ -171,7 +178,9 @@ function SignedIn() {
               aria-label="Supprimer cette clé"
               disabled={busy || onlyMethod}
               title={onlyMethod ? 'Ton seul moyen de connexion' : undefined}
-              onClick={() => confirm('Supprimer cette clé d’accès ? Cet appareil ne pourra plus se connecter avec Face ID.') && run(async () => (await deletePasskey(k.id), await refreshSession()))}
+              onClick={async () =>
+                (await ask({ title: 'Supprimer cette clé d’accès ?', message: 'Cet appareil ne pourra plus se connecter avec Face ID.' })) && run(async () => (await deletePasskey(k.id), await refreshSession()))
+              }
             >
               <Icon name="trash" size={16} />
             </button>
@@ -216,7 +225,9 @@ function SignedIn() {
         <button
           className="btn sm danger"
           disabled={busy}
-          onClick={() => confirm('Supprimer définitivement ton compte New Shape et toutes ses données sur le serveur ?') && run(deleteAccount)}
+          onClick={async () =>
+            (await ask({ title: 'Supprimer ton compte ?', message: 'Ton compte New Shape et toutes ses données sur le serveur seront supprimés définitivement.', confirmLabel: 'Supprimer mon compte' })) && run(deleteAccount)
+          }
         >
           Supprimer définitivement
         </button>

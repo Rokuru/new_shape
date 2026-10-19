@@ -5,6 +5,8 @@ import { uid, useStore } from '../lib/store';
 import { useToday } from '../hooks/useToday';
 import type { CardioEntry } from '../lib/types';
 import { Empty, fmtDate, fmtNum, Icon, Segmented, Tile } from './ui';
+import { useConfirm } from './ConfirmDialog';
+import { firstOfMonth } from '../lib/dates';
 
 type Mode = 'tapis' | 'pas';
 const MODE_KEY = 'new-shape-cardio-mode';
@@ -22,6 +24,7 @@ const readMode = (): Mode => {
  */
 export default function CardioCard() {
   const { cardio, profile, body, addCardio, deleteCardio } = useStore();
+  const ask = useConfirm();
   // Même poids que l'onglet Nutrition : les calories affichées ici sont celles qui comptent dans la cible.
   const { weightKg } = energyBasis(body, profile);
   const todayKey = useToday();
@@ -162,7 +165,7 @@ export default function CardioCard() {
                       {fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'short' })} · {fmtNum(st.distanceKm, 1)} km{st.elevationM ? ` · +${st.elevationM} m` : ''} · {st.kcal} kcal
                     </div>
                   </div>
-                  <button className="btn ghost sm" aria-label="Supprimer" onClick={() => confirm('Supprimer cette marche ?') && deleteCardio(e.id)}>
+                  <button className="btn ghost sm" aria-label="Supprimer" onClick={async () => (await ask({ title: 'Supprimer cette marche ?', message: `Marche du ${firstOfMonth(fmtDate(e.date, { day: 'numeric', month: 'long' }))}.` })) && deleteCardio(e.id)}>
                     <Icon name="trash" size={14} />
                   </button>
                 </div>

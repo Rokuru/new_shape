@@ -8,6 +8,8 @@ import type { BodyEntry, Profile } from '../lib/types';
 import { BiaFields } from './BiaPanel';
 import Sheet from './Sheet';
 import { Empty, fmtDate, fmtNum, Icon, signed } from './ui';
+import { useConfirm } from './ConfirmDialog';
+import { firstOfMonth } from '../lib/dates';
 
 type ColKey =
   | 'weight'
@@ -85,8 +87,13 @@ export default function BodyHistory({ body, profile }: { body: BodyEntry[]; prof
     setCols(cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]);
   };
 
-  const remove = (e: BodyEntry) => {
-    if (confirm(`Supprimer la mesure du ${fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' })} ?`)) {
+  const ask = useConfirm();
+  const remove = async (e: BodyEntry) => {
+    const ok = await ask({
+      title: 'Supprimer cette mesure ?',
+      message: `Mesure du ${firstOfMonth(fmtDate(e.date, { day: 'numeric', month: 'long', year: 'numeric' }))} : poids, mensurations et données de la balance.`,
+    });
+    if (ok) {
       deleteBody(e.id);
       setOpenId(undefined);
     }
@@ -382,11 +389,16 @@ function EntryEditor({ entry, body, profile, onDone, onCancel }: { entry: BodyEn
   const hidden = new Set(profile.sex === 'male' && entry.hipCm === undefined ? ['hipCm'] : []);
   const hasSeg = SEGMENTS.some((s) => entry.bia?.segFat?.[s.key] !== undefined || entry.bia?.segMuscle?.[s.key] !== undefined);
 
-  const save = () => {
+  const ask = useConfirm();
+  const save = async () => {
     const res = buildBodyEntry(form, { id: entry.id, date, todayKey, tanita });
     if ('error' in res) return setMsg(res.error);
     const clash = body.find((b) => b.id !== entry.id && b.date === date);
-    if (clash && !confirm(`Une mesure existe déjà le ${fmtDate(date, { day: 'numeric', month: 'long', year: 'numeric' })} : elle sera remplacée. Continuer ?`)) return;
+    if (
+      clash &&
+      !(await ask({ title: 'Remplacer la mesure ?', message: `Une mesure existe déjà le ${firstOfMonth(fmtDate(date, { day: 'numeric', month: 'long', year: 'numeric' }))} : elle sera remplacée.`, confirmLabel: 'Remplacer' }))
+    )
+      return;
     upsertBody(res.entry);
     onDone(res.entry.id);
   };
