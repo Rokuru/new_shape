@@ -3,35 +3,10 @@ import { useToday } from '../hooks/useToday';
 import { addDays, dayKey, daysBetween, firstOfMonth, parseLocalDate } from '../lib/dates';
 import { deficitStart } from '../lib/deficit';
 import { allPrograms, useStore } from '../lib/store';
+import { CLAUDE_URL, copyText, downloadText } from '../lib/textExport';
 import { defaultReportWeek, firstDataDay, periodReport, weekStartOf, weeklyReport } from '../lib/weeklyReport';
 import Sheet from './Sheet';
 import { Icon, Segmented } from './ui';
-
-const CLAUDE_URL = 'https://claude.ai/new';
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Repli (navigateurs anciens, contexte non sécurisé) : sélection d'une zone de texte temporaire.
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      ta.setSelectionRange(0, text.length);
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
 
 const shortDay = (day: string) => firstOfMonth(parseLocalDate(day).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }));
 const longDay = (day: string) => firstOfMonth(parseLocalDate(day).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
@@ -144,16 +119,7 @@ export default function WeeklyReportSheet({ onClose }: { onClose: () => void }) 
       if ((e as { name?: string })?.name !== 'AbortError') flash('Partage impossible : utilise « Copier ».');
     }
   };
-  const download = () => {
-    const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = mode === 'week' ? `bilan-semaine-${start}.md` : `bilan-${from}-au-${end}.md`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const download = () => downloadText(text, mode === 'week' ? `bilan-semaine-${start}.md` : `bilan-${from}-au-${end}.md`);
 
   return (
     <Sheet title="Mon bilan" kicker="Pour Claude" onClose={onClose}>
