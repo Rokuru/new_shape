@@ -4,6 +4,7 @@ import { composition, currentComposition, navyBodyFat, weeklyRate, weightTrend }
 import { biaTrend } from '../lib/bia';
 import BiaPanel, { BiaFields } from '../components/BiaPanel';
 import BodyHistory from '../components/BodyHistory';
+import BodyNutritionCard from '../components/BodyNutritionExport';
 import GoalCard from '../components/GoalCard';
 import { FfmiInfoButton, ffmiLabel } from '../components/FfmiInfo';
 import { BODY_FIELDS as FIELDS, buildBodyEntry } from '../lib/bodyForm';
@@ -154,6 +155,7 @@ export default function BodyPage() {
       )}
 
       <GoalCard />
+      <BodyNutritionCard />
 
       <div className="card">
         <h2>Nouvelle mesure</h2>
